@@ -39,3 +39,4 @@ parts
 #*#
 
 poetry.lock
+.envrc
