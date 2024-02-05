@@ -1,0 +1,26 @@
+repos:
+# these will run on change staging pyproject.toml
+- repo: local
+  hooks:
+  - id: poetry-check
+    name: run poetry check
+    language: system
+    entry: poetry check
+    pass_filenames: false
+    files: "^pyproject.toml$"
+    require_serial: true
+  - id: poetry-lock
+    name: run poetry lock
+    language: system
+    entry: poetry lock -q -n --no-update
+    files: "^pyproject.toml$"
+    pass_filenames: false
+    require_serial: true
+  - id: export-requirements
+    name: export requirements.txt
+    description: export requirements.txt
+    language: system
+    entry: poetry export --without-hashes -f requirements.txt -o requirements.txt
+    files: "^pyproject.toml$"
+    pass_filenames: false
+    require_serial: true
