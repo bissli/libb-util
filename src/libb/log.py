@@ -676,14 +676,16 @@ def configure_logging(setup='', app='', app_args=None, level=None):
         set_level(level)
 
     logconfig = LOG_CONF
-    if setup == 'cmd':
+    if config.ENVIRONMENT != 'prod':
+        merge_dict(logconfig, CMD_CONF)
+    elif (config.CHECKTTY and stream_is_tty(sys.stdout)):
+        merge_dict(logconfig, CMD_CONF)
+    elif setup == 'cmd':
         merge_dict(logconfig, CMD_CONF)
     elif setup == 'job':
         merge_dict(logconfig, JOB_CONF)
     elif setup == 'twd':
         merge_dict(logconfig, TWD_CONF)
-    elif config.checktty and stream_is_tty(sys.stdout):
-        merge_dict(logconfig, CMD_CONF)
 
     now = now()
     file_fmt = {

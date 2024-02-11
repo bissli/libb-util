@@ -15,7 +15,7 @@ Environemntal Variables
 -----------------------
 `config.py`
 ```
-CONFIG_ENVIRONMENT
+CONFIG_PROD (or CONFIG_DEV)
 CONFIG_SYSLOG_HOST
 CONFIG_SYSLOG_PORT
 CONFIG_MAIL_DOMAIN

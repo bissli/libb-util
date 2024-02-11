@@ -9,6 +9,17 @@ WIN = os.name == 'nt'
 WSL = 'Microsoft' in platform.release()
 NIX = platform.system() == 'Linux' and not WSL
 
+# Environment
+ENVIRONMENT = None
+if 'CONFIG_PROD' in os.environ:
+    ENVIRONMENT = 'prod'
+if 'CONFIG_DEV' in os.environ:
+    ENVIRONMENT = 'dev'
+if ENVIRONMENT is None:
+    raise AttributeError('Missing environmnet type, set in env variables')
+CHECKTTY = 'CONFIG_CHECKTTY' in os.environ
+WEBAPP = 'CONFIG_WEBAPP' in os.environ
+
 
 class Setting(dict):
     """Dict where d['foo'] can also be accessed as d.foo
@@ -72,9 +83,6 @@ class Setting(dict):
 tmpdir = Setting()
 tmpdir.dir = tempfile.gettempdir()
 pathlib.Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
-
-# Environment
-ENVIRONMENT = os.getenv('CONFIG_ENVIRONMENT', 'prod')
 
 # Syslog
 syslog = Setting()
