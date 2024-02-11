@@ -213,6 +213,23 @@ class lazydict(attrdict):
         return attrval
 
 
+class emptydict(attrdict):
+    """Attrdict where non-existing fields return None silently
+
+    >>> a = emptydict(a=1, b=2)
+    >>> a.c == None
+    True
+    """
+
+    def __getattr__(self, attrname):
+        if attrname not in self:
+            return None
+        return self.get(attrname, None)
+
+    def __getitem__(self, attrname):
+        return self.__getattr__(attrname)
+
+
 class bidict(dict):
     """Bidirectional dictionary that allows multiple keys with same value
 
