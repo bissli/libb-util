@@ -9,28 +9,28 @@ license = "0BSD"
 [tool.poetry.dependencies]
 python = "~3.11"
 
-python-dateutil = "^2.8.2"
-chardet = "^5.2.0"
-mailchimp-transactional = "^1.0.50"
-more-itertools = "^10.1.0"
-ftfy = "^6.1.1"
-regex = "^2023.12.25"
-numpy = "^1.26.3"
-pandas-market-calendars = "^4.3.3"
-matplotlib = "^3.8.2"
-tzlocal = "^5.2"
-wrapt = "^1.16.0"
+python-dateutil = "*"
+chardet = "*"
+mailchimp-transactional = "*"
+more-itertools = "*"
+ftfy = "*"
+regex = "*"
+numpy = "*"
+pandas-market-calendars = "*"
+matplotlib = "*"
+tzlocal = "*"
+wrapt = "*"
 
-"web.py" = { version = "^0.62", optional = true }
-Flask = { version = "2.2.3", optional = true }
+"web.py" = { version = "*", optional = true }
+Flask = { version = "*", optional = true }
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^3.4.0"
-asserts = "^0.12.0"
-bump2version = "^1.0.1"
-pytest = "^7.4.2"
-pytest-runner = "^6.0.0"
-WebTest = "^3.0.0"
+pre-commit = "*"
+asserts = "*"
+bump2version = "*"
+pytest = "*"
+pytest-runner = "*"
+WebTest = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
