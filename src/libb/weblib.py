@@ -430,26 +430,6 @@ def requires_api_key(fn):
 #
 
 
-def capwords(s):
-    """Capitelize words in a string, accomodates acronyms
-
-    >>> capwords("f.o.o")
-    'F.O.O'
-    >>> capwords("bar")
-    'Bar'
-    >>> capwords("foo bar")
-    'Foo Bar'
-    """
-
-    def _callback(match):
-        s = match.group(0)
-        if s == s.upper():
-            return s
-        return s.capitalize()
-
-    return re.sub(r"[\w'\-\_]+", _callback, s)
-
-
 def make_url(path, **params):
     """Consistent url generation
     - pass in arbitrary params inspired by `werkzeug.urls.Href`
