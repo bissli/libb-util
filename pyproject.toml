@@ -20,6 +20,7 @@ pandas-market-calendars = "*"
 matplotlib = "*"
 tzlocal = "*"
 wrapt = "*"
+paramiko = "*"
 
 "web.py" = { version = "*", optional = true }
 Flask = { version = "*", optional = true }

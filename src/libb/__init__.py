@@ -24,7 +24,7 @@ from .exception import *
 from .format import *
 from .io import *
 from .itertools import *
-from .log import log_exception, set_logger
+from .log import log_exception, configure_logging
 from .montecarlo import *
 from .path import *
 from .rand import *
