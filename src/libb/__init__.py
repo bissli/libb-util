@@ -26,6 +26,7 @@ from .ftp import connect, sync_site
 from .io import *
 from .itertools import *
 from .log import configure_logging, log_exception
+from .mail import *
 from .montecarlo import *
 from .path import *
 from .rand import *
