@@ -1,5 +1,6 @@
 import inspect
 import sys
+import types
 from pkgutil import ModuleInfo, walk_packages
 from types import ModuleType
 from typing import Iterable
@@ -105,6 +106,11 @@ def create_instance(classname, *args, **kwargs):
 
 
 def get_packages_in_module(m: ModuleType) -> Iterable[ModuleInfo]:
+    """
+    >>> import libb
+    >>> _ = get_package_paths_in_module(libb)
+    >>> assert 'libb.module' in _
+    """
     return walk_packages(m.__path__, prefix=m.__name__ + '.')  # type: ignore
 
 
@@ -115,3 +121,50 @@ def get_package_paths_in_module(m: ModuleType) -> Iterable[str]:
     pytest_plugins = [*get_package_paths_in_module(tests.fixtures)]
     """
     return [package.name for package in get_packages_in_module(m)]
+
+
+class VirtualModule:
+    def __init__(self, modname, submodules):
+        try:
+            self._mod = __import__(modname)
+        except:
+            self._mod = types.ModuleType(modname)
+        sys.modules[modname] = self
+        __import__(modname)
+        self._modname = modname
+        self._submodules = submodules
+
+    def __repr__(self):
+        return 'Virtual module for ' + self._modname
+
+    def __getattr__(self, attrname):
+        if attrname in self._submodules:
+            __import__(self._submodules[attrname])
+            return sys.modules[self._submodules[attrname]]
+        else:
+            return self._mod.__dict__[attrname]
+
+
+def create_virtual_module(modname, submodules):
+    """Create virtual module with submodule from other module
+
+    >>> import libb
+    >>> create_virtual_module('libb', {'new_date': 'libb.date'})
+    >>> import libb
+    >>> libb.date.to_date('2010-01-01')
+    datetime.date(2010, 1, 1)
+    >>> libb.new_date.to_date('2010-01-01')
+    datetime.date(2010, 1, 1)
+    
+    >>> import libb
+    >>> create_virtual_module('foo', {'date': 'libb.date'})
+    >>> import foo 
+    >>> foo.date.to_date('2010-01-01')
+    datetime.date(2010, 1, 1)
+
+    """
+    VirtualModule(modname, submodules)
+
+
+if __name__ == '__main__':
+    __import__('doctest').testmod()

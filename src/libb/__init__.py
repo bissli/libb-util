@@ -27,6 +27,7 @@ from .io import *
 from .itertools import *
 from .log import configure_logging, log_exception
 from .mail import *
+from .module import *
 from .montecarlo import *
 from .path import *
 from .rand import *
