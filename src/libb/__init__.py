@@ -22,9 +22,10 @@ from .decorator import *
 from .dir import *
 from .exception import *
 from .format import *
+from .ftp import connect, sync_site
 from .io import *
 from .itertools import *
-from .log import log_exception, configure_logging
+from .log import configure_logging, log_exception
 from .montecarlo import *
 from .path import *
 from .rand import *

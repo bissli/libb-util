@@ -1,12 +1,17 @@
+import contextlib
 import datetime
 import ftplib
 import logging
+import os
+import posixpath
 import re
+import shutil
 import socket
 import stat
+import subprocess
 import sys
 import time
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +37,25 @@ def connect(sitename, directory=None, config=None):
     return the FTP object else raise exception
     having trouble with SSL auth?  test with ossl command:
     openssl s_client -starttls ftp -connect host.name:port
+
+    Create a config module with Setting configs. Add in each ste that
+    needs to be synced. 
+
+    `sitename` params:
+    ----------------- 
+
+    - required:
+    `hostname`
+    `username`
+    `password`
+
+    - optional:
+    `secure`
+    `is_encrypted`
+    `rename_gpg`
+    `pgp_extension`
+    `ignore_re`
+
     """
     this = config
     for level in sitename.split('.'):
@@ -88,6 +112,176 @@ def parse_ftp_dir_entry(line):
                 logger.exception(exc)
                 raise exc
     return None
+
+
+def sync_site(vendor, opts, config, notify=False):
+    """Use local config module to specify sites to sync via FTP
+
+    opts:
+        `nocopy`: do not copy anything
+        `nodecryptlocal`: do not decrypt local files
+        `ignorelocal`: ignore presence of local file when deciding to copy
+        `ignoresize`: ignore size of local file when deciding to copy
+        `ignoreolderthan`: ignore files older than number of days
+        `address`: Send notification of new files to address
+
+    """
+    logger.info(f'Syncing FTP site for {vendor}')
+    files = []
+    cn = connect(vendor, '.', config)
+    if cn:
+        this = config
+        for level in vendor.split('.'):
+            this = getattr(this, level)
+        site = this.ftp
+        opts.is_encrypted = site.get('is_encrypted', is_encrypted)
+        opts.rename_pgp = site.get('rename_pgp', rename_pgp)
+        opts.pgp_extension = site.get('pgp_extension')
+        opts.stats = defaultdict(int)
+        opts.ignore_re = site.get('ignore_re', None)
+        sync_directory(cn, site, '/', site.localdir, files, opts)
+        logger.info(
+            '%d copied, %d decrypted, %d skipped, %d ignored',
+            opts.stats['copied'],
+            opts.stats['decrypted'],
+            opts.stats['skipped'],
+            opts.stats['ignored'],
+        )
+    if notify and files and opts.address:
+        send_mail(site, files, opts.address, config)
+    return files
+
+
+def sync_directory(cn, site, remotedir, localdir, files, opts):
+    """Sync a remote FTP directory to a local directory recursively
+    """
+    logger.info(f'Syncing directory {remotedir}')
+    wd = cn.pwd()
+    try:
+        logger.debug(f'CD down to: {remotedir}')
+        cn.cd(remotedir)
+        entries = cn.dir()
+        for entry in entries:
+            if opts.ignore_re and re.match(opts.ignore_re, entry.name):
+                logger.debug(f'Ignoring file that matches ignore pattern: {entry.name}')
+                opts.stats['ignored'] += 1
+                continue
+            if entry.is_dir:
+                sync_directory(
+                    cn, site, posixpath.join(remotedir, entry.name),
+                    posixpath.join(localdir, entry.name), files, opts
+                )
+            else:
+                try:
+                    filename = sync_file(cn, site, remotedir, localdir, entry, opts)
+                    if filename:
+                        files.append(filename)
+                except:
+                    logger.exception('Error syncing file: %s/%s', remotedir, entry.name)
+    finally:
+        logger.debug('CD back to: ' + wd)
+        cn.cd(wd)
+
+
+def sync_file(cn, site, remotedir, localdir, entry, opts):
+    if opts.ignoreolderthan:
+        ignore_datetime = datetime.datetime.now() - datetime.timedelta(int(opts.ignoreolderthan))
+        if entry.datetime < ignore_datetime:
+            logger.debug('File is too old: %s/%s, skipping (%s)', remotedir, entry.name, str(entry.datetime))
+            return None
+    localfile = posixpath.join(localdir, entry.name)
+    localpgpfile = posixpath.join(localdir, '.pgp', entry.name)
+    if not opts.ignorelocal and (os.path.exists(localfile) or os.path.exists(localpgpfile)):
+        st = os.stat(localfile) if os.path.exists(localfile) else os.stat(localpgpfile)
+        if entry.datetime <= datetime.datetime.fromtimestamp(st.st_mtime):
+            if not opts.ignoresize and (entry.size == st.st_size):
+                logger.debug('File has not changed: %s/%s, skipping', remotedir, entry.name)
+                opts.stats['skipped'] += 1
+                return None
+    logger.debug('Downloading file: %s/%s to %s', remotedir, entry.name, localfile)
+    filename = None
+    with contextlib.suppress(Exception):
+        os.makedirs(os.path.split(localfile)[0])
+    if not opts.nocopy:
+        cn.getbinary(entry.name, localfile)
+        mtime = time.mktime(entry.datetime.timetuple())
+        try:
+            os.utime(localfile, (mtime, mtime))
+        except OSError:
+            logger.warning(f'Could not touch new file time on {localfile}')
+        opts.stats['copied'] += 1
+        filename = localfile
+    if not opts.nocopy and not opts.nodecryptlocal and opts.is_encrypted(localfile):
+        newname = opts.rename_pgp(entry.name)
+        # keep a copy for stat comparison above but move to .pgp dir so it doesn't clutter the main directory
+        decrypt_pgp_file(localdir, entry.name, newname, opts.pgp_extension)
+        with contextlib.suppress(Exception):
+            os.makedirs(os.path.split(localpgpfile)[0])
+        shutil.move(localfile, localpgpfile)
+        opts.stats['decrypted'] += 1
+        filename = posixpath.join(localdir, newname)
+    return filename
+
+
+def is_encrypted(filename):
+    return 'pgp' in filename.split('.')
+
+
+def rename_pgp(pgpname):
+    bits = pgpname.split('.')
+    bits.remove('pgp')
+    return '.'.join(bits)
+
+
+def decrypt_pgp_file(path, pgpname, newname=None, load_extension=None):
+    """Decrypt file with GnuPG: FIXME move this to a library"""
+    if not newname:
+        bits = pgpname.split('.')
+        bits.remove('pgp')
+        newname = '.'.join(bits)
+    if newname == pgpname:
+        raise ValueError('pgpname and newname cannot be the same')
+    logger.debug('Decrypting file %s to %s', pgpname, newname)
+    from libb import config
+    gpg_cmd = [
+        config.gpg.exe,
+        '--homedir',
+        config.gpg.home,
+        '--decrypt',
+        '--batch',
+        '--yes',
+        '--passphrase-fd',
+        '0',
+        '--output',
+        posixpath.join(path, newname),
+        posixpath.join(path, pgpname),
+    ]
+    if load_extension:
+        gpg_cmd.insert(-3, '--load-extension')
+        gpg_cmd.insert(-3, load_extension)
+    logger.debug(' '.join(gpg_cmd))
+    p = subprocess.Popen(gpg_cmd, stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         text=True)
+    out, err = p.communicate('password')
+    if 'gpg: decryption failed: secret key not available' in err:
+        logger.error('Failed to decrypt %s\n%s:', pgpname, err)
+
+
+def send_mail(vendor, files, address, config):
+    from libb import mail
+    this = config
+    for level in vendor.split('.'):
+        this = getattr(this, level)
+    subject = 'New files downloaded from: ' + this.get('name', libb.splitcap(vendor, delim='.'))
+    # get the common parent path - need to split it so if there is one file
+    # it won't return the actual file name
+    path = os.path.commonprefix([os.path.split(_)[0] for _ in files])
+    path = path.replace('/', '\\')
+    msg = [subject, '', f'Parent folder: <a href="{path}">{path}</a>', '']
+    msg.extend(files)
+    html = '<html><body><pre>\n' + '\n'.join(msg) + '\n</pre></body></html>'
+    mail.send_mail(address.split(','), subject, html, subtype='html')
 
 
 class FtpConnection:
@@ -224,8 +418,6 @@ class SslFtpConnection:
 
 
 if __name__ == '__main__':
-    import sys
-
     from libb import log
 
     if len(sys.argv) != 2:
