@@ -1,6 +1,6 @@
 import pytest
 from asserts import assert_equal, assert_raises
-from libb.format import format
+from libb.format import format, fmt
 
 
 def test_bad_values():
@@ -34,16 +34,16 @@ def test_decimals():
 
 
 def test_commas():
-    assert_equal('1,234,567.8', format(1234567.8, '1c'))
-    assert_equal('123,457', format(123456.78, '0c'))
-    assert_equal('12,345.678', format(12345.678, '3c'))
-    assert_equal('123.46', format(123.45678, '2c'))
+    assert_equal('1,234,567.8', fmt(1234567.8, '1c'))
+    assert_equal('123,457', fmt(123456.78, '0c'))
+    assert_equal('12,345.678', fmt(12345.678, '3c'))
+    assert_equal('123.46', fmt(123.45678, '2c'))
 
 
 def test_parens():
-    assert_equal('123', format(123.4, '0p'))
-    assert_equal('0', format(0.0, '0p'))
-    assert_equal('(123.4)', format(-123.4, '1p'))
+    assert_equal('123', fmt(123.4, '0p'))
+    assert_equal('0', fmt(0.0, '0p'))
+    assert_equal('(123.4)', fmt(-123.4, '1p'))
 
 
 def test_sign():

@@ -113,7 +113,7 @@ def format(value, fmt):
 
         # fix up with commas
         if 'c' in fmt:
-            val = commas(val)
+            val = commafy(val)
         # wrap in parens
         if parens and not is_zero:
             val = f'({val})'
@@ -130,6 +130,9 @@ def format(value, fmt):
     except Exception as exc:
         logger.exception(exc)
         return value or ''
+
+
+fmt = format
 
 
 def format_timeinterval(start, end=None):
@@ -174,24 +177,51 @@ def truncate(s, length, indicator='...'):
     return t
 
 
-def commas(value):
-    return ''.join(commafy(value))
+def commafy(n):
+    """Add commas to an integer `n`.
 
-
-def commafy(s):
-    if s.startswith('-'):
-        s = s[1:]
-        yield '-'
-    pieces = str(s).split('.')
-    n = len(pieces[0])
-    for i in range(n):
-        if (n - i) % 3 or not i:
-            yield pieces[0][i]
-        else:
-            yield ','
-            yield pieces[0][i]
-    if len(pieces) > 1:
-        yield '.' + pieces[1]
+    >>> commafy(1)
+    '1'
+    >>> commafy(123)
+    '123'
+    >>> commafy(-123)
+    '-123'
+    >>> commafy(1234)
+    '1,234'
+    >>> commafy(1234567890)
+    '1,234,567,890'
+    >>> commafy(123.0)
+    '123.0'
+    >>> commafy(1234.5)
+    '1,234.5'
+    >>> commafy(1234.56789)
+    '1,234.56789'
+    >>> commafy(f'{-1234.5:.2f}')
+    '-1,234.50'
+    >>> commafy(None)
+    >>>
+    """
+    if n is None:
+        return None
+    n = str(n).strip()
+    if n.startswith('-'):
+        prefix = '-'
+        n = n[1:].strip()
+    else:
+        prefix = ''
+    if '.' in n:
+        dollars, cents = n.split('.')
+    else:
+        dollars, cents = n, None
+    r = []
+    for i, c in enumerate(str(dollars)[::-1]):
+        if i and (not (i % 3)):
+            r.insert(0, ',')
+        r.insert(0, c)
+    out = ''.join(r)
+    if cents:
+        out += '.' + cents
+    return prefix + out
 
 
 def splitcap(s, delim=None):
