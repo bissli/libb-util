@@ -14,9 +14,9 @@ def patch_mimetypes_init(wrapped, instance, args, kwargs):
 
 
 from .chart import timeseries
-from .cmdline import create_parser, parse_args
+from .cmdline import parse_args
 from .collection import *
-from .config import *
+from .config import Setting
 from .date import *
 from .decorator import *
 from .dir import *

@@ -611,16 +611,6 @@ if os.getenv('CONFIG_SYSLOG_HOST') and os.getenv('CONFIG_SYSLOG_PORT'):
 
 CMD_CONF = {
     'loggers': {
-        'web': {
-            'handlers': ['cmd'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'job': {
-            'handlers': ['cmd'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
         'cmd': {
             'handlers': ['cmd'],
             'level': 'DEBUG',
@@ -628,6 +618,9 @@ CMD_CONF = {
         },
     },
 }
+CMD_CONF['loggers']['job'] = CMD_CONF['loggers']['cmd']
+CMD_CONF['loggers']['twd'] = CMD_CONF['loggers']['cmd']
+CMD_CONF['loggers']['web'] = CMD_CONF['loggers']['cmd']
 
 WEB_CONF = {
     'loggers': {
@@ -659,6 +652,13 @@ JOB_CONF = {
     },
 }
 
+for mod in (config.log.modules.extra or '').split(','):
+    CMD_CONF['loggers'][mod] = CMD_CONF['loggers']['cmd']
+    JOB_CONF['loggers'][mod] = JOB_CONF['loggers']['job']
+    TWD_CONF['loggers'][mod] = TWD_CONF['loggers']['twd']
+    WEB_CONF['loggers'][mod] = WEB_CONF['loggers']['web']
+
+
 # Config }}}
 
 
@@ -676,9 +676,7 @@ def configure_logging(setup='', app='', app_args=None, level=None):
         set_level(level)
 
     logconfig = LOG_CONF
-    if config.ENVIRONMENT != 'prod':
-        merge_dict(logconfig, CMD_CONF)
-    elif (config.CHECKTTY and stream_is_tty(sys.stdout)):
+    if config.CHECKTTY and stream_is_tty(sys.stdout):
         merge_dict(logconfig, CMD_CONF)
     elif setup == 'cmd':
         merge_dict(logconfig, CMD_CONF)
@@ -743,6 +741,7 @@ def patch_webdriver(this_logger, this_webdriver):
 def set_level(levelname):
     """Simple utility for setting root logging via sqla"""
     level_names = {v: k for k, v in logging._levelToName.items()}
+    level_names['WARN'] = level_names['WARNING']
     level = level_names[levelname.upper()]
     for handler in logging.root.handlers:
         handler.setLevel(level)

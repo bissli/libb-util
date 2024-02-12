@@ -5,21 +5,6 @@ import pathlib
 import platform
 import tempfile
 
-WIN = os.name == 'nt'
-WSL = 'Microsoft' in platform.release()
-NIX = platform.system() == 'Linux' and not WSL
-
-# Environment
-ENVIRONMENT = None
-if 'CONFIG_PROD' in os.environ:
-    ENVIRONMENT = 'prod'
-if 'CONFIG_DEV' in os.environ:
-    ENVIRONMENT = 'dev'
-if ENVIRONMENT is None:
-    raise AttributeError('Missing environmnet type, set in env variables')
-CHECKTTY = 'CONFIG_CHECKTTY' in os.environ
-WEBAPP = 'CONFIG_WEBAPP' in os.environ
-
 
 class Setting(dict):
     """Dict where d['foo'] can also be accessed as d.foo
@@ -79,7 +64,24 @@ class Setting(dict):
         Setting._locked = False
 
 
-# Global
+# Environment
+CHECKTTY = 'CONFIG_CHECKTTY' in os.environ
+WEBAPP = 'CONFIG_WEBAPP' in os.environ
+PLATFORM = platform.system()
+RELEASE = platform.release()
+ENVIRONMENT = None
+if 'CONFIG_PROD' in os.environ:
+    ENVIRONMENT = 'prod'
+if 'CONFIG_UAT' in os.environ:
+    ENVIRONMENT = 'uat'
+if 'CONFIG_QA' in os.environ:
+    ENVIRONMENT = 'qa'
+if 'CONFIG_DEV' in os.environ:
+    ENVIRONMENT = 'dev'
+if ENVIRONMENT is None:
+    raise AttributeError('Missing environmnet type, set in env variables')
+
+# Tmpdir
 tmpdir = Setting()
 tmpdir.dir = tempfile.gettempdir()
 pathlib.Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
@@ -88,7 +90,6 @@ pathlib.Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
 syslog = Setting()
 syslog.host = os.getenv('CONFIG_SYSLOG_HOST')
 syslog.port = os.getenv('CONFIG_SYSLOG_PORT')
-
 
 # Intermedia Email
 mail = Setting()
@@ -104,6 +105,11 @@ mandrill = Setting()
 mandrill.apikey = os.getenv('CONFIG_MANDRILL_APIKEY')
 mandrill.smtp = os.getenv('CONFIG_MANDRILL_SMTP','smtp.mandrillapp.com')
 mandrill.url = os.getenv('CONFIG_MANDRILL_URL', 'https://mandrillapp.com/api/1.0/')
+
+# Log additional settings (comma separated)
+log = Setting()
+log.modules.extra = os.getenv('CONFIG_LOG_MODULES_EXTRA', '')
+log.modules.ignore = os.getenv('CONFIG_LOG_MODULES_IGNORE', '')
 
 
 if __name__ == '__main__':

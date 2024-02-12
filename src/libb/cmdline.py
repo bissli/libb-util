@@ -10,10 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args(options, usage=None):
-    from libb import replacekey, configure_logging
-    configure_logging('job')
+    from libb import configure_logging, replacekey
     parser = create_parser(options, usage)
     opts, args = parser.parse_args()
+    configure_logging(opts.logsetup)
     if opts.environment is not None:
         with replacekey(os.environ, opts.environment, '1'):
             importlib.reload(config)
@@ -49,3 +49,6 @@ def create_parser(options, usage=None):
     parser.add_option('-S', '--logsetup', dest='logsetup', default='job', help='set logging setup type')
     parser.add_option('-V', '--loglevel', dest='loglevel', default=None, help='set logging level')
     return parser
+
+
+__all__ = ('parse_args',)

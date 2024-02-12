@@ -559,26 +559,6 @@ def breadcrumbify(url_app_tuple):
     return url_app_tuple
 
 
-def splitcap(s, delim=None):
-    """Split and capitalize string by delimiter (or camelcase)
-
-    >>> splitcap("foo_bar")
-    'Foo Bar'
-    >>> splitcap("fooBar")
-    'Foo Bar'
-    """
-    if not delim:
-        if '_' in s:
-            delim = '_'
-        elif ' ' in s:
-            delim = ' '
-    if delim:
-        bits = s.split(delim)
-    else:  # camelcase
-        bits = re.sub(r'([a-z])([A-Z])', r'\1 \2', s).split(' ')
-    return ' '.join([capwords(s) for s in bits])
-
-
 def _format_link(cls):
     """For subapps (`web.application` instances within `urls` mapping)
     return the __name__ of the parent module, contained in the `fvars` attr
