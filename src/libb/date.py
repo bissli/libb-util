@@ -310,7 +310,12 @@ def epoch(obj):
     return time.mktime(obj.timetuple())
 
 
-rfc3339 = lambda d: EST.localize(d).isoformat()
+def rfc3339(d: datetime.datetime):
+    """
+    >>> rfc3339('Fri, 31 Oct 2014 10:55:00')
+    '2014-10-31T10:55:00-04:00'
+    """
+    return to_datetime(d, localize=EST).isoformat()
 
 
 def first_of_year(thedate=None, tz=EST):
@@ -1182,8 +1187,10 @@ def to_datetime(s, raise_err=False, tzhint=LCL, localize=None):
         return s.to_pydatetime()
     if isinstance(s, np.datetime64):
         return np.datetime64(s, 'us').astype(datetime.datetime)
-    if isinstance(s, datetime.datetime):
+    if isinstance(s, datetime.datetime) and not localize:
         return s
+    if isinstance(s, datetime.datetime):
+        s = str(s)
     if isinstance(tzhint, str):
         tzhint = ZoneInfo(tzhint)
     if isinstance(localize, str):
