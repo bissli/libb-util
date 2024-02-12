@@ -4,10 +4,11 @@ import logging
 import re
 import socket
 import stat
+import sys
 import time
 from collections import namedtuple
 
-logger = logging.getLogger('job')
+logger = logging.getLogger(__name__)
 
 import paramiko
 

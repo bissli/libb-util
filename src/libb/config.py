@@ -102,7 +102,6 @@ mail.fromemail = os.getenv('CONFIG_MAIL_FROMEMAIL')
 mail.toemail = os.getenv('CONFIG_MAIL_TOEMAIL')
 mail.adminemail = os.getenv('CONFIG_MAIL_ADMINEMAIL')
 
-
 # Mandrill API integration
 mandrill = Setting()
 mandrill.apikey = os.getenv('CONFIG_MANDRILL_APIKEY')
@@ -113,6 +112,11 @@ mandrill.url = os.getenv('CONFIG_MANDRILL_URL', 'https://mandrillapp.com/api/1.0
 log = Setting()
 log.modules.extra = os.getenv('CONFIG_LOG_MODULES_EXTRA', '')
 log.modules.ignore = os.getenv('CONFIG_LOG_MODULES_IGNORE', '')
+
+# GnuPG encryption
+gpg = Setting()
+gpg.dir = os.path.abspath(os.getenv('CONFIG_GPG_DIR') or tmpdir.dir)
+gpg.exe = os.path.join(gpg.dir, 'gpg.exe' if 'Win' in PLATFORM else 'gpg')
 
 
 if __name__ == '__main__':
