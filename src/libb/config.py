@@ -83,7 +83,10 @@ if ENVIRONMENT is None:
 
 # Tmpdir
 tmpdir = Setting()
-tmpdir.dir = tempfile.gettempdir()
+if os.getenv('CONFIG_TMPDIR'):
+    tmpdir.dir = os.path.abspath(os.getenv('CONFIG_TMPDIR'))
+else:
+    tmpdir.dir = tempfile.gettempdir()
 pathlib.Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
 
 # Syslog
