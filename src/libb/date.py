@@ -31,8 +31,7 @@ EST = ZoneInfo('US/Eastern')
 
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')
-    # should use environmental variable `TZ`
-    LCL = ZoneInfo(tzlocal.get_localzone_name())
+    LCL = ZoneInfo(os.getenv('CONFIG_TZ') or tzlocal.get_localzone_name())
 
 
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)

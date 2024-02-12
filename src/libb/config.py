@@ -67,6 +67,7 @@ class Setting(dict):
 # Environment
 CHECKTTY = 'CONFIG_CHECKTTY' in os.environ
 WEBAPP = 'CONFIG_WEBAPP' in os.environ
+TZ =  os.getenv('CONFIG_TZ')
 PLATFORM = platform.system()
 RELEASE = platform.release()
 ENVIRONMENT = None
