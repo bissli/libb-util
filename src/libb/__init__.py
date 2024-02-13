@@ -18,7 +18,6 @@ from .cmdline import parse_args
 from .collection import *
 from .config import Setting
 from .date import *
-from .decorator import *
 from .dir import *
 from .exception import *
 from .format import *
