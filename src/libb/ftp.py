@@ -3,7 +3,6 @@ import datetime
 import ftplib
 import logging
 import os
-import posixpath
 import re
 import shutil
 import socket
@@ -12,6 +11,7 @@ import subprocess
 import sys
 import time
 from collections import defaultdict, namedtuple
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -33,16 +33,16 @@ FTP_DIR_RE = (
 
 
 def connect(sitename, directory=None, config=None):
-    """Connect to a site using a vendor configuration
+    """Connect to a site using a sitename configuration
     return the FTP object else raise exception
     having trouble with SSL auth?  test with ossl command:
     openssl s_client -starttls ftp -connect host.name:port
 
     Create a config module with Setting configs. Add in each ste that
-    needs to be synced. 
+    needs to be synced.
 
     `sitename` params:
-    ----------------- 
+    -----------------
 
     - required:
     `hostname`
@@ -54,6 +54,7 @@ def connect(sitename, directory=None, config=None):
     `is_encrypted`
     `rename_gpg`
     `pgp_extension`
+    `localdir`
     `ignore_re`
 
     """
@@ -114,7 +115,7 @@ def parse_ftp_dir_entry(line):
     return None
 
 
-def sync_site(vendor, opts, config, notify=False):
+def sync_site(sitename, opts, config, notify=False):
     """Use local config module to specify sites to sync via FTP
 
     opts:
@@ -126,12 +127,11 @@ def sync_site(vendor, opts, config, notify=False):
         `address`: Send notification of new files to address
 
     """
-    logger.info(f'Syncing FTP site for {vendor}')
+    logger.info(f'Syncing FTP site for {sitename}')
     files = []
-    cn = connect(vendor, '.', config)
-    if cn:
+    if cn := connect(sitename, '.', config):
         this = config
-        for level in vendor.split('.'):
+        for level in sitename.split('.'):
             this = getattr(this, level)
         site = this.ftp
         opts.is_encrypted = site.get('is_encrypted', is_encrypted)
@@ -148,7 +148,7 @@ def sync_site(vendor, opts, config, notify=False):
             opts.stats['ignored'],
         )
     if notify and files and opts.address:
-        send_mail(site, files, opts.address, config)
+        ftp_notify(sitename, files, opts.address, config)
     return files
 
 
@@ -168,8 +168,8 @@ def sync_directory(cn, site, remotedir, localdir, files, opts):
                 continue
             if entry.is_dir:
                 sync_directory(
-                    cn, site, posixpath.join(remotedir, entry.name),
-                    posixpath.join(localdir, entry.name), files, opts
+                    cn, site, (Path(remotedir) / entry.name).as_posix(),
+                    Path(localdir) / entry.name, files, opts
                 )
             else:
                 try:
@@ -189,10 +189,10 @@ def sync_file(cn, site, remotedir, localdir, entry, opts):
         if entry.datetime < ignore_datetime:
             logger.debug('File is too old: %s/%s, skipping (%s)', remotedir, entry.name, str(entry.datetime))
             return None
-    localfile = posixpath.join(localdir, entry.name)
-    localpgpfile = posixpath.join(localdir, '.pgp', entry.name)
-    if not opts.ignorelocal and (os.path.exists(localfile) or os.path.exists(localpgpfile)):
-        st = os.stat(localfile) if os.path.exists(localfile) else os.stat(localpgpfile)
+    localfile = Path(localdir) / entry.name
+    localpgpfile = Path(localdir) / '.pgp' / entry.name
+    if not opts.ignorelocal and (Path(localfile).exists() or Path(localpgpfile).exists()):
+        st = Path(localfile).stat() if Path(localfile).exists() else Path(localpgpfile).stat()
         if entry.datetime <= datetime.datetime.fromtimestamp(st.st_mtime):
             if not opts.ignoresize and (entry.size == st.st_size):
                 logger.debug('File has not changed: %s/%s, skipping', remotedir, entry.name)
@@ -201,7 +201,7 @@ def sync_file(cn, site, remotedir, localdir, entry, opts):
     logger.debug('Downloading file: %s/%s to %s', remotedir, entry.name, localfile)
     filename = None
     with contextlib.suppress(Exception):
-        os.makedirs(os.path.split(localfile)[0])
+        Path(os.path.split(localfile)[0]).mkdir(parents=True)
     if not opts.nocopy:
         cn.getbinary(entry.name, localfile)
         mtime = time.mktime(entry.datetime.timetuple())
@@ -211,15 +211,15 @@ def sync_file(cn, site, remotedir, localdir, entry, opts):
             logger.warning(f'Could not touch new file time on {localfile}')
         opts.stats['copied'] += 1
         filename = localfile
-    if not opts.nocopy and not opts.nodecryptlocal and opts.is_encrypted(localfile):
+    if not opts.nocopy and not opts.nodecryptlocal and opts.is_encrypted(localfile.as_posix()):
         newname = opts.rename_pgp(entry.name)
         # keep a copy for stat comparison above but move to .pgp dir so it doesn't clutter the main directory
         decrypt_pgp_file(localdir, entry.name, newname, opts.pgp_extension)
         with contextlib.suppress(Exception):
-            os.makedirs(os.path.split(localpgpfile)[0])
-        shutil.move(localfile, localpgpfile)
+            Path(os.path.split(localpgpfile)[0]).mkdir(parents=True)
+        shutil.move(Path(localfile).as_posix(), Path(localpgpfile).as_posix())
         opts.stats['decrypted'] += 1
-        filename = posixpath.join(localdir, newname)
+        filename = (Path(localdir) / newname).as_posix()
     return filename
 
 
@@ -241,7 +241,7 @@ def decrypt_pgp_file(path, pgpname, newname=None, load_extension=None):
         newname = '.'.join(bits)
     if newname == pgpname:
         raise ValueError('pgpname and newname cannot be the same')
-    logger.debug('Decrypting file %s to %s', pgpname, newname)
+    logger.debug(f'Decrypting file {pgpname} to {newname}')
     from libb import config
     gpg_cmd = [
         config.gpg.exe,
@@ -253,8 +253,8 @@ def decrypt_pgp_file(path, pgpname, newname=None, load_extension=None):
         '--passphrase-fd',
         '0',
         '--output',
-        posixpath.join(path, newname),
-        posixpath.join(path, pgpname),
+        (Path(path) / newname).as_posix(),
+        (Path(path) / pgpname).as_posix(),
     ]
     if load_extension:
         gpg_cmd.insert(-3, '--load-extension')
@@ -268,12 +268,12 @@ def decrypt_pgp_file(path, pgpname, newname=None, load_extension=None):
         logger.error('Failed to decrypt %s\n%s:', pgpname, err)
 
 
-def send_mail(vendor, files, address, config):
-    from libb import mail
+def ftp_notify(sitename, files, address, config):
+    from libb import mail, splitcap
     this = config
-    for level in vendor.split('.'):
+    for level in sitename.split('.'):
         this = getattr(this, level)
-    subject = 'New files downloaded from: ' + this.get('name', libb.splitcap(vendor, delim='.'))
+    subject = 'New files downloaded from: ' + this.get('name', splitcap(sitename, delim='.'))
     # get the common parent path - need to split it so if there is one file
     # it won't return the actual file name
     path = os.path.commonprefix([os.path.split(_)[0] for _ in files])

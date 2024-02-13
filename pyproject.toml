@@ -21,6 +21,7 @@ matplotlib = "*"
 tzlocal = "*"
 wrapt = "*"
 paramiko = "*"
+service-identity = "^24.1.0"
 
 "web.py" = { version = "*", optional = true }
 Flask = { version = "*", optional = true }
