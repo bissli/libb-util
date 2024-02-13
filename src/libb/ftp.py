@@ -85,29 +85,12 @@ def connect(sitename, directory=None, config=None):
 
 
 def parse_ftp_dir_entry(line):
-    def to_datetime(s):
-        # Format: Sep 27 17:11
-        if m := re.search(r'([A-Za-z]{3})\s+(\d{1,2})\s+(\d{1,2}):(\d{2})', s):
-            # No year, so we need to stuff in the current year
-            s = '%d %s' % (datetime.date.today().year, s)
-            try:
-                tm = list(time.strptime(s, '%Y %b %d %H:%M')[:6])
-            except ValueError as e:
-                logger.info(s)
-                raise e
-            tm[0] = datetime.date.today().year
-            return datetime.datetime(*tm)
-        # Format: Jan 29  2010
-        if m := re.search(r'([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})', s):
-            # No time, leave default of 12:00
-            tm = time.strptime(s, '%b %d %Y')[:6]
-            return datetime.datetime(*tm)
-        raise ValueError('Unhandled date/time format: %s', s)
-
+    from libb import to_datetime
     for pattern in FTP_DIR_RE:
         if m := re.search(pattern, line):
             try:
-                return Entry(line, m.group(4), m.group(1)[0] == 'd', int(m.group(2)), to_datetime(m.group(3)))
+                return Entry(line, m.group(4), m.group(1)[0] == 'd',
+                             int(m.group(2)), to_datetime(m.group(3)))
             except Exception as exc:
                 logger.error(f'Error with line {line}, groups: {m.groups()}')
                 logger.exception(exc)

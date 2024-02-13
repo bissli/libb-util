@@ -13,16 +13,19 @@ from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from functools import lru_cache, partial, wraps
 from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Union
+from zoneinfo import ZoneInfo
 
 import numpy as np
-import pandas as pd
-import pandas_market_calendars as mcal
 import tzlocal
 from dateutil import parser, relativedelta
 
 logger = logging.getLogger(__name__)
 
-from zoneinfo import ZoneInfo
+
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore')
+    import pandas as pd
+    import pandas_market_calendars as mcal
 
 
 def local_timezone():
@@ -1242,12 +1245,18 @@ def to_datetime(
     >>> this_gmt
     datetime.datetime(2014, 10, 31, 14, 55, tzinfo=zoneinfo.ZoneInfo(key='GMT'))
 
-    we can freely compare time zones
+    We can freely compare time zones
     >>> this_est==this_gmt==this_utc
     True
 
+    Misc formats
     >>> to_datetime(np.datetime64('2000-01', 'D'))
     datetime.datetime(2000, 1, 1, 0, 0)
+    >>> _ = to_datetime('Sep 27 17:11', tzhint=EST)
+    >>> _.month, _.day, _.hour, _.minute
+    (9, 27, 17, 11)
+    >>> to_datetime('Jan 29  2010', tzhint=EST)
+    datetime.datetime(2010, 1, 29, 0, 0, tzinfo=zoneinfo.ZoneInfo(key='US/Eastern'))
     """
     if not s:
         if raise_err:
