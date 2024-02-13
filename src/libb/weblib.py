@@ -17,7 +17,7 @@ from functools import update_wrapper, wraps
 from itertools import accumulate
 
 from dateutil import parser
-from libb import collapse, grouper, safe_join
+from libb import collapse, grouper, safe_join, splitcap
 
 try:
     import web  # only required for a few obvious decorator functions
