@@ -21,7 +21,7 @@ from .date import *
 from .dir import *
 from .exception import *
 from .format import *
-from .ftp import connect, sync_site
+from .ftp import connect, sync_site, decrypt_all_pgp_files
 from .io import *
 from .itertools import *
 from .log import configure_logging, log_exception
