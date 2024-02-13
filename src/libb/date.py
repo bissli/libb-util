@@ -1249,14 +1249,16 @@ def to_datetime(
     >>> this_est==this_gmt==this_utc
     True
 
-    Misc formats
+    Format tests
+    >>> epoch(to_datetime(1707856982, tzhint=UTC))
+    1707856982.0
+    >>> to_datetime('Jan 29  2010', tzhint=EST)
+    datetime.datetime(2010, 1, 29, 0, 0, tzinfo=zoneinfo.ZoneInfo(key='US/Eastern'))
     >>> to_datetime(np.datetime64('2000-01', 'D'))
     datetime.datetime(2000, 1, 1, 0, 0)
     >>> _ = to_datetime('Sep 27 17:11', tzhint=EST)
     >>> _.month, _.day, _.hour, _.minute
     (9, 27, 17, 11)
-    >>> to_datetime('Jan 29  2010', tzhint=EST)
-    datetime.datetime(2010, 1, 29, 0, 0, tzinfo=zoneinfo.ZoneInfo(key='US/Eastern'))
     """
     if not s:
         if raise_err:
@@ -1267,8 +1269,9 @@ def to_datetime(
         return s.to_pydatetime()
     if isinstance(s, np.datetime64):
         return np.datetime64(s, 'us').astype(datetime.datetime)
-    if isinstance(s, float):
-        return to_datetime(datetime.datetime.fromtimestamp(s).isoformat())
+    if isinstance(s, (int, float)):
+        return to_datetime(datetime.datetime.fromtimestamp(s).isoformat(),
+                           tzhint=tzhint, localize=localize, entity=entity)
     if isinstance(s, datetime.datetime) and not localize:
         return s
     if isinstance(s, datetime.datetime):
@@ -1290,7 +1293,7 @@ def to_datetime(
         if localize:
             parsed = parsed.astimezone(localize)
         return parsed
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as err:
         logger.debug('Dateutil parser failed .. trying our custom parsers')
 
     for delim in (' ', ':'):
