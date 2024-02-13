@@ -246,7 +246,7 @@ def decrypt_pgp_file(path, pgpname, newname=None, load_extension=None):
     gpg_cmd = [
         config.gpg.exe,
         '--homedir',
-        config.gpg.home,
+        config.gpg.dir,
         '--decrypt',
         '--batch',
         '--yes',
