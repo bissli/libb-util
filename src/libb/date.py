@@ -1,6 +1,4 @@
-"""
-TODO: rename last -> end, first -> beg
-"""
+"""TODO: rename last -> end, first -> beg."""
 
 import calendar
 import contextlib
@@ -14,6 +12,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from functools import lru_cache, partial, wraps
+from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
 import numpy as np
 import pandas as pd
@@ -25,19 +24,24 @@ logger = logging.getLogger(__name__)
 
 from zoneinfo import ZoneInfo
 
+
+def local_timezone():
+    from libb import config
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        return ZoneInfo(config.TZ or tzlocal.get_localzone_name())
+
+
+LCL = local_timezone()
 UTC = ZoneInfo('UTC')
 GMT = ZoneInfo('GMT')
 EST = ZoneInfo('US/Eastern')
-
-with warnings.catch_warnings():
-    warnings.simplefilter('ignore')
-    LCL = ZoneInfo(os.getenv('CONFIG_TZ') or tzlocal.get_localzone_name())
 
 
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
 
 
-def expect(func, typ=datetime.date, exclkw=False):
+def expect(func, typ: Type[datetime.date], exclkw: bool = False) -> Callable:
     """Decorator to force input type of date/datetime inputs"""
 
     def caller_entity(func):
@@ -82,7 +86,7 @@ expect_datetime = partial(expect, typ=datetime.datetime)
 
 
 @expect_date
-def isoweek(thedate):
+def isoweek(thedate: datetime.date):
     """Week number 1-52 following ISO week-numbering
 
     Standard weeks
@@ -96,12 +100,9 @@ def isoweek(thedate):
     Belongs to week of previous year
     >>> isoweek(datetime.date(2023, 1, 1))
     52
-
     """
-    try:
+    with contextlib.suppress(Exception):
         return thedate.isocalendar()[1]
-    except:
-        pass
 
 
 Range = namedtuple('Range', ['start', 'end'])
@@ -193,27 +194,29 @@ class NYSE(Entity):
 
     @staticmethod
     @lru_cache
-    def business_days(begdate=BEGDATE, enddate=ENDDATE):
+    def business_days(begdate=BEGDATE, enddate=ENDDATE) -> Set[datetime.date]:
         return {d.date() for d in NYSE.calendar.valid_days(begdate, enddate)}
 
     @staticmethod
     @lru_cache
-    def market_hours(begdate=BEGDATE, enddate=ENDDATE):
+    def market_hours(begdate=BEGDATE, enddate=ENDDATE) -> Dict:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             df = NYSE.calendar.schedule(begdate, enddate, tz=EST)
-            open_close = [(o.to_pydatetime(), c.to_pydatetime()) for o, c in zip(df.market_open, df.market_close)]
+            open_close = [(o.to_pydatetime(), c.to_pydatetime()) for o, c in
+                          zip(df.market_open, df.market_close)]
             return dict(zip(df.index.date, open_close))
 
     @staticmethod
     @lru_cache
-    def holidays(begdate=BEGDATE, enddate=ENDDATE):
+    def holidays(begdate=BEGDATE, enddate=ENDDATE) -> Set:
         return set(NYSE.calendar.holidays().holidays)
 
 
 @expect_date
-def is_business_day(thedate=None, entity: Entity = NYSE):
-    """
+def is_business_day(thedate=None, entity: Type[NYSE] = NYSE) -> bool:
+    """Is business date.
+
     >>> thedate = datetime.date(2021, 4, 19) # Monday
     >>> is_business_day(thedate)
     True
@@ -235,8 +238,9 @@ def is_business_day(thedate=None, entity: Entity = NYSE):
 
 
 @expect_date
-def is_business_day_range(begdate, enddate, entity: Entity = NYSE):
-    """
+def is_business_day_range(begdate, enddate, entity: Type[NYSE] = NYSE) -> List[bool]:
+    """Is business date range
+
     >>> list(is_business_day_range(datetime.date(2018, 11, 19), datetime.date(2018, 11, 25)))
     [True, True, True, False, True, False, False]
     >>> list(is_business_day_range(datetime.date(2021, 11, 22), datetime.date(2021, 11, 28)))
@@ -248,8 +252,9 @@ def is_business_day_range(begdate, enddate, entity: Entity = NYSE):
 
 
 @expect_date
-def market_open(thedate, entity: NYSE = NYSE):
-    """
+def market_open(thedate, entity: Type[NYSE] = NYSE) -> bool:
+    """Market open
+
     >>> thedate = datetime.date(2021, 4, 19) # Monday
     >>> market_open(thedate, NYSE)
     True
@@ -264,8 +269,9 @@ def market_open(thedate, entity: NYSE = NYSE):
 
 
 @expect_date
-def market_hours(thedate, entity: NYSE = NYSE):
-    """
+def market_hours(thedate, entity: Type[NYSE] = NYSE):
+    """Market hours
+
     >>> thedate = datetime.date(2023, 1, 5)
     >>> market_hours(thedate, NYSE) # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
     (... 9, 30, ... 16, 0, ...)
@@ -288,7 +294,7 @@ def market_hours(thedate, entity: NYSE = NYSE):
 # Date functions
 
 
-def now(tz=EST, current: datetime.datetime = None):
+def now(tz=EST, current: Optional[datetime.datetime] = None):
     """Localizing now function"""
     if current is None:
         return datetime.datetime.now(tz=tz)
@@ -298,7 +304,7 @@ def now(tz=EST, current: datetime.datetime = None):
         return current.astimezone(tz=tz)
 
 
-def today(tz=EST, current: datetime.datetime = None):
+def today(tz=EST, current: Optional[datetime.datetime] = None):
     """Localizing today function"""
     current = current or now(tz=tz)
     return datetime.date(current.year, current.month, current.day)
@@ -317,8 +323,10 @@ def rfc3339(d: datetime.datetime):
     return to_datetime(d, localize=EST).isoformat()
 
 
-def first_of_year(thedate=None, tz=EST):
-    """Does not need an arg, same with other funcs (`last_of_year`, `previous_eom`, &c.)
+def first_of_year(thedate=None, tz=EST) -> datetime.date:
+    """Does not need an arg, same with other funcs (`last_of_year`,
+    `previous_eom`, &c.)
+
     >>> first_of_year()==datetime.date(today().year, 1, 1)
     True
     >>> first_of_year(datetime.date(2012, 12, 31))==datetime.date(2012, 1, 1)
@@ -332,8 +340,11 @@ def last_of_year(thedate=None, tz=EST):
 
 
 # rename previous_last_of_month (reame business_day to business)
-def previous_eom(thedate=None, business=False, entity: Entity = NYSE):
-    """
+def previous_eom(
+    thedate=None, business=False, entity: Type[NYSE] = NYSE
+) -> datetime.date:
+    """Previous EOM
+
     >>> previous_eom(datetime.date(2021, 5, 30))
     datetime.date(2021, 4, 30)
     """
@@ -344,7 +355,9 @@ def previous_eom(thedate=None, business=False, entity: Entity = NYSE):
         return first_of_month(thedate) + relativedelta.relativedelta(days=-1)
 
 
-def first_of_month(thedate=None, business=False, entity: Entity = NYSE):
+def first_of_month(
+    thedate=None, business=False, entity: Type[NYSE] = NYSE
+) -> datetime.date:
     thedate = thedate or today(tz=entity.tz)
     begdate = datetime.date(thedate.year, thedate.month, 1)
     if business:
@@ -352,17 +365,24 @@ def first_of_month(thedate=None, business=False, entity: Entity = NYSE):
     return begdate
 
 
-def previous_first_of_month(thedate=None, business=False, entity: Entity = NYSE):
-    """
+def previous_first_of_month(
+    thedate=None, business=False, entity: Type[NYSE] = NYSE
+) -> datetime.date:
+    """Previous first of month
+
     >>> previous_first_of_month(datetime.date(2021, 6, 15))
     datetime.date(2021, 5, 1)
     """
     thedate = thedate or today(tz=entity.tz)
-    return first_of_month(previous_eom(thedate, business, entity=entity), business, entity=entity)
+    return first_of_month(previous_eom(thedate, business, entity=entity),
+                          business, entity=entity)
 
 
-def last_of_month(thedate=None, business=False, entity: Entity = NYSE):
-    """
+def last_of_month(
+    thedate=None, business: bool = False, entity: Type[NYSE] = NYSE
+) -> datetime.date:
+    """Last of month
+
     >>> last_of_month(datetime.date(2021, 6, 15))
     datetime.date(2021, 6, 30)
     >>> last_of_month(datetime.date(2021, 6, 30))
@@ -378,21 +398,32 @@ def last_of_month(thedate=None, business=False, entity: Entity = NYSE):
     return offset_date
 
 
-def is_last_of_month(thedate=None, business=False, entity: Entity = NYSE) -> bool:
+def is_first_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
+    thedate = thedate or today(tz=entity.tz)
+    return first_of_month(thedate, business, entity=entity) == thedate
+
+
+def is_last_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
     thedate = thedate or today(tz=entity.tz)
     return last_of_month(thedate, business, entity=entity) == thedate
 
 
-def offset_from_end_of_month(thedate, window=-1, business=False, entity: Entity = NYSE):
+def offset_from_end_of_month(
+    thedate, window=-1, business=False, entity: Type[NYSE] = NYSE
+):
     """For last_business_day_of_month -> last_of_month ?"""
+    raise NotImplementedError('Not Implemented')
 
 
-def offset_from_beg_of_month(thedate, window=1, business=False, entity: Entity = NYSE):
-    pass
+def offset_from_beg_of_month(
+    thedate, window=1, business=False, entity: Type[NYSE] = NYSE
+):
+    raise NotImplementedError('Not Implemented')
 
 
 def third_wednesday(year, month):
     """Third Wednesday date of a given month/year
+
     >>> third_wednesday(2022, 6)
     datetime.date(2022, 6, 15)
     >>> third_wednesday(2023, 3)
@@ -402,7 +433,7 @@ def third_wednesday(year, month):
     >>> third_wednesday(2023, 6)
     datetime.date(2023, 6, 21)
     """
-    third = datetime.date(year, month, 15)   # lowest 3rd day
+    third = datetime.date(year, month, 15)  # lowest 3rd day
     w = third.weekday()
     if w != WEDNESDAY:
         third = third.replace(day=(15 + (WEDNESDAY - w) % 7))
@@ -410,12 +441,13 @@ def third_wednesday(year, month):
 
 
 @expect_date
-def previous_business_day(thedate=None, numdays=1, entity: Entity = NYSE):
+def previous_business_day(
+    thedate=None, numdays=1, entity: Type[NYSE] = NYSE
+) -> datetime.date:
     """Previous business days at least N days prior
     - numdays are business days
 
-    one week ago
-    - closed on 12/5/2018 due to George H.W. Bush's death
+    Closed on 12/5/2018 due to George H.W. Bush's death
     >>> previous_business_day(datetime.date(2018, 12, 7), 5)
     datetime.date(2018, 11, 29)
     >>> previous_business_day(datetime.date(2021, 11, 24), 5)
@@ -431,7 +463,9 @@ def previous_business_day(thedate=None, numdays=1, entity: Entity = NYSE):
 
 
 @expect_date
-def next_business_day(thedate=None, numdays=1, entity: Entity = NYSE):
+def next_business_day(
+    thedate=None, numdays=1, entity: Type[NYSE] = NYSE
+) -> datetime.date:
     """Next one business day
 
     Closed on 12/5/2018 due to George H.W. Bush's death
@@ -459,8 +493,10 @@ def next_business_day(thedate=None, numdays=1, entity: Entity = NYSE):
     return thedate
 
 
-def offset_date(thedate=None, window=0, business=False, entity: Entity = NYSE):
-    """Offset thedate by N calendar or business days
+def offset_date(
+    thedate=None, window=0, business=False, entity: Type[NYSE] = NYSE
+) -> datetime.date:
+    """Offset thedate by N calendar or business days.
 
     In one week (from next_business_day doctests)
     >>> offset_date(datetime.date(2018, 11, 29), 5, True)
@@ -478,6 +514,11 @@ def offset_date(thedate=None, window=0, business=False, entity: Entity = NYSE):
     >>> offset_date(datetime.date(2021, 11, 24), -7, False)
     datetime.date(2021, 11, 17)
 
+    0 offset returns same date
+    >>> offset_date(datetime.date(2018, 12, 7), 0, True)
+    datetime.date(2018, 12, 7)
+    >>> offset_date(datetime.date(2021, 11, 24), 0, False)
+    datetime.date(2021, 11, 24)
     """
     thedate = thedate or today(tz=entity.tz)
     if window > 0:
@@ -504,8 +545,10 @@ def offset_date(thedate=None, window=0, business=False, entity: Entity = NYSE):
 
 
 @expect_date
-def first_of_week(thedate=None, business=False, entity: Entity = NYSE):
-    """First of week function (Monday unless not a holiday)
+def first_of_week(
+    thedate=None, business=False, entity: Type[NYSE] = NYSE
+) -> datetime.date:
+    """First of week function (Monday unless not a holiday).
 
     Regular Monday
     >>> first_of_week(datetime.date(2023, 4, 24))
@@ -522,7 +565,6 @@ def first_of_week(thedate=None, business=False, entity: Entity = NYSE):
     datetime.date(2020, 5, 25)
     >>> first_of_week(datetime.date(2020, 5, 26), business=True)
     datetime.date(2020, 5, 26)
-
     """
     thedate = thedate or today(tz=entity.tz)
     offset = relativedelta.relativedelta(weekday=relativedelta.MO(-1))
@@ -533,8 +575,9 @@ def first_of_week(thedate=None, business=False, entity: Entity = NYSE):
 
 
 @expect_date
-def is_first_of_week(thedate=None, business=False, entity: Entity = NYSE):
-    """First of week function
+def is_first_of_week(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
+    """First of week function.
+
     Business := if it's a holiday, get next business date
     """
     thedate = thedate or today(tz=entity.tz)
@@ -542,8 +585,10 @@ def is_first_of_week(thedate=None, business=False, entity: Entity = NYSE):
 
 
 @expect_date
-def last_of_week(thedate=None, business=False, entity: Entity = NYSE):
-    """Get the last date of the week
+def last_of_week(
+    thedate=None, business=False, entity: Type[NYSE] = NYSE
+) -> datetime.date:
+    """Get the last date of the week.
 
     Regular Monday
     >>> last_of_week(datetime.date(2023, 4, 24))
@@ -573,7 +618,7 @@ def last_of_week(thedate=None, business=False, entity: Entity = NYSE):
 
 
 @expect_date
-def is_last_of_week(thedate=None, business=False, entity: Entity = NYSE):
+def is_last_of_week(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
     return last_of_week(thedate, business, entity) == thedate
 
 
@@ -621,8 +666,8 @@ def next_first_of_month(thedate=None, window=1, snap=True, tz=EST):
 
 
 @expect_date
-def next_last_date_of_week(thedate=None, business=False, entity: Entity = NYSE):
-    """Get next end of week (Friday)
+def next_last_date_of_week(thedate=None, business=False, entity: Type[NYSE] = NYSE):
+    """Get next end of week (Friday).
 
     >>> next_last_date_of_week(datetime.datetime(2018, 10, 8, 0, 0, 0))
     datetime.date(2018, 10, 12)
@@ -651,8 +696,8 @@ def next_relative_date_of_week_by_day(thedate, day='MO'):
 
 
 @expect_date
-def business_date(thedate=None, or_next=True, tz=EST, entity: Entity = NYSE):
-    """Return the date if it is a business day, else the next business date
+def business_date(thedate=None, or_next=True, tz=EST, entity: Type[NYSE] = NYSE):
+    """Return the date if it is a business day, else the next business date.
 
     9/1 is Saturday, 9/3 is Labor Day
     >>> business_date(datetime.date(2018, 9, 1))
@@ -687,8 +732,9 @@ def weekday_or_previous_friday(thedate=None, tz=EST):
 
 
 @expect_date
-def get_dates(since=None, until=None, window=0, business=False, entity: Entity = NYSE):
-    """Get a range of datetime.date objects
+def get_dates(since=None, until=None, window=0, business=False, entity: Type[NYSE] = NYSE):
+    """Get a range of datetime.date objects.
+
     give the function since and until wherever possible (more explicit)
     else pass in a window to back out since or until
     - Window gives window=N additional days. So `until`-`window`=1
@@ -763,7 +809,7 @@ def num_quarters(begdate, enddate=None, tz=EST):
     return 4 * days_between(begdate, enddate or today(tz=tz)) / 365.0
 
 
-def get_quarter_date(thedate, end=True):
+def get_quarter_date(thedate, end=True) -> datetime.date:
     """Return the quarter start or quarter end of a given date.
 
     >>> get_quarter_date(datetime.date(2013, 11, 5))
@@ -774,7 +820,6 @@ def get_quarter_date(thedate, end=True):
     datetime.date(1999, 1, 1)
     >>> get_quarter_date(datetime.date(2016, 3, 31))
     datetime.date(2016, 3, 31)
-
     """
     year = thedate.year
     q1_start, q1_end = datetime.date(year, 1, 1), datetime.date(year, 3, 31)
@@ -803,8 +848,24 @@ def get_quarter_date(thedate, end=True):
         return q4_start
 
 
+def get_previous_quarter_date(thedate, end=True) -> datetime.date:
+    """Return the previous quarter start or quarter end of a given date.
+
+    >>> get_previous_quarter_date(datetime.date(2013, 11, 5))
+    datetime.date(2013, 9, 30)
+    >>> get_previous_quarter_date(datetime.date(2013, 11, 5), end=False)
+    datetime.date(2013, 7, 1)
+    >>> get_previous_quarter_date(datetime.date(1999, 1, 19), end=False)
+    datetime.date(1998, 10, 1)
+    >>> get_previous_quarter_date(datetime.date(2016, 3, 31))
+    datetime.date(2015, 12, 31)
+
+    """
+    return get_quarter_date(get_quarter_date(thedate, end=False) - relativedelta.relativedelta(days=1), end=end)
+
+
 @expect_date
-def get_eom_dates(begdate, enddate):
+def get_eom_dates(begdate, enddate) -> List[datetime.date]:
     """Return a list of eom dates between and inclusive of begdate and enddate.
 
     >>> get_eom_dates(datetime.date(2018, 1, 5), datetime.date(2018, 4, 5))
@@ -823,8 +884,8 @@ def get_eom_dates(begdate, enddate):
 
 
 @expect_date
-def lookback_date(thedate, lookback='last'):
-    """Date back based on lookback string, ie last, week, month
+def lookback_date(thedate, lookback='last') -> datetime.date:
+    """Date back based on lookback string, ie last, week, month.
 
     >>> lookback_date(datetime.date(2018, 12, 7), 'last')
     datetime.date(2018, 12, 6)
@@ -868,9 +929,14 @@ MONTH_SHORTNAME = {
 DATEMATCH = r'^(N|T|Y|P|M)([-+]\d+b?)?$'
 
 
-def to_date(s, fmt=None, raise_err=False, shortcodes=True, entity: Entity = NYSE):
-    """
-    Convert a string to a date handling many different formats.
+def to_date(
+    s: Union[str, datetime.date, datetime.datetime, pd.Timestamp, np.datetime64],
+    fmt: str = None,
+    raise_err: bool = False,
+    shortcodes: bool = True,
+    entity: Type[NYSE] = NYSE,
+) -> Optional[datetime.date]:
+    """Convert a string to a date handling many different formats.
 
     previous business day accessed with 'P'
     >>> to_date('P')==previous_business_day()
@@ -1147,7 +1213,13 @@ def to_time(s, fmt=None, raise_err=False):
         raise ValueError('Failed to parse time: ' + s)
 
 
-def to_datetime(s, raise_err=False, tzhint=LCL, localize=None):
+def to_datetime(
+    s: Union[str, datetime.date, datetime.datetime, pd.Timestamp, np.datetime64],
+    raise_err=False,
+    tzhint=LCL,
+    localize=None,
+    entity: Type[NYSE] = NYSE
+) -> Optional[datetime.date]:
     """Thin layer on dateutil parser and our custom `to_date` and `to_time`
     = tzhint: Assumed time zone of input (default local time zone)
     = localize: Desired time zone of input (default None)
@@ -1186,6 +1258,8 @@ def to_datetime(s, raise_err=False, tzhint=LCL, localize=None):
         return s.to_pydatetime()
     if isinstance(s, np.datetime64):
         return np.datetime64(s, 'us').astype(datetime.datetime)
+    if isinstance(s, float):
+        return to_datetime(datetime.datetime.fromtimestamp(s).isoformat())
     if isinstance(s, datetime.datetime) and not localize:
         return s
     if isinstance(s, datetime.datetime):
@@ -1232,8 +1306,10 @@ def to_datetime(s, raise_err=False, tzhint=LCL, localize=None):
 
 
 @expect_date
-def days_between(begdate, enddate, business=False, entity: Entity = NYSE):
-    """Return days between (begdate, enddate] or negative (enddate, begdate]
+def days_between(
+    begdate, enddate, business: bool = False, entity: Type[NYSE] = NYSE
+) -> int:
+    """Return days between (begdate, enddate] or negative (enddate, begdate].
 
     >>> days_between(to_date('2018/9/6'), to_date('2018/9/10'))
     4
@@ -1290,7 +1366,6 @@ def years_between(begdate=None, enddate=None, basis: int = 0, tz=EST):
     >>> enddate = datetime.datetime(1900, 12, 1)
     >>> '{:.4f}'.format(years_between(begdate, enddate, 4))
     '0.9167'
-
     """
 
     def average_year_length(date1, date2):
@@ -1300,8 +1375,8 @@ def years_between(begdate=None, enddate=None, basis: int = 0, tz=EST):
         return days / years
 
     def feb29_between(date1, date2):
-        """
-        Requires date2.year = (date1.year + 1) or date2.year = date1.year.
+        """Requires date2.year = (date1.year + 1) or date2.year = date1.year.
+
         Returns True if "Feb 29" is between the two dates (date1 may be Feb29).
         Two possibilities: date1.year is a leap year, and date1 <= Feb 29 y1,
         or date2.year is a leap year, and date2 > Feb 29 y2.
@@ -1316,6 +1391,7 @@ def years_between(begdate=None, enddate=None, basis: int = 0, tz=EST):
 
     def appears_lte_one_year(date1, date2):
         """Returns True if date1 and date2 "appear" to be 1 year or less apart.
+
         This compares the values of year, month, and day directly to each other.
         Requires date1 <= date2; returns boolean. Used by basis 1.
         """
@@ -1340,12 +1416,14 @@ def years_between(begdate=None, enddate=None, basis: int = 0, tz=EST):
             date2day = 30
         # Note: If date2day==31, it STAYS 31 if date1day < 30.
         # Special fixes for February:
-        elif date1month == 2 and date2month == 2 and is_last_of_month(date1) and is_last_of_month(date2):
-            date1day = 30   # Set the day values to be equal
+        elif date1month == 2 and date2month == 2 and is_last_of_month(date1) \
+            and is_last_of_month(date2):
+            date1day = 30  # Set the day values to be equal
             date2day = 30
         elif date1month == 2 and is_last_of_month(date1):
-            date1day = 30   # "Illegal" Feb 30 date.
-        daydiff360 = (date2day + date2month * 30 + date2year * 360) - (date1day + date1month * 30 + date1year * 360)
+            date1day = 30  # "Illegal" Feb 30 date.
+        daydiff360 = (date2day + date2month * 30 + date2year * 360) \
+            - (date1day + date1month * 30 + date1year * 360)
         return daydiff360 / 360
 
     def basis1(date1, date2):
@@ -1374,7 +1452,8 @@ def years_between(begdate=None, enddate=None, basis: int = 0, tz=EST):
         if date2day == 31:
             date2day = 30
         # Remarkably, do NOT change Feb. 28 or 29 at ALL.
-        daydiff360 = (date2day + date2month * 30 + date2year * 360) - (date1day + date1month * 30 + date1year * 360)
+        daydiff360 = (date2day + date2month * 30 + date2year * 360) - \
+            (date1day + date1month * 30 + date1year * 360)
         return daydiff360 / 360
 
     begdate = begdate or today(tz=tz)
@@ -1406,7 +1485,9 @@ def years_between(begdate=None, enddate=None, basis: int = 0, tz=EST):
 
 
 @expect_date
-def date_range(begdate, enddate, window, business=True, entity: Entity = NYSE):
+def date_range(
+    begdate=None, enddate=None, window=None, business=True, entity: Type[NYSE] = NYSE
+) -> Tuple[datetime.date, datetime.date]:
     """Set date ranges based on begdate, enddate and window.
 
     The combinations are as follows:
@@ -1447,15 +1528,43 @@ def date_range(begdate, enddate, window, business=True, entity: Entity = NYSE):
     return begdate, enddate
 
 
-def to_string(date: datetime, fmt: str) -> str:
-    """Format cleaner
-    https://stackoverflow.com/a/2073189
+def to_string(thedate, fmt: str) -> str:
+    """Format cleaner https://stackoverflow.com/a/2073189.
 
     >>> to_string(datetime.date(2022, 1, 5), '%-m/%-d/%Y')
     '1/5/2022'
+    """
+    return thedate.strftime(fmt.replace('%-', '%#') if os.name == 'nt' else fmt)
+
+
+def reference_date_13f(thedate):
+    """Date on which 13F filings becomes public.
+
+    13F due 45 days after the end of each quarter.
+
+    12/31/22 -> 2/15/23
+    >>> reference_date_13f(datetime.date(2023, 2, 14))
+    datetime.date(2022, 9, 30)
+    >>> reference_date_13f(datetime.date(2023, 2, 15))
+    datetime.date(2022, 12, 31)
+
+    3/31/23 -> 5/16/23
+    >>> reference_date_13f(datetime.date(2023, 5, 15))
+    datetime.date(2022, 12, 31)
+    >>> reference_date_13f(datetime.date(2023, 5, 16))
+    datetime.date(2023, 3, 31)
+
+    6/30/23 -> 8/15/23
+    >>> reference_date_13f(datetime.date(2023, 8, 14))
+    datetime.date(2023, 3, 31)
+    >>> reference_date_13f(datetime.date(2023, 8, 15))
+    datetime.date(2023, 6, 30)
 
     """
-    return date.strftime(fmt.replace('%-', '%#') if os.name == 'nt' else fmt)
+    ref_date = get_previous_quarter_date(thedate)
+    if thedate <= offset_date(ref_date, 45):
+        ref_date = get_previous_quarter_date(ref_date)
+    return ref_date
 
 
 if __name__ == '__main__':
