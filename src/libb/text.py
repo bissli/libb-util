@@ -11,9 +11,9 @@ from functools import reduce
 import chardet
 import ftfy
 from libb.util import collapse
+from rapidfuzz.distance import JaroWinkler
 from rapidfuzz.fuzz import token_set_ratio
 from rapidfuzz.process import extract
-from rapidfuzz.string_metric import jaro_winkler_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ def fix_text(text):
     >>> fix_text('âœ” No problems')
     '✔ No problems'
     >>> print(fix_text("&macr;\\_(ã\x83\x84)_/&macr;"))
-    ¯\\_(ツ)_/¯
+    ¯\_(ツ)_/¯
     >>> fix_text('Broken text&hellip; it&#x2019;s ﬂubberiﬁc!')
     "Broken text… it's flubberific!"
     >>> fix_text('ＬＯＵＤ　ＮＯＩＳＥＳ')
@@ -191,13 +191,13 @@ def smart_base64(encoded_words):
     common bug in email subjects is that multiline subjects are base64 encoded
     *per line* so we get non-base64 characters:
     >>> smart_base64('=?UTF-8?B?JDEwTU0rIENJVCBHUk9VUCBUUkFERVMgLSBDSVQgNScyMiAxMDLi'
-    ...              'hZ0tMTAz4oWbICBNSw==?=\\r\\n\\t=?UTF-8?B?VA==?=')
+    ...              'hZ0tMTAz4oWbICBNSw==?=\r\n\t=?UTF-8?B?VA==?=')
     "$10MM+ CIT GROUP TRADES - CIT 5'22 102.625-103.125 MK T"
 
     this one specifies UTF-8 but it is actually encoding Latin-1 characters for
     the 3/4's, 1/8's, 3/4's, 1/8's, 1/2's:
     >>> smart_base64('=?UTF-8?B?TVMgZW5lcmd5OiByaWcgMTdzIDkxwr4vOTLihZsgMThzIDkzwr4v'
-    ...              'OTTihZsgMjBzIDgywg==?=\\r\\n\\t=?UTF-8?B?vS84Mw==?=')
+    ...              'OTTihZsgMjBzIDgywg==?=\r\n\t=?UTF-8?B?vS84Mw==?=')
     'MS energy: rig 17s 91.75/92.125 18s 93.75/94.125 20s 82.5/83'
 
     >>> smart_base64('=?UTF-8?B?VGhpcyBpcyBhIGhvcnNleTog8J+Qjg==?=')
@@ -263,8 +263,8 @@ def fuzzy_search(search_term, items, case_sensitive=False):
     '0.9417'
     >>> '{:.4}'.format(ggg_score)
     '0.0'
-    >>> x, y = list(zip(*fuzzy_search("Ramco-Gers", 
-    ...     [("RAMCO-GERSHENSON PROPERTIES", "RPT US Equity",), 
+    >>> x, y = list(zip(*fuzzy_search("Ramco-Gers",
+    ...     [("RAMCO-GERSHENSON PROPERTIES", "RPT US Equity",),
     ...     ("Ramco Inc.", "RMM123FAKE")])))[1]
     >>> '{:.4}'.format(x), '{:.4}'.format(y)
     ('0.8741', '0.6667')
@@ -276,26 +276,12 @@ def fuzzy_search(search_term, items, case_sensitive=False):
             if not isinstance(item, str):
                 continue
             _item = item.lower() if not case_sensitive else item
-            _jaro = jaro_winkler_similarity(_search_term, _item) / 100.0
+            _jaro = JaroWinkler.similarity(_search_term, _item)
             _fuzz = extract(_search_term, [_item], scorer=token_set_ratio)[
                 -1
             ][-1]
             max_score = float(max(max_score, _jaro, _fuzz / 100.0))
         yield _items, max_score
-
-
-def truncate(s, width, suffix='...'):
-    """Truncate a string to max width chars
-    Add the suffix if the string was truncated
-    """
-    if len(s) <= width:
-        return s
-    w = width - len(suffix)
-    # if the boundary is on a space, don't include it
-    if s[w].isspace():
-        return s[:w] + suffix
-    # break on the first whitespace from the end
-    return s[:w].rsplit(None, 1)[0] + suffix
 
 
 if __name__ == '__main__':

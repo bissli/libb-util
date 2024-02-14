@@ -170,13 +170,6 @@ def format_timedelta(td):
     return fmt_num(td.microseconds / 1000.0, 'msec')
 
 
-def truncate(s, length, indicator='...'):
-    t = s[:length]
-    if len(s) >= length:
-        t += indicator
-    return t
-
-
 def commafy(n):
     """Add commas to an integer `n`.
 
@@ -326,4 +319,4 @@ class Percent(float):
 
 
 if __name__ == '__main__':
-    __import__('doctest').testmod()
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)
