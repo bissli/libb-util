@@ -8,6 +8,7 @@ license = "0BSD"
 
 [tool.poetry.dependencies]
 python = "~3.11"
+poet-plugin = { git = "https://github.com/bissli/poet-exclusive-groups-plugin" }
 
 numpy = "*"
 pandas-market-calendars = "*"
@@ -20,17 +21,22 @@ regex = "^2023.12.25"
 tzlocal = "^5.2"
 wrapt = "^1.16.0"
 paramiko = "^3.4.0"
-service-identity = "^24.1.0"
 
-"web.py" = { version = "^0.62", optional = true }
-Flask = { version = "^3.0.2", optional = true }
-mailchimp-transactional = {version = "^1.0.56", optional = true }
-
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
+# == Test
 asserts = "^0.12.0"
 pytest = "^8.0.0"
+pytest-mock = "^3.12.0"
 pytest-runner = "^6.0.1"
 WebTest = "^3.0.0"
+# == Misc
+Twisted = "^23.8.0"
+service-identity = "^24.1.0"
+"web.py" = "^0.62"
+Flask = "^3.0.2"
+mailchimp-transactional = "^1.0.56"
+pdbpp = { git = "https://github.com/pdbpp/pdbpp.git" }
+black = "^23.9.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
