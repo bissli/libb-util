@@ -25,10 +25,8 @@ from libb import config
 with suppress(ImportError):
     import web
 
-import mailchimp_transactional as MailchimpTransactional
-
 with suppress(ImportError):
-    pass
+    import mailchimp_transactional as MailchimpTransactional
 
 with suppress(ImportError):
     from twisted.internet import reactor
@@ -115,7 +113,7 @@ def colorize(f):
         levelno = record.levelno
         if not logger.is_tty:  # no access to terminal
             return f(logger, record, *other_args)
-        if os.name == 'nt':  # windows
+        if 'Win' in config.PLATFORM:
             color = console.choose_color_windows(levelno)
         else:
             color = console.choose_color_ansi(levelno)
@@ -225,7 +223,7 @@ class ColoredSMTPHandler(ColoredHandler, SMTPHandler):
             self._send_html_msg(msg.as_string())
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
+        except:
             self.handleError(record)
 
     def _build_html_msg(self, record):
@@ -325,7 +323,7 @@ class ScreenshotColoredSMTPHandler(ColoredSMTPHandler):
             self._send_html_msg(msg.as_string())
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
+        except:
             self.handleError(record)
 
 
@@ -353,7 +351,7 @@ class BufferedColoredSMTPHandler(ColoredSMTPHandler):
                 self.flush()
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
+        except:
             self.handleError(record)
 
     def flush(self):
@@ -372,7 +370,7 @@ class BufferedColoredSMTPHandler(ColoredSMTPHandler):
             self.buffer = []
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
+        except:
             for record in self.buffer:
                 self.handleError(record)
             self.buffer = []
@@ -408,7 +406,7 @@ class ColoredMandrillHandler(ColoredHandler, logging.Handler):
             self.api.messages.send({'message':msg})
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
+        except:
             self.handleError(record)
 
 
@@ -452,7 +450,7 @@ class ScreenshotColoredMandrillHandler(ColoredMandrillHandler):
             self.api.messages.send({'message':msg})
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
+        except:
             self.handleError(record)
 
 
@@ -473,7 +471,7 @@ class URLHandler(HTTPHandler):
                 _ = req.read()
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception:
+        except:
             self.handleError(record)
 
 
@@ -564,8 +562,10 @@ LOG_CONF['handlers'] = {
 }
 
 if os.getenv('CONFIG_MANDRILL_APIKEY'):
+    # named handlers
     WEB_HANDLERS.extend(['web_mail'])
     JOB_HANDLERS.extend(['job_mail'])
+    # handler config
     LOG_CONF['handlers'].update({
         'job_mail': {
             'level': 'ERROR',
@@ -589,9 +589,11 @@ if os.getenv('CONFIG_MANDRILL_APIKEY'):
         },
     })
 if os.getenv('CONFIG_SYSLOG_HOST') and os.getenv('CONFIG_SYSLOG_PORT'):
+    # named handlers
     WEB_HANDLERS.extend(['web_sysl'])
     JOB_HANDLERS.extend(['job_sysl'])
     TWD_HANDLERS.extend(['web_sysl'])
+    # handler config
     LOG_CONF['handlers'].update({
         'job_sysl': {
             'level': 'INFO',

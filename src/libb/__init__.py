@@ -15,7 +15,6 @@ def patch_mimetypes_init(wrapped, instance, args, kwargs):
 
 from .chart import timeseries
 from .cmdline import parse_args
-from .collection import *
 from .config import Setting
 from .date import *
 from .dir import *
@@ -23,7 +22,6 @@ from .exception import *
 from .format import *
 from .ftp import connect, decrypt_all_pgp_files, sync_site
 from .io import *
-from .itertools import *
 from .log import configure_logging, log_exception
 from .mail import *
 from .maths import *
