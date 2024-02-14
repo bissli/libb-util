@@ -276,15 +276,15 @@ def market_hours(thedate, entity: Type[NYSE] = NYSE):
     """Market hours
 
     >>> thedate = datetime.date(2023, 1, 5)
-    >>> market_hours(thedate, NYSE) # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+    >>> market_hours(thedate, NYSE)
     (... 9, 30, ... 16, 0, ...)
 
     >>> thedate = datetime.date(2023, 7, 3)
-    >>> market_hours(thedate, NYSE) # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+    >>> market_hours(thedate, NYSE)
     (... 9, 30, ... 13, 0, ...)
 
     >>> thedate = datetime.date(2023, 11, 24)
-    >>> market_hours(thedate, NYSE) # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+    >>> market_hours(thedate, NYSE)
     (... 9, 30, ... 13, 0, ...)
 
     >>> thedate = datetime.date(2023, 11, 25)
@@ -459,7 +459,10 @@ def previous_business_day(
     thedate = thedate or today(tz=entity.tz)
     numdays = abs(numdays)
     while numdays > 0:
-        thedate -= datetime.timedelta(days=1)
+        try:
+            thedate -= datetime.timedelta(days=1)
+        except OverflowError:
+            return thedate
         if is_business_day(thedate, entity):
             numdays -= 1
     return thedate
@@ -486,11 +489,16 @@ def next_business_day(
     >>> thedate
     datetime.date(2021, 11, 24)
 
+    >>> next_business_day(datetime.date(9999, 12, 31))
+    datetime.date(9999, 12, 31)
     """
     thedate = thedate or today(tz=entity.tz)
     numdays = abs(numdays)
     while numdays > 0:
-        thedate += datetime.timedelta(days=1)
+        try:
+            thedate += datetime.timedelta(days=1)
+        except OverflowError:
+            return thedate
         if is_business_day(thedate, entity):
             numdays -= 1
     return thedate
@@ -1580,4 +1588,4 @@ def reference_date_13f(thedate):
 
 
 if __name__ == '__main__':
-    __import__('doctest').testmod()
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)
