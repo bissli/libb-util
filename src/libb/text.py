@@ -10,7 +10,10 @@ from functools import reduce
 
 import chardet
 import ftfy
-from libb import collapse
+from libb.util import collapse
+from rapidfuzz.fuzz import token_set_ratio
+from rapidfuzz.process import extract
+from rapidfuzz.string_metric import jaro_winkler_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -247,5 +250,53 @@ def strtobool(val):
     raise ValueError('invalid truth value %r' % (val,))
 
 
+def fuzzy_search(search_term, items, case_sensitive=False):
+    """Search for term in a list of items with one or more terms
+    Scores each lower-cased "word" (split by space, -, and _) separately
+    Returns the highest score **very** brute force, FIXME improve it
+
+    >>> results = fuzzy_search("OCR", [("Omnicare", "OCR",), ("Ocra", "OKK"), ("GGG",)])
+    >>> (_,ocr_score), (_,okk_score), (_,ggg_score) = results
+    >>> '{:.4}'.format(ocr_score)
+    '1.0'
+    >>> '{:.4}'.format(okk_score)
+    '0.9417'
+    >>> '{:.4}'.format(ggg_score)
+    '0.0'
+    >>> x, y = list(zip(*fuzzy_search("Ramco-Gers", 
+    ...     [("RAMCO-GERSHENSON PROPERTIES", "RPT US Equity",), 
+    ...     ("Ramco Inc.", "RMM123FAKE")])))[1]
+    >>> '{:.4}'.format(x), '{:.4}'.format(y)
+    ('0.8741', '0.6667')
+    """
+    _search_term = search_term.lower() if not case_sensitive else search_term
+    for _items in items:
+        max_score = 0.0
+        for item in _items:
+            if not isinstance(item, str):
+                continue
+            _item = item.lower() if not case_sensitive else item
+            _jaro = jaro_winkler_similarity(_search_term, _item) / 100.0
+            _fuzz = extract(_search_term, [_item], scorer=token_set_ratio)[
+                -1
+            ][-1]
+            max_score = float(max(max_score, _jaro, _fuzz / 100.0))
+        yield _items, max_score
+
+
+def truncate(s, width, suffix='...'):
+    """Truncate a string to max width chars
+    Add the suffix if the string was truncated
+    """
+    if len(s) <= width:
+        return s
+    w = width - len(suffix)
+    # if the boundary is on a space, don't include it
+    if s[w].isspace():
+        return s[:w] + suffix
+    # break on the first whitespace from the end
+    return s[:w].rsplit(None, 1)[0] + suffix
+
+
 if __name__ == '__main__':
-    __import__('doctest').testmod()
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)
