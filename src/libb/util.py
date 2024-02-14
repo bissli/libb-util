@@ -15,6 +15,7 @@ import warnings
 from collections.abc import Mapping
 from contextlib import contextmanager
 from functools import cmp_to_key, reduce, wraps
+from typing import Iterable, List, Dict
 
 from libb import collapse, isiterable
 
@@ -520,7 +521,7 @@ def cmp(left, right):
     return _cmp(left, right)
 
 
-def multikeysort(items, columns, _cmp=cmp, inplace=False):
+def multikeysort(items: List[Dict], columns, _cmp=cmp, inplace=False):
     """Sort list of dictionaries by list of keys
     https://stackoverflow.com/a/1144405
 
@@ -535,7 +536,8 @@ def multikeysort(items, columns, _cmp=cmp, inplace=False):
 
     >>> asc = multikeysort(ds, ['total', 'category'])
     >>> total = [_['total'] for _ in asc]
-    >>> assert all([cmp(total[i], total[i+1]) in (0,-1,) for i in range(len(total)-1)])
+    >>> assert all([cmp(total[i], total[i+1]) in (0,-1,)
+    ...             for i in range(len(total)-1)])
 
     >>> us = multikeysort(ds, ['missing',])
     >>> assert us[0]['total'] == 96.0
@@ -553,7 +555,8 @@ def multikeysort(items, columns, _cmp=cmp, inplace=False):
 
     >>> multikeysort(ds, ['-total', 'category'], inplace=True) # desc
     >>> total = [_['total'] for _ in ds]
-    >>> assert all([cmp(total[i], total[i+1]) in (0, 1,) for i in range(len(total)-1)])
+    >>> assert all([cmp(total[i], total[i+1]) in (0, 1,)
+    ...             for i in range(len(total)-1)])
     """
     if not isinstance(columns, (list, tuple)):
         columns = (columns,)
@@ -563,10 +566,12 @@ def multikeysort(items, columns, _cmp=cmp, inplace=False):
     columns = [x for x in columns if x and m.sub('', x) in known]
 
     i = operator.itemgetter
-    comparers = [(i(m.sub('', col)), -1) if m.match(col) else (i(col), 1) for col in columns]
+    comparers = [(i(m.sub('', col)), -1) if m.match(col) else (i(col), 1)
+                 for col in columns]
 
     def comparer(left, right):
-        comparer_iter = [_cmp(fn(left), fn(right)) * mult for fn, mult in comparers]
+        comparer_iter = (_cmp(fn(left), fn(right)) * mult
+                         for fn, mult in comparers)
         return next((result for result in comparer_iter if result), 0)
 
     if not inplace:
