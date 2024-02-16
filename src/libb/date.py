@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import time
-import warnings
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from functools import lru_cache, partial, wraps
@@ -16,26 +15,17 @@ from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Union
 from zoneinfo import ZoneInfo
 
 import numpy as np
+import pandas as pd
+import pandas_market_calendars as mcal
 import tzlocal
 from dateutil import parser, relativedelta
+from libb import config
+from libb.util import suppresswarning
 
 logger = logging.getLogger(__name__)
 
 
-with warnings.catch_warnings():
-    warnings.simplefilter('ignore')
-    import pandas as pd
-    import pandas_market_calendars as mcal
-
-
-def local_timezone():
-    from libb import config
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        return ZoneInfo(config.TZ or tzlocal.get_localzone_name())
-
-
-LCL = local_timezone()
+LCL = ZoneInfo(config.TZ or tzlocal.get_localzone_name())
 UTC = ZoneInfo('UTC')
 GMT = ZoneInfo('GMT')
 EST = ZoneInfo('US/Eastern')
@@ -202,13 +192,12 @@ class NYSE(Entity):
 
     @staticmethod
     @lru_cache
+    @suppresswarning
     def market_hours(begdate=BEGDATE, enddate=ENDDATE) -> Dict:
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            df = NYSE.calendar.schedule(begdate, enddate, tz=EST)
-            open_close = [(o.to_pydatetime(), c.to_pydatetime()) for o, c in
-                          zip(df.market_open, df.market_close)]
-            return dict(zip(df.index.date, open_close))
+        df = NYSE.calendar.schedule(begdate, enddate, tz=EST)
+        open_close = [(o.to_pydatetime(), c.to_pydatetime())
+                      for o, c in zip(df.market_open, df.market_close)]
+        return dict(zip(df.index.date, open_close))
 
     @staticmethod
     @lru_cache

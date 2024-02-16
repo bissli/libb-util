@@ -980,10 +980,7 @@ def flatten(kv, prefix=None):
     ...     {'event': 'User Clicked', 'properties': {'user_id': '789', 'page_visited': 'restaurant'}}
     ... ]
 
-    >>> import warnings
-    >>> with warnings.catch_warnings():
-    ...     warnings.simplefilter('ignore')
-    ...     from pandas import DataFrame
+    >>> from pandas import DataFrame
     >>> df = DataFrame({k:v for k,v in flatten(kv)} for kv in data)
     >>> list(df)
     ['event', 'properties_user_id', 'properties_page_visited']
@@ -1133,14 +1130,13 @@ def get_attrs(klazz):
 
 
 def suppresswarning(func):
-    """Suppressing numpy (or other) runtime warnings"""
-
+    """Suppressing warnings
+    """
     @wraps(func)
     def wrapper(*args, **kwargs):
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore', category=RuntimeWarning)
+            warnings.simplefilter('ignore')
             return func(*args, **kwargs)
-
     return wrapper
 
 
@@ -1579,21 +1575,21 @@ def copydoc(fromfunc, sep='\n', basefirst=True):
     ...         pass
 
     >>> help(B.myfunction)
-    Help on function myfunction in module __main__:
+    Help on function myfunction in module ...:
     <BLANKLINE>
     myfunction()
         Documentation for A.
         Extra details for B.
     <BLANKLINE>
     >>> help(C.myfunction)
-    Help on function myfunction in module __main__:
+    Help on function myfunction in module ...:
     <BLANKLINE>
     myfunction()
         Extra details for B.
         Documentation for A.
     <BLANKLINE>
     >>> help(E.myfunction)
-    Help on function myfunction in module __main__:
+    Help on function myfunction in module ...:
     <BLANKLINE>
     myfunction()
         .>>> 2 + 2 = 5 # doctest: +DISABLE
@@ -1657,12 +1653,12 @@ def extend_instance(obj, cls, left=True):
     >>> class B(A,Y,Z):pass
     >>> class F(B): pass
     >>> pprint(F.mro())
-    [<class '__main__.F'>,
-     <class '__main__.B'>,
-     <class '__main__.A'>,
-     <class '__main__.X'>,
-     <class '__main__.Y'>,
-     <class '__main__.Z'>,
+    [<class '....F'>,
+     <class '....B'>,
+     <class '....A'>,
+     <class '....X'>,
+     <class '....Y'>,
+     <class '....Z'>,
      <class 'object'>]
     >>> class F_L:
     ...     def __init__(self):
@@ -1672,23 +1668,23 @@ def extend_instance(obj, cls, left=True):
     ...         extend_instance(self, B, left=False)
     >>> f_l = F_L()
     >>> pprint(f_l.__class__.__mro__)
-    (<class '__main__.F_L'>,
-     <class '__main__.B'>,
-     <class '__main__.A'>,
-     <class '__main__.X'>,
-     <class '__main__.Y'>,
-     <class '__main__.Z'>,
-     <class '__main__.F_L'>,
+    (<class '....F_L'>,
+     <class '....B'>,
+     <class '....A'>,
+     <class '....X'>,
+     <class '....Y'>,
+     <class '....Z'>,
+     <class '....F_L'>,
      <class 'object'>)
     >>> f_r = F_R()
     >>> pprint(f_r.__class__.__mro__)
-    (<class '__main__.F_R'>,
-     <class '__main__.F_R'>,
-     <class '__main__.B'>,
-     <class '__main__.A'>,
-     <class '__main__.X'>,
-     <class '__main__.Y'>,
-     <class '__main__.Z'>,
+    (<class '....F_R'>,
+     <class '....F_R'>,
+     <class '....B'>,
+     <class '....A'>,
+     <class '....X'>,
+     <class '....Y'>,
+     <class '....Z'>,
      <class 'object'>)
     """
     if left:

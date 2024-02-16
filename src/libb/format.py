@@ -6,10 +6,12 @@ import re
 logger = logging.getLogger(__name__)
 
 
-def format(value, fmt):
+def fmt(value, style):
     """Format a numeric value supporting things
     like commas, parens for negative values and
-    special cases for zeros. Format is:
+    special cases for zeros.
+
+    Style is:
 
     'n[cpzZkKmMbBsS%#]/[kmb]'  ex: '2c', '0cpz', '1%', '1s'
 
@@ -31,7 +33,7 @@ def format(value, fmt):
     # first ensure we have a reasonable value
     if value != 0 and not value:
         return ''
-    if not fmt:
+    if not style:
         return value
     try:
         val = float(value)
@@ -41,11 +43,11 @@ def format(value, fmt):
         logger.exception(exc)
         return value
 
-    # verify the format
-    m = re.match(r'^\+?(\d)([cpzZkKmMbBsS%#]{0,4})(/[kKmMbB])?$', fmt)
+    # verify the style
+    m = re.match(r'^\+?(\d)([cpzZkKmMbBsS%#]{0,4})(/[kKmMbB])?$', style)
     if not m:
-        raise ValueError('Invalid format:' + fmt)
-    sign = fmt[0] == '+'
+        raise ValueError('Invalid style:' + style)
+    sign = style[0] == '+'
     dps, fmt, div = m.groups()
 
     # for a /x divisor, scale the number before doing any other formatting
@@ -130,9 +132,6 @@ def format(value, fmt):
     except Exception as exc:
         logger.exception(exc)
         return value or ''
-
-
-fmt = format
 
 
 def format_timeinterval(start, end=None):
