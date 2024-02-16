@@ -6,13 +6,16 @@ import logging
 import mimetypes
 import os
 import re
+from contextlib import suppress
 from email.header import decode_header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import mailchimp_transactional as MailchimpTransactional
 import requests
-from mailchimp_transactional.api_client import ApiClientError
+
+with suppress(ImportError):
+    import mailchimp_transactional as MailchimpTransactional
+    from mailchimp_transactional.api_client import ApiClientError
 
 logger = logging.getLogger(__name__)
 
