@@ -1,10 +1,13 @@
 import base64
+import contextlib
 import cProfile
 import datetime
 import io
 import json
+import logging
 import os
 import pstats
+import random
 import re
 import socket
 import sys
@@ -16,21 +19,15 @@ import uuid
 from functools import update_wrapper, wraps
 from itertools import accumulate
 
+import regex as re
 from dateutil import parser
 from libb import collapse, grouper, safe_join, splitcap
 
-try:
-    import web  # only required for a few obvious decorator functions
-except ImportError:
-    web = None
+with contextlib.suppress(ImportError):
+    import web
 
-try:
+with contextlib.suppress(ImportError):
     import flask
-except ImportError:
-    flask = None
-
-import contextlib
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +105,38 @@ def paged(order_by_df, per_page_df):
 
     return wrapper
 
+#
+# webscraping utils
+#
+
+
+def rsleep(always=0, rand_extra=8):
+    seconds = max(always + (random.randrange(0, max(rand_extra, 1) * 1000) * 0.001), 0)
+    logger.debug(f'Sleeping {seconds:0.2f} seconds ...')
+    time.sleep(seconds)
+
+
+def rand_retry(x_times=10, exception=Exception):
+    """Randomly space out retries, to account for automated thresholding."""
+
+    def wrapper(fn):
+        @wraps(fn)
+        def wrapped_fn(*args, **kwargs):
+            logger.debug('Starting wrapped function')
+            tries = 0
+            while tries <= x_times:
+                try:
+                    return fn(*args, **kwargs)
+                except exception as err:
+                    logger.debug(err)
+                    tries += 1
+                    if tries > x_times:
+                        logger.warning(f'Retried function {x_times} times without success.')
+                        return
+                    logger.warning(f'Retry number {tries}')
+                    rsleep(tries)
+        return wrapped_fn
+    return wrapper
 
 #
 # commonly reused decorators
