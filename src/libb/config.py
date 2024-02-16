@@ -1,9 +1,9 @@
 """Config related settings, follows 12factor.net
 """
 import os
-import pathlib
 import platform
 import tempfile
+from pathlib import Path
 
 
 class Setting(dict):
@@ -84,11 +84,35 @@ if ENVIRONMENT is None:
 
 # Tmpdir
 tmpdir = Setting()
-if os.getenv('CONFIG_TMPDIR'):
+if os.getenv('CONFIG_TMPDIR_DIR'):
     tmpdir.dir = os.path.abspath(os.getenv('CONFIG_TMPDIR'))
 else:
     tmpdir.dir = tempfile.gettempdir()
-pathlib.Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
+Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
+
+# Vendor Dir
+vendor = Setting()
+if os.getenv('CONFIG_VENDOR_DIR'):
+    vendor.dir = os.path.abspath(os.getenv('CONFIG_VENDOR_DIR'))
+else:
+    vendor.dir = tempfile.gettempdir()
+Path(vendor.dir).mkdir(parents=True, exist_ok=True)
+
+# Local Dir
+local = Setting()
+local.dir = Path(os.path.expandvars(r'%APPDATA%')
+                 if 'Win' in PLATFORM
+                 else os.path.expanduser('~/.local/share/')) / 'libb'
+local.dir = local.dir.as_posix()
+Path(local.dir).mkdir(parents=True, exist_ok=True)
+
+# Output Dir
+output = Setting()
+if os.getenv('CONFIG_OUTPUT_DIR'):
+    output.dir = os.path.abspath(os.getenv('CONFIG_OUTPUT_DIR'))
+else:
+    output.dir = tempfile.gettempdir()
+Path(output.dir).mkdir(parents=True, exist_ok=True)
 
 # Syslog
 syslog = Setting()
@@ -120,5 +144,8 @@ gpg.dir = os.path.abspath(os.getenv('CONFIG_GPG_DIR') or tmpdir.dir)
 gpg.exe = os.path.join(gpg.dir, 'gpg.exe' if 'Win' in PLATFORM else 'gpg')
 
 
+Setting.lock()
+
+
 if __name__ == '__main__':
-    __import__('doctest').testmod()
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)
