@@ -7,16 +7,15 @@ from typing import Iterable
 
 
 class OverrideModuleGetattr:
-    """Class to wrap a Python module and override the
-    __getattr__ method so we can hook into 'config.foo'
-    module-level variable access.
+    """Class to wrap a Python module and override the __getattr__ method
+    so we can hook into 'config.foo' module-level variable access.
 
     Used for config files. To use in a module:
 
       self = OverrideModuleGetattr(sys.modules[__name__], local_config)
       sys.modules[__name__] = self
 
-    then
+    See test case example in test_config.py
     """
 
     def __init__(self, wrapped, override):
@@ -46,7 +45,8 @@ class OverrideModuleGetattr:
             return getattr(self.wrapped, name)
 
     def __getitem__(self, name):
-        """Allow dynamic module lookups such as config['bloomberg.data']"""
+        """Allow dynamic module lookups such as config['bloomberg.data']
+        """
         bits = name.split('.')
         for bit in bits[:-1]:
             self = self.__getattr__(bit)
@@ -155,10 +155,10 @@ def create_virtual_module(modname, submodules):
     datetime.date(2010, 1, 1)
     >>> libb.new_date.to_date('2010-01-01')
     datetime.date(2010, 1, 1)
-    
+
     >>> import libb
     >>> create_virtual_module('foo', {'date': 'libb.date'})
-    >>> import foo 
+    >>> import foo
     >>> foo.date.to_date('2010-01-01')
     datetime.date(2010, 1, 1)
 
