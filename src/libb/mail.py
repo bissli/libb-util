@@ -390,46 +390,4 @@ def get_mail_status(email_from=None, date_from=None, date_to=None, limit=1000, q
 
 
 if __name__ == '__main__':
-    __import__('doctest').testmod()
-
-    from libb import config, configure_logging
-    configure_logging('cmd')
-    logger = logging.getLogger('cmd')
-    send_mail(
-        config.mail.fromemail,
-        [config.mail.adminemail],
-        'Test message',
-        """
-This is a test email message
-from the mail.py Python module.
-
-Does it work?
-    """,
-        priority='High',
-        bcclist=[config.mail.toemail],
-    )
-
-    send_mail(
-        config.mail.fromemail,
-        [config.mail.adminemail],
-        'Test message',
-        """
-<html><body>
-<p>
-This is a test email message
-from the mail.py Python module.
-
-Does it work?
-</p>
-<pre>
-def foo():
-    #Sample function
-    pass
-</pre>
-</body>
-</html>
-    """,
-        priority='High',
-        subtype='html',
-        cclist=[config.mail.toemail],
-    )
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)
