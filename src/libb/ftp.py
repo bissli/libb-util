@@ -140,7 +140,7 @@ def sync_site(sitename, opts, config):
         opts.pgp_extension = site.get('pgp_extension')
         opts.stats = defaultdict(int)
         opts.ignore_re = site.get('ignore_re', None)
-        sync_directory(cn, site, '/', site.localdir, files, opts)
+        sync_directory(cn, site, '/', Path(site.localdir), files, opts)
         logger.info(
             '%d copied, %d decrypted, %d skipped, %d ignored',
             opts.stats['copied'],
@@ -151,7 +151,7 @@ def sync_site(sitename, opts, config):
     return files
 
 
-def sync_directory(cn, site, remotedir, localdir, files, opts):
+def sync_directory(cn, site, remotedir: str, localdir: Path, files, opts):
     """Sync a remote FTP directory to a local directory recursively
     """
     logger.info(f'Syncing directory {remotedir}')
@@ -167,7 +167,7 @@ def sync_directory(cn, site, remotedir, localdir, files, opts):
                 continue
             if entry.is_dir:
                 sync_directory(cn, site, (Path(remotedir) / entry.name).as_posix(),
-                               Path(localdir) / entry.name, files, opts)
+                               localdir / entry.name, files, opts)
                 continue
             try:
                 filename = sync_file(cn, site, remotedir, localdir, entry, opts)
@@ -180,14 +180,14 @@ def sync_directory(cn, site, remotedir, localdir, files, opts):
         cn.cd(wd)
 
 
-def sync_file(cn, site, remotedir, localdir, entry, opts):
+def sync_file(cn, site, remotedir: str, localdir: Path, entry, opts):
     if opts.ignoreolderthan and entry.datetime < (now() - datetime.timedelta(int(opts.ignoreolderthan))):
         logger.debug('File is too old: %s/%s, skipping (%s)', remotedir, entry.name, str(entry.datetime))
         return
-    localfile = Path(localdir) / entry.name
-    localpgpfile = localdir / '.pgp' / entry.name
+    localfile = localdir / entry.name
+    localpgpfile = (localdir / '.pgp') / entry.name
     if not opts.ignorelocal and (localfile.exists() or localpgpfile.exists()):
-        st = Path(localfile).stat() if Path(localfile).exists() else Path(localpgpfile).stat()
+        st = localfile.stat() if localfile.exists() else localpgpfile.stat()
         if entry.datetime <= to_datetime(st.st_mtime):
             if not opts.ignoresize and (entry.size == st.st_size):
                 logger.debug('File has not changed: %s/%s, skipping', remotedir, entry.name)
@@ -214,21 +214,21 @@ def sync_file(cn, site, remotedir, localdir, entry, opts):
             os.makedirs(os.path.split(localpgpfile)[0])
         shutil.move(localfile, localpgpfile)
         opts.stats['decrypted'] += 1
-        filename = Path(localdir) / newname
+        filename = localdir / newname
     return filename
 
 
-def is_encrypted(filename):
+def is_encrypted(filename: str):
     return 'pgp' in filename.split('.')
 
 
-def rename_pgp(pgpname):
+def rename_pgp(pgpname: str):
     bits = pgpname.split('.')
     bits.remove('pgp')
     return '.'.join(bits)
 
 
-def decrypt_pgp_file(path, pgpname, newname=None, load_extension=None):
+def decrypt_pgp_file(path: Path, pgpname: str, newname=None, load_extension=None):
     """Decrypt file with GnuPG: FIXME move this to a library
     """
     if not newname:
@@ -249,8 +249,8 @@ def decrypt_pgp_file(path, pgpname, newname=None, load_extension=None):
         '--passphrase-fd',
         '0',
         '--output',
-        (Path(path) / pgpname).as_posix(),
-        (Path(path) / newname).as_posix(),
+        (path / pgpname).as_posix(),
+        (path / newname).as_posix(),
     ]
     if load_extension:
         gpg_cmd.insert(-3, '--load-extension')
@@ -297,27 +297,23 @@ class FtpConnection:
 
     def getascii(self, remotefile, localfile=None):
         """Get a file in ASCII (text) mode"""
-        outf = open(localfile or remotefile, 'w', encoding='locale')
-        try:
-            self.ftp.retrlines('RETR ' + remotefile, lambda line: outf.write(line + '\n'))
-        finally:
-            outf.close()
+        with open(localfile or remotefile, 'w') as f:
+            self.ftp.retrlines(f'RETR {remotefile}', lambda line: f.write(line + '\n'))
 
     def getbinary(self, remotefile, localfile=None):
         """Get a file in binary mode"""
-        outf = open(localfile or remotefile, 'wb')
-        try:
-            self.ftp.retrbinary('RETR ' + remotefile, outf.write)
-        finally:
-            outf.close()
+        with open(localfile or remotefile, 'wb') as f:
+            self.ftp.retrbinary(f'RETR {remotefile}', f.write)
 
     def putascii(self, localfile, remotefile=None):
         """Put a file in ASCII (text) mode"""
-        self.ftp.storlines('STOR ' + (remotefile or localfile), open(localfile, encoding='locale'))
+        with open(localfile, 'rb') as f:
+            self.ftp.storlines(f'STOR {remotefile or localfile}', f)
 
     def putbinary(self, localfile, remotefile=None):
         """Put a file in binary mode"""
-        self.ftp.storbinary('STOR ' + (remotefile or localfile), open(localfile, 'rb'), 1024)
+        with open(localfile, 'rb') as f:
+            self.ftp.storbinary(f'STOR {remotefile or localfile}', f, 1024)
 
     def delete(self, remotefile):
         self.ftp.delete(remotefile)
