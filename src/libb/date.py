@@ -67,7 +67,7 @@ def expect(func, typ: Type[datetime.date], exclkw: bool = False) -> Callable:
             if isinstance(arg, (datetime.date, datetime.datetime)):
                 if typ == datetime.datetime:
                     entity = entity or caller_entity(func)
-                    args[i] = to_datetime(args[i], tzhint=entity.tz)
+                    args[i] = to_datetime(args[i])
                     continue
                 if typ == datetime.date:
                     args[i] = to_date(args[i])
@@ -76,7 +76,7 @@ def expect(func, typ: Type[datetime.date], exclkw: bool = False) -> Callable:
                 if isinstance(v, (datetime.date, datetime.datetime)):
                     if typ == datetime.datetime:
                         entity = entity or caller_entity(func)
-                        kwargs[k] = to_datetime(v, tzhint=entity.tz)
+                        kwargs[k] = to_datetime(v)
                         continue
                     if typ == datetime.date:
                         kwargs[k] = to_date(v)
@@ -236,7 +236,7 @@ def is_business_day(thedate=None, entity: Type[NYSE] = NYSE) -> bool:
     >>> is_business_day(thedate)
     True
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     return thedate in entity.business_days()
 
 
@@ -297,20 +297,18 @@ def market_hours(thedate, entity: Type[NYSE] = NYSE):
 # Date functions
 
 
-def now(tz=LCL, current: Optional[datetime.datetime] = None):
-    """Localizing now function"""
+def now(current: Optional[Union[datetime.date, datetime.datetime]] = None):
+    """Native now function"""
     if current is None:
-        return pendulum.now(tz=tz)
-    # for testing
-    assert isinstance(current, datetime.datetime)
-    with contextlib.suppress(Exception):
-        return current.astimezone(tz=tz)
+        return pendulum.now()
+    return to_datetime(current, raise_err=True)  # for testing
 
 
-def today(tz=LCL, current: Optional[datetime.datetime] = None):
-    """Localizing today function"""
-    current = current or now(tz=tz)
-    return Date(current.year, current.month, current.day)
+def today(current: Optional[Union[datetime.date, datetime.datetime]] = None):
+    """Native today function"""
+    if current is None:
+        return pendulum.today().date()
+    return to_date(current, raise_err=True)  # for testing
 
 
 def epoch(d: datetime.datetime):
@@ -321,9 +319,9 @@ def epoch(d: datetime.datetime):
 def rfc3339(d: datetime.datetime):
     """
     >>> rfc3339('Fri, 31 Oct 2014 10:55:00')
-    '2014-10-31T10:55:00-04:00'
+    '2014-10-31T10:55:00+00:00'
     """
-    return to_datetime(d, localize=LCL).isoformat()
+    return to_datetime(d).isoformat()
 
 
 @expect_date
@@ -336,12 +334,12 @@ def first_of_year(thedate=None, tz=LCL) -> Date:
     >>> first_of_year(datetime.date(2012, 12, 31))==datetime.date(2012, 1, 1)
     True
     """
-    return Date((thedate or pendulum.now(tz).date()).year, 1, 1)
+    return Date((thedate or pendulum.today().date()).year, 1, 1)
 
 
 @expect_date
 def last_of_year(thedate=None, tz=LCL):
-    return Date((thedate or pendulum.now(tz).date()).year, 12, 31)
+    return Date((thedate or pendulum.today().date()).year, 12, 31)
 
 
 # rename previous_last_of_month (reame business_day to business)
@@ -354,7 +352,7 @@ def previous_eom(
     >>> previous_eom(datetime.date(2021, 5, 30))
     Date(2021, 4, 30)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     if business:
         return previous_business_day(first_of_month(thedate))
     else:
@@ -365,7 +363,7 @@ def previous_eom(
 def first_of_month(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
 ) -> Date:
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     begdate = Date(thedate.year, thedate.month, 1)
     if business:
         return business_date(begdate, or_next=True, entity=entity)
@@ -381,7 +379,7 @@ def previous_first_of_month(
     >>> previous_first_of_month(datetime.date(2021, 6, 15))
     Date(2021, 5, 1)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     return first_of_month(previous_eom(thedate, business, entity=entity),
                           business, entity=entity)
 
@@ -399,7 +397,7 @@ def last_of_month(
     >>> last_of_month(datetime.date(2023, 4, 30), True) # Sunday -> Friday
     Date(2023, 4, 28)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     offset_date = thedate.end_of('month')
     if business:
         return business_date(offset_date, or_next=False, entity=entity)
@@ -408,13 +406,13 @@ def last_of_month(
 
 @expect_date
 def is_first_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     return first_of_month(thedate, business, entity=entity) == thedate
 
 
 @expect_date
 def is_last_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     return last_of_month(thedate, business, entity=entity) == thedate
 
 
@@ -466,7 +464,7 @@ def previous_business_day(
     >>> previous_business_day(datetime.date(2021, 11, 24), 5)
     Date(2021, 11, 17)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     numdays = abs(numdays)
     while numdays > 0:
         try:
@@ -502,7 +500,7 @@ def next_business_day(
     >>> next_business_day(datetime.date(9999, 12, 31))
     Date(9999, 12, 31)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     numdays = abs(numdays)
     while numdays > 0:
         try:
@@ -542,7 +540,7 @@ def offset_date(
     >>> offset_date(datetime.date(2021, 11, 24), 0, False)
     Date(2021, 11, 24)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     while window != 0:
         try:
             if business:
@@ -586,7 +584,7 @@ def first_of_week(
     >>> first_of_week(datetime.date(2020, 5, 26), business=True)
     Date(2020, 5, 26)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     if thedate.weekday() == pendulum.MONDAY:
         date_offset = thedate
     else:
@@ -602,7 +600,7 @@ def is_first_of_week(thedate=None, business=False, entity: Type[NYSE] = NYSE) ->
 
     Business := if it's a holiday, get next business date
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     return first_of_week(thedate, business) == thedate
 
 
@@ -630,7 +628,7 @@ def last_of_week(
     >>> last_of_week(datetime.date(2020, 4, 9), business=True)
     Date(2020, 4, 9)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     date_offset = thedate.end_of('week')
     if business:
         return business_date(date_offset, or_next=False, entity=entity)
@@ -689,7 +687,7 @@ def next_first_of_month(thedate=None, window=1, snap=True, tz=LCL):
     Date(2015, 1, 1)
     """
     window = window + 15 if snap else window
-    thenext = (thedate or pendulum.now(tz).date()).add(days=window)
+    thenext = (thedate or pendulum.today().date()).add(days=window)
     return first_of_month(thenext)
 
 
@@ -702,7 +700,7 @@ def next_last_date_of_week(thedate=None, business=False, entity: Type[NYSE] = NY
     >>> next_last_date_of_week(datetime.date(2018, 10, 12))
     Date(2018, 10, 19)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     offset = thedate.next(pendulum.FRIDAY)
     if business:
         return business_date(thedate, or_next=False, entity=entity)
@@ -731,7 +729,7 @@ def business_date(thedate=None, or_next=True, tz=LCL, entity: Type[NYSE] = NYSE)
     >>> business_date(datetime.date(2018, 9, 1))
     Date(2018, 9, 4)
     """
-    thedate = thedate or pendulum.now(entity.tz).date()
+    thedate = thedate or pendulum.today().date()
     if is_business_day(thedate, entity):
         return thedate
     if or_next:
@@ -752,7 +750,7 @@ def weekday_or_previous_friday(thedate=None, tz=LCL):
     >>> weekday_or_previous_friday(datetime.date(2019, 10, 3)) # Thursday
     Date(2019, 10, 3)
     """
-    thedate = thedate or pendulum.now(tz).date()
+    thedate = thedate or pendulum.today().date()
     dnum = thedate.weekday()
     if dnum in {SATURDAY, SUNDAY}:
         return thedate.subtract(days=dnum - 4)
@@ -835,7 +833,7 @@ def num_quarters(begdate, enddate=None, tz=LCL):
     >>> round(num_quarters(datetime.date(2020, 1, 1), datetime.date(2020, 8, 1)), 2)
     2.33
     """
-    return 4 * days_between(begdate, enddate or pendulum.now(tz).date()) / 365.0
+    return 4 * days_between(begdate, enddate or pendulum.today().date()) / 365.0
 
 
 @expect_date
@@ -957,8 +955,7 @@ def to_date(
     s: Union[str, datetime.date, datetime.datetime, pd.Timestamp, np.datetime64],
     fmt: str = None,
     raise_err: bool = False,
-    shortcodes: bool = True,
-    entity: Type[NYSE] = NYSE,
+    shortcodes: bool = True
 ) -> Optional[datetime.date]:
     """Convert a string to a date handling many different formats.
 
@@ -1037,15 +1034,15 @@ def to_date(
 
     def date_for_symbol(s):
         if s == 'N':
-            return pendulum.now(entity.tz)
+            return pendulum.today().date()
         if s == 'T':
-            return pendulum.now(entity.tz).date()
+            return pendulum.today().date()
         if s == 'Y':
-            return pendulum.now(entity.tz).date().subtract(days=1)
+            return pendulum.today().date().subtract(days=1)
         if s == 'P':
-            return previous_business_day(entity=entity)
+            return previous_business_day()
         if s == 'M':
-            return previous_eom(entity=entity)
+            return previous_eom()
 
     def year(m):
         try:
@@ -1054,7 +1051,7 @@ def to_date(
                 yy += 2000
         except IndexError:
             logger.warning('Using default this year')
-            yy = pendulum.now(entity.tz).date().year
+            yy = pendulum.today().date().year
         return yy
 
     if not s:
@@ -1063,7 +1060,7 @@ def to_date(
         return
 
     if isinstance(s, (np.datetime64, pd.Timestamp)):
-        s = to_datetime(s, localize=entity.tz)
+        s = to_datetime(s)
     if isinstance(s, datetime.datetime):
         if any([s.hour, s.minute, s.second, s.microsecond]):
             logger.debug('Forced datetime with non-zero time to date')
@@ -1088,14 +1085,14 @@ def to_date(
                 bus = m.group(2)[-1] == 'b'
                 n = int(m.group(2).replace('b', ''))
                 if bus:
-                    d = offset_date(d, n, business=True, entity=entity)
+                    d = offset_date(d, n, business=True)
                 else:
                     d = d.add(days=n)
             return d
         if 'today' in s.lower():
-            return pendulum.now(entity.tz).date()
+            return pendulum.today().date()
         if 'yester' in s.lower():
-            return pendulum.now(entity.tz).subtract(days=1).date()
+            return pendulum.today().subtract(days=1).date()
 
     try:
         return pendulum.instance(parser.parse(s).date())
@@ -1204,7 +1201,7 @@ def to_time(s, fmt=None, raise_err=False):
         return pendulum.instance(s).time()
 
     if isinstance(s, datetime.time):
-        return pendulum.instance(s).time()
+        return pendulum.instance(s)
 
     if fmt:
         return Time(*time.strptime(s, fmt)[3:6])
@@ -1238,44 +1235,40 @@ def to_time(s, fmt=None, raise_err=False):
 def to_datetime(
     s: Union[str, datetime.date, datetime.datetime, pd.Timestamp, np.datetime64],
     raise_err=False,
-    tzhint=LCL,
-    localize=None,
-    entity: Type[NYSE] = NYSE
 ) -> Optional[datetime.date]:
     """Thin layer on dateutil parser and our custom `to_date` and `to_time`
-    = tzhint: Assumed time zone of input (default local time zone)
-    = localize: Desired time zone of input (default None)
 
-    Hint that the time is in EST
-    >>> this_est = to_datetime('Fri, 31 Oct 2014 10:55:00', tzhint=EST)
-    >>> this_est
-    DateTime(2014, 10, 31, 10, 55, 0, tzinfo=Timezone('US/Eastern'))
+    Assume UTC, convert to EST
+    >>> this_est1 = to_datetime('Fri, 31 Oct 2014 18:55:00').in_timezone(EST)
+    >>> this_est1
+    DateTime(2014, 10, 31, 14, 55, 0, tzinfo=Timezone('US/Eastern'))
 
-    Assume UTC, conver to EST
-    >>> this_est = to_datetime('Fri, 31 Oct 2014 14:55:00', tzhint=UTC, localize=EST)
-    >>> this_est
-    DateTime(2014, 10, 31, 10, 55, 0, tzinfo=Timezone('US/Eastern'))
+    This is actually 18:55 UTC with -4 hours applied = EST
+    >>> this_est2 = to_datetime('Fri, 31 Oct 2014 14:55:00 -0400')
+    >>> this_est2
+    DateTime(2014, 10, 31, 14, 55, 0, tzinfo=FixedTimezone(-14400, name="-04:00"))
 
     UTC time technically equals GMT
-    >>> this_utc = to_datetime('Fri, 31 Oct 2014 14:55:00 GMT', tzhint=GMT, localize=UTC)
+    >>> this_utc = to_datetime('Fri, 31 Oct 2014 18:55:00 GMT')
     >>> this_utc
-    DateTime(2014, 10, 31, 14, 55, 0, tzinfo=Timezone('UTC'))
-    >>> this_gmt = to_datetime('Fri, 31 Oct 2014 14:55:00 -0400', tzhint=UTC, localize=GMT)
-    >>> this_gmt
-    DateTime(2014, 10, 31, 14, 55, 0, tzinfo=Timezone('GMT'))
+    DateTime(2014, 10, 31, 18, 55, 0, tzinfo=Timezone('UTC'))
 
     We can freely compare time zones
-    >>> this_est==this_gmt==this_utc
+    >>> this_est1==this_est2==this_utc
     True
 
+    Convert date to datetime (will use native time zone)
+    >>> to_datetime(datetime.date(2000, 1, 1))
+    DateTime(2000, 1, 1, 0, 0, 0, tzinfo=Timezone('...'))
+
     Format tests
-    >>> epoch(to_datetime(1707856982, tzhint=UTC))
+    >>> epoch(to_datetime(1707856982))
     1707856982.0
-    >>> to_datetime('Jan 29  2010', tzhint=EST)
-    DateTime(2010, 1, 29, 0, 0, 0, tzinfo=Timezone('US/Eastern'))
-    >>> to_datetime(np.datetime64('2000-01', 'D'), tzhint=UTC)
+    >>> to_datetime('Jan 29  2010')
+    DateTime(2010, 1, 29, 0, 0, 0, tzinfo=Timezone('UTC'))
+    >>> to_datetime(np.datetime64('2000-01', 'D'))
     DateTime(2000, 1, 1, 0, 0, 0, tzinfo=Timezone('UTC'))
-    >>> _ = to_datetime('Sep 27 17:11', tzhint=EST)
+    >>> _ = to_datetime('Sep 27 17:11')
     >>> _.month, _.day, _.hour, _.minute
     (9, 27, 17, 11)
     """
@@ -1285,34 +1278,23 @@ def to_datetime(
         return
 
     if isinstance(s, pd.Timestamp):
-        return pendulum.instance(s.to_pydatetime(), tz=tzhint)
+        return pendulum.instance(s.to_pydatetime())
     if isinstance(s, np.datetime64):
         dtm = np.datetime64(s, 'us').astype(datetime.datetime)
-        return pendulum.instance(dtm, tz=tzhint)
+        return pendulum.instance(dtm)
     if isinstance(s, (int, float)):
         iso = datetime.datetime.fromtimestamp(s).isoformat()
-        return to_datetime(iso, tzhint=tzhint, localize=localize, entity=entity)
-    if isinstance(s, datetime.datetime) and not localize:
-        return pendulum.instance(s, tz=tzhint)
+        return to_datetime(iso)
     if isinstance(s, datetime.datetime):
-        s = str(s)
-    if isinstance(tzhint, str):
-        tzhint = pendulum.tz.Timezone(tzhint)
-    if isinstance(localize, str):
-        localize = pendulum.tz.Timezone(localize)
+        return pendulum.instance(s)
     if isinstance(s, datetime.date):
         logger.debug('Forced date without time to datetime')
-        return DateTime(s.year, s.month, s.day, tzinfo=tzhint)
+        return DateTime(s.year, s.month, s.day, tzinfo=LCL)
     if not isinstance(s, str):
         raise TypeError(f'Invalid type for date column: {s.__class__}')
 
     try:
-        parsed = pendulum.instance(parser.parse(s))
-        if tzhint:
-            parsed = parsed.replace(tzinfo=tzhint)
-        if localize:
-            parsed = parsed.astimezone(localize)
-        return parsed
+        return pendulum.instance(parser.parse(s))
     except (TypeError, ValueError) as err:
         logger.debug('Dateutil parser failed .. trying our custom parsers')
 
@@ -1324,12 +1306,12 @@ def to_datetime(
             if d is not None and t is not None:
                 return DateTime.combine(d, t)
 
-    d = to_date(s, entity=entity)
+    d = to_date(s)
     if d is not None:
-        return DateTime(d.year, d.month, d.day, 0, 0, 0, tz=tzhint)
+        return DateTime(d.year, d.month, d.day, 0, 0, 0)
 
-    current = pendulum.now(tzhint).date()
-    t = to_time(s)   # probably a bug when combining localized date with vanilla time
+    current = pendulum.today().date()
+    t = to_time(s)
     if t is not None:
         return DateTime.combine(current, t)
 
@@ -1488,7 +1470,7 @@ def years_between(begdate=None, enddate=None, basis: int = 0, tz=LCL):
             (date1day + date1month * 30 + date1year * 360)
         return daydiff360 / 360
 
-    begdate = begdate or pendulum.now(tz).date()
+    begdate = begdate or pendulum.today().date()
     if enddate is None:
         return
 
@@ -1543,9 +1525,9 @@ def date_range(
     (Date(2014, 6, 27), Date(2014, 7, 27))
     """
     if begdate:
-        begdate = to_date(begdate, entity=entity)
+        begdate = to_date(begdate)
     if enddate:
-        enddate = to_date(enddate, entity=entity)
+        enddate = to_date(enddate)
 
     if begdate and enddate:
         return begdate, enddate
