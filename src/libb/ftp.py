@@ -232,9 +232,7 @@ def decrypt_pgp_file(path: Path, pgpname: str, newname=None, load_extension=None
     """Decrypt file with GnuPG: FIXME move this to a library
     """
     if not newname:
-        bits = pgpname.split('.')
-        bits.remove('pgp')
-        newname = '.'.join(bits)
+        newname = rename_pgp(pgpname)
     if newname == pgpname:
         raise ValueError('pgpname and newname cannot be the same')
     logger.debug(f'Decrypting file {pgpname} to {newname}')
@@ -265,6 +263,59 @@ def decrypt_pgp_file(path: Path, pgpname: str, newname=None, load_extension=None
         logger.error('Failed to decrypt %s\n%s:', pgpname, err)
     if 'decrypt_message failed: file open error' in err:
         logger.error('Failed to decrypt %s\n%s:', pgpname, err)
+
+
+def decrypt_all_pgp_files(config, sitename, opts):
+    """Backup approach to decrypting all saved pgp files
+
+    Assumes that local config.py contains a general stie structure
+    for vendors:
+
+    `local config.py`
+
+    vendors = Setting()
+
+    vendors.foo.ftp.hostname = 'sftp.foovendor.com'
+    vendors.foo.ftp.username = 'foouser'
+    vendors.foo.ftp.password = 'foopasswd'
+    ...
+    vendors.bar.ftp.hostname = 'sftp.barvendor.com'
+    vendors.bar.ftp.username = 'baruser'
+    vendors.bar.ftp.password = 'barpasswd'
+    ...
+    """
+    this = config
+    for level in sitename.split('.'):
+        this = getattr(this, level)
+    site = this.ftp
+    is_encrypted_fn = site.get('is_encrypted', is_encrypted)
+    rename_pgp_fn = site.get('rename_pgp', rename_pgp)
+    pgp_extension = site.get('pgp_extension')
+    files = []
+    for localdir, _, files in os.walk(site.localdir):
+        if '.pgp' in os.path.split(localdir):
+            continue
+        localdir = Path(localdir)
+        logger.info(f'Walking through {len(files)} files')
+        for name in files:
+            localfile = localdir / name
+            localpgpfile = (localdir / '.pgp') / name
+            if opts.ignoreolderthan:
+                created_on = to_datetime(localfile.stat().st_ctime)
+                ignore_datetime = now() - datetime.timedelta(int(opts.ignoreolderthan))
+                if created_on < ignore_datetime:
+                    logger.debug('File is too old: %s/%s, skipping (%s)',
+                                 localdir, name, str(created_on))
+                    continue
+            if is_encrypted_fn(name):
+                newname = rename_pgp_fn(name)
+                decrypt_pgp_file(localdir, name, newname, pgp_extension)
+                with contextlib.suppress(Exception):
+                    os.makedirs(os.path.split(localpgpfile)[0])
+                shutil.move(localfile, localpgpfile)
+                filename = localdir / newname
+                files.append(filename)
+    return files
 
 
 class FtpConnection:
