@@ -286,7 +286,7 @@ def market_hours(thedate, entity: Type[NYSE] = NYSE):
 # Date functions
 
 
-def now(tz=EST, current: Optional[datetime.datetime] = None):
+def now(tz=LCL, current: Optional[datetime.datetime] = None):
     """Localizing now function"""
     if current is None:
         return datetime.datetime.now(tz=tz)
@@ -296,15 +296,15 @@ def now(tz=EST, current: Optional[datetime.datetime] = None):
         return current.astimezone(tz=tz)
 
 
-def today(tz=EST, current: Optional[datetime.datetime] = None):
+def today(tz=LCL, current: Optional[datetime.datetime] = None):
     """Localizing today function"""
     current = current or now(tz=tz)
     return datetime.date(current.year, current.month, current.day)
 
 
-def epoch(obj):
+def epoch(d: datetime.datetime):
     """Translate a datetime object into unix seconds since epoch"""
-    return time.mktime(obj.timetuple())
+    return time.mktime(d.timetuple())
 
 
 def rfc3339(d: datetime.datetime):
@@ -312,10 +312,10 @@ def rfc3339(d: datetime.datetime):
     >>> rfc3339('Fri, 31 Oct 2014 10:55:00')
     '2014-10-31T10:55:00-04:00'
     """
-    return to_datetime(d, localize=EST).isoformat()
+    return to_datetime(d, localize=LCL).isoformat()
 
 
-def first_of_year(thedate=None, tz=EST) -> datetime.date:
+def first_of_year(thedate=None, tz=LCL) -> datetime.date:
     """Does not need an arg, same with other funcs (`last_of_year`,
     `previous_eom`, &c.)
 
@@ -327,7 +327,7 @@ def first_of_year(thedate=None, tz=EST) -> datetime.date:
     return datetime.date((thedate or today(tz=tz)).year, 1, 1)
 
 
-def last_of_year(thedate=None, tz=EST):
+def last_of_year(thedate=None, tz=LCL):
     return datetime.date((thedate or today(tz=tz)).year, 12, 31)
 
 
@@ -642,7 +642,7 @@ def get_last_weekday_of_month(thedate, weekday='SU'):
     return thedate + relativedelta.relativedelta(day=31, weekday=day_obj(-1))
 
 
-def next_first_of_month(thedate=None, window=1, snap=True, tz=EST):
+def next_first_of_month(thedate=None, window=1, snap=True, tz=LCL):
     """Get next first of month
     if 'snap', round up to next month when date is past mid-month
 
@@ -696,7 +696,7 @@ def next_relative_date_of_week_by_day(thedate, day='MO'):
 
 
 @expect_date
-def business_date(thedate=None, or_next=True, tz=EST, entity: Type[NYSE] = NYSE):
+def business_date(thedate=None, or_next=True, tz=LCL, entity: Type[NYSE] = NYSE):
     """Return the date if it is a business day, else the next business date.
 
     9/1 is Saturday, 9/3 is Labor Day
@@ -712,7 +712,7 @@ def business_date(thedate=None, or_next=True, tz=EST, entity: Type[NYSE] = NYSE)
 
 
 @expect_date
-def weekday_or_previous_friday(thedate=None, tz=EST):
+def weekday_or_previous_friday(thedate=None, tz=LCL):
     """Return the date if it is a weekday, else previous Friday
 
     >>> weekday_or_previous_friday(datetime.date(2019, 10, 6)) # Sunday
@@ -793,7 +793,7 @@ def get_dates(since=None, until=None, window=0, business=False, entity: Type[NYS
         thedate += relativedelta.relativedelta(days=1)
 
 
-def num_quarters(begdate, enddate=None, tz=EST):
+def num_quarters(begdate, enddate=None, tz=LCL):
     """Return the number of quarters between two dates
     TODO: good enough implementation; refine rules to be heuristically precise
 
@@ -1340,7 +1340,7 @@ def days_between(
 
 
 @expect_date
-def years_between(begdate=None, enddate=None, basis: int = 0, tz=EST):
+def years_between(begdate=None, enddate=None, basis: int = 0, tz=LCL):
     """Years with Fractions (matches Excel YEARFRAC)
 
     Adapted from https://web.archive.org/web/20200915094905/https://dwheeler.com/yearfrac/calc_yearfrac.py
