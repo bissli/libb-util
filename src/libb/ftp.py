@@ -249,8 +249,9 @@ def decrypt_pgp_file(path: Path, pgpname: str, newname=None, load_extension=None
         '--passphrase-fd',
         '0',
         '--output',
-        (path / pgpname).as_posix(),
         (path / newname).as_posix(),
+        '--decrypt',
+        (path / pgpname).as_posix(),
     ]
     if load_extension:
         gpg_cmd.insert(-3, '--load-extension')
@@ -261,6 +262,8 @@ def decrypt_pgp_file(path: Path, pgpname: str, newname=None, load_extension=None
                          text=True)
     out, err = p.communicate('password')
     if 'gpg: decryption failed: secret key not available' in err:
+        logger.error('Failed to decrypt %s\n%s:', pgpname, err)
+    if 'decrypt_message failed: file open error' in err:
         logger.error('Failed to decrypt %s\n%s:', pgpname, err)
 
 
