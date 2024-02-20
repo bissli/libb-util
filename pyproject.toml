@@ -16,9 +16,8 @@ more-itertools = "^10.2.0"
 wrapt = "^1.16.0"
 paramiko = "^3.4.0"
 # == date
-python-dateutil = "^2.8.2"
 pandas-market-calendars = "*"
-tzlocal = "^5.2"
+pendulum = "^3.0.0"
 # == text
 regex = "^2023.12.25"
 rapidfuzz = "^3.6.1"

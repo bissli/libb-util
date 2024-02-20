@@ -12,26 +12,35 @@ from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from functools import lru_cache, partial, wraps
 from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Union
-from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
-import tzlocal
-from dateutil import parser, relativedelta
+import pendulum
+from dateutil import parser
 from libb import config
 from libb.util import suppresswarning
+from pendulum import Date, DateTime, Time
 
 logger = logging.getLogger(__name__)
 
-
-LCL = ZoneInfo(config.TZ or tzlocal.get_localzone_name())
-UTC = ZoneInfo('UTC')
-GMT = ZoneInfo('GMT')
-EST = ZoneInfo('US/Eastern')
+LCL = pendulum.tz.Timezone(config.TZ or pendulum.tz.get_local_timezone().name)
+UTC = pendulum.tz.Timezone('UTC')
+GMT = pendulum.tz.Timezone('GMT')
+EST = pendulum.tz.Timezone('US/Eastern')
 
 
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
+
+day_obj = {
+    'MO': pendulum.MONDAY,
+    'TU': pendulum.TUESDAY,
+    'WE': pendulum.WEDNESDAY,
+    'TH': pendulum.THURSDAY,
+    'FR': pendulum.FRIDAY,
+    'SA': pendulum.SATURDAY,
+    'SU': pendulum.SUNDAY
+}
 
 
 def expect(func, typ: Type[datetime.date], exclkw: bool = False) -> Callable:
@@ -60,7 +69,8 @@ def expect(func, typ: Type[datetime.date], exclkw: bool = False) -> Callable:
                     entity = entity or caller_entity(func)
                     args[i] = to_datetime(args[i], tzhint=entity.tz)
                     continue
-                args[i] = to_date(args[i])
+                if typ == datetime.date:
+                    args[i] = to_date(args[i])
         if not exclkw:
             for k, v in kwargs.items():
                 if isinstance(v, (datetime.date, datetime.datetime)):
@@ -68,7 +78,8 @@ def expect(func, typ: Type[datetime.date], exclkw: bool = False) -> Callable:
                         entity = entity or caller_entity(func)
                         kwargs[k] = to_datetime(v, tzhint=entity.tz)
                         continue
-                    kwargs[k] = to_date(v)
+                    if typ == datetime.date:
+                        kwargs[k] = to_date(v)
         return func(*args, **kwargs)
 
     return wrapper
@@ -225,7 +236,7 @@ def is_business_day(thedate=None, entity: Type[NYSE] = NYSE) -> bool:
     >>> is_business_day(thedate)
     True
     """
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     return thedate in entity.business_days()
 
 
@@ -289,7 +300,7 @@ def market_hours(thedate, entity: Type[NYSE] = NYSE):
 def now(tz=LCL, current: Optional[datetime.datetime] = None):
     """Localizing now function"""
     if current is None:
-        return datetime.datetime.now(tz=tz)
+        return pendulum.now(tz=tz)
     # for testing
     assert isinstance(current, datetime.datetime)
     with contextlib.suppress(Exception):
@@ -299,7 +310,7 @@ def now(tz=LCL, current: Optional[datetime.datetime] = None):
 def today(tz=LCL, current: Optional[datetime.datetime] = None):
     """Localizing today function"""
     current = current or now(tz=tz)
-    return datetime.date(current.year, current.month, current.day)
+    return Date(current.year, current.month, current.day)
 
 
 def epoch(d: datetime.datetime):
@@ -315,91 +326,99 @@ def rfc3339(d: datetime.datetime):
     return to_datetime(d, localize=LCL).isoformat()
 
 
-def first_of_year(thedate=None, tz=LCL) -> datetime.date:
+@expect_date
+def first_of_year(thedate=None, tz=LCL) -> Date:
     """Does not need an arg, same with other funcs (`last_of_year`,
     `previous_eom`, &c.)
 
-    >>> first_of_year()==datetime.date(today().year, 1, 1)
+    >>> first_of_year()==datetime.date(pendulum.today().year, 1, 1)
     True
     >>> first_of_year(datetime.date(2012, 12, 31))==datetime.date(2012, 1, 1)
     True
     """
-    return datetime.date((thedate or today(tz=tz)).year, 1, 1)
+    return Date((thedate or pendulum.now(tz).date()).year, 1, 1)
 
 
+@expect_date
 def last_of_year(thedate=None, tz=LCL):
-    return datetime.date((thedate or today(tz=tz)).year, 12, 31)
+    return Date((thedate or pendulum.now(tz).date()).year, 12, 31)
 
 
 # rename previous_last_of_month (reame business_day to business)
+@expect_date
 def previous_eom(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
-) -> datetime.date:
+) -> Date:
     """Previous EOM
 
     >>> previous_eom(datetime.date(2021, 5, 30))
-    datetime.date(2021, 4, 30)
+    Date(2021, 4, 30)
     """
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     if business:
         return previous_business_day(first_of_month(thedate))
     else:
-        return first_of_month(thedate) + relativedelta.relativedelta(days=-1)
+        return first_of_month(thedate).subtract(days=1)
 
 
+@expect_date
 def first_of_month(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
-) -> datetime.date:
-    thedate = thedate or today(tz=entity.tz)
-    begdate = datetime.date(thedate.year, thedate.month, 1)
+) -> Date:
+    thedate = thedate or pendulum.now(entity.tz).date()
+    begdate = Date(thedate.year, thedate.month, 1)
     if business:
         return business_date(begdate, or_next=True, entity=entity)
     return begdate
 
 
+@expect_date
 def previous_first_of_month(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
-) -> datetime.date:
+) -> Date:
     """Previous first of month
 
     >>> previous_first_of_month(datetime.date(2021, 6, 15))
-    datetime.date(2021, 5, 1)
+    Date(2021, 5, 1)
     """
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     return first_of_month(previous_eom(thedate, business, entity=entity),
                           business, entity=entity)
 
 
+@expect_date
 def last_of_month(
     thedate=None, business: bool = False, entity: Type[NYSE] = NYSE
-) -> datetime.date:
+) -> Date:
     """Last of month
 
     >>> last_of_month(datetime.date(2021, 6, 15))
-    datetime.date(2021, 6, 30)
+    Date(2021, 6, 30)
     >>> last_of_month(datetime.date(2021, 6, 30))
-    datetime.date(2021, 6, 30)
+    Date(2021, 6, 30)
     >>> last_of_month(datetime.date(2023, 4, 30), True) # Sunday -> Friday
-    datetime.date(2023, 4, 28)
+    Date(2023, 4, 28)
     """
-    thedate = thedate or today(tz=entity.tz)
-    last_day = calendar.monthrange(thedate.year, thedate.month)[1]
-    offset_date = datetime.date(thedate.year, thedate.month, last_day)
+    thedate = thedate or pendulum.now(entity.tz).date()
+    offset_date = thedate.end_of('month')
     if business:
         return business_date(offset_date, or_next=False, entity=entity)
     return offset_date
 
 
+@expect_date
 def is_first_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     return first_of_month(thedate, business, entity=entity) == thedate
 
 
+@expect_date
 def is_last_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     return last_of_month(thedate, business, entity=entity) == thedate
 
 
+@expect_date
 def offset_from_end_of_month(
     thedate, window=-1, business=False, entity: Type[NYSE] = NYSE
 ):
@@ -407,25 +426,27 @@ def offset_from_end_of_month(
     raise NotImplementedError('Not Implemented')
 
 
+@expect_date
 def offset_from_beg_of_month(
     thedate, window=1, business=False, entity: Type[NYSE] = NYSE
 ):
     raise NotImplementedError('Not Implemented')
 
 
+@expect_date
 def third_wednesday(year, month):
     """Third Wednesday date of a given month/year
 
     >>> third_wednesday(2022, 6)
-    datetime.date(2022, 6, 15)
+    Date(2022, 6, 15)
     >>> third_wednesday(2023, 3)
-    datetime.date(2023, 3, 15)
+    Date(2023, 3, 15)
     >>> third_wednesday(2022, 12)
-    datetime.date(2022, 12, 21)
+    Date(2022, 12, 21)
     >>> third_wednesday(2023, 6)
-    datetime.date(2023, 6, 21)
+    Date(2023, 6, 21)
     """
-    third = datetime.date(year, month, 15)  # lowest 3rd day
+    third = Date(year, month, 15)  # lowest 3rd day
     w = third.weekday()
     if w != WEDNESDAY:
         third = third.replace(day=(15 + (WEDNESDAY - w) % 7))
@@ -435,21 +456,21 @@ def third_wednesday(year, month):
 @expect_date
 def previous_business_day(
     thedate=None, numdays=1, entity: Type[NYSE] = NYSE
-) -> datetime.date:
+) -> Date:
     """Previous business days at least N days prior
     - numdays are business days
 
     Closed on 12/5/2018 due to George H.W. Bush's death
     >>> previous_business_day(datetime.date(2018, 12, 7), 5)
-    datetime.date(2018, 11, 29)
+    Date(2018, 11, 29)
     >>> previous_business_day(datetime.date(2021, 11, 24), 5)
-    datetime.date(2021, 11, 17)
+    Date(2021, 11, 17)
     """
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     numdays = abs(numdays)
     while numdays > 0:
         try:
-            thedate -= datetime.timedelta(days=1)
+            thedate = thedate.subtract(days=1)
         except OverflowError:
             return thedate
         if is_business_day(thedate, entity):
@@ -460,7 +481,7 @@ def previous_business_day(
 @expect_date
 def next_business_day(
     thedate=None, numdays=1, entity: Type[NYSE] = NYSE
-) -> datetime.date:
+) -> Date:
     """Next one business day
 
     Closed on 12/5/2018 due to George H.W. Bush's death
@@ -469,23 +490,23 @@ def next_business_day(
     ...     thedate = next_business_day(thedate)
     ...     i -= 1
     >>> thedate
-    datetime.date(2018, 12, 7)
+    Date(2018, 12, 7)
 
     >>> i, thedate = 5, datetime.date(2021, 11, 17)
     >>> while i > 0:
     ...     thedate = next_business_day(thedate)
     ...     i -= 1
     >>> thedate
-    datetime.date(2021, 11, 24)
+    Date(2021, 11, 24)
 
     >>> next_business_day(datetime.date(9999, 12, 31))
-    datetime.date(9999, 12, 31)
+    Date(9999, 12, 31)
     """
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     numdays = abs(numdays)
     while numdays > 0:
         try:
-            thedate += datetime.timedelta(days=1)
+            thedate = thedate.add(days=1)
         except OverflowError:
             return thedate
         if is_business_day(thedate, entity):
@@ -493,82 +514,83 @@ def next_business_day(
     return thedate
 
 
+@expect_date
 def offset_date(
     thedate=None, window=0, business=False, entity: Type[NYSE] = NYSE
-) -> datetime.date:
+) -> Date:
     """Offset thedate by N calendar or business days.
 
     In one week (from next_business_day doctests)
     >>> offset_date(datetime.date(2018, 11, 29), 5, True)
-    datetime.date(2018, 12, 7)
+    Date(2018, 12, 7)
     >>> offset_date(datetime.date(2021, 11, 17), 5, True)
-    datetime.date(2021, 11, 24)
+    Date(2021, 11, 24)
 
     One week ago (from next_business_day doctests)
     >>> offset_date(datetime.date(2018, 12, 7), -5, True)
-    datetime.date(2018, 11, 29)
+    Date(2018, 11, 29)
     >>> offset_date(datetime.date(2021, 11, 24), -7, False)
-    datetime.date(2021, 11, 17)
+    Date(2021, 11, 17)
     >>> offset_date(datetime.date(2018, 12, 7), -5, True)
-    datetime.date(2018, 11, 29)
+    Date(2018, 11, 29)
     >>> offset_date(datetime.date(2021, 11, 24), -7, False)
-    datetime.date(2021, 11, 17)
+    Date(2021, 11, 17)
 
     0 offset returns same date
     >>> offset_date(datetime.date(2018, 12, 7), 0, True)
-    datetime.date(2018, 12, 7)
+    Date(2018, 12, 7)
     >>> offset_date(datetime.date(2021, 11, 24), 0, False)
-    datetime.date(2021, 11, 24)
+    Date(2021, 11, 24)
     """
-    thedate = thedate or today(tz=entity.tz)
-    if window > 0:
-        if business:
-            offset_func = next_business_day
-        else:
-            offset_func = lambda: partial(relativedelta.relativedelta, days=1)
-    if window < 0:
-        if business:
-            offset_func = previous_business_day
-        else:
-            offset_func = lambda: partial(relativedelta.relativedelta, days=-1)
-    window = abs(window or 0)
-    while window > 0:
+    thedate = thedate or pendulum.now(entity.tz).date()
+    while window != 0:
         try:
             if business:
-                thedate = offset_func(thedate, entity=entity)
+                if window > 0:
+                    thedate = next_business_day(thedate, 1, entity)
+                if window < 0:
+                    thedate = previous_business_day(thedate, 1, entity)
             else:
-                thedate += offset_func()()
+                if window > 0:
+                    thedate = thedate.add(days=1)
+                if window < 0:
+                    thedate = thedate.subtract(days=1)
         except OverflowError:
             return thedate
-        window -= 1
+        if window > 0:
+            window -= 1
+        else:
+            window += 1
     return thedate
 
 
 @expect_date
 def first_of_week(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
-) -> datetime.date:
+) -> Date:
     """First of week function (Monday unless not a holiday).
 
     Regular Monday
     >>> first_of_week(datetime.date(2023, 4, 24))
-    datetime.date(2023, 4, 24)
+    Date(2023, 4, 24)
 
     Regular Sunday
     >>> first_of_week(datetime.date(2023, 4, 30))
-    datetime.date(2023, 4, 24)
+    Date(2023, 4, 24)
 
     Memorial day 5/25
     >>> first_of_week(datetime.date(2020, 5, 25))
-    datetime.date(2020, 5, 25)
+    Date(2020, 5, 25)
     >>> first_of_week(datetime.date(2020, 5, 27))
-    datetime.date(2020, 5, 25)
+    Date(2020, 5, 25)
     >>> first_of_week(datetime.date(2020, 5, 26), business=True)
-    datetime.date(2020, 5, 26)
+    Date(2020, 5, 26)
     """
-    thedate = thedate or today(tz=entity.tz)
-    offset = relativedelta.relativedelta(weekday=relativedelta.MO(-1))
-    date_offset = thedate + offset
+    thedate = thedate or pendulum.now(entity.tz).date()
+    if thedate.weekday() == pendulum.MONDAY:
+        date_offset = thedate
+    else:
+        date_offset = thedate.previous(pendulum.MONDAY)
     if business:
         return business_date(date_offset, or_next=True, entity=entity)
     return date_offset
@@ -580,37 +602,36 @@ def is_first_of_week(thedate=None, business=False, entity: Type[NYSE] = NYSE) ->
 
     Business := if it's a holiday, get next business date
     """
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     return first_of_week(thedate, business) == thedate
 
 
 @expect_date
 def last_of_week(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
-) -> datetime.date:
+) -> Date:
     """Get the last date of the week.
 
     Regular Monday
     >>> last_of_week(datetime.date(2023, 4, 24))
-    datetime.date(2023, 4, 30)
+    Date(2023, 4, 30)
 
     Regular Sunday
     >>> last_of_week(datetime.date(2023, 4, 30))
-    datetime.date(2023, 4, 30)
+    Date(2023, 4, 30)
 
     Good Friday
     >>> last_of_week(datetime.date(2020, 4, 12))
-    datetime.date(2020, 4, 12)
+    Date(2020, 4, 12)
     >>> last_of_week(datetime.date(2020, 4, 10))
-    datetime.date(2020, 4, 12)
+    Date(2020, 4, 12)
     >>> last_of_week(datetime.date(2020, 4, 10), business=True)
-    datetime.date(2020, 4, 9)
+    Date(2020, 4, 9)
     >>> last_of_week(datetime.date(2020, 4, 9), business=True)
-    datetime.date(2020, 4, 9)
+    Date(2020, 4, 9)
     """
-    thedate = thedate or today(tz=entity.tz)
-    offset = relativedelta.relativedelta(weekday=relativedelta.SU(1))
-    date_offset = thedate + offset
+    thedate = thedate or pendulum.now(entity.tz).date()
+    date_offset = thedate.end_of('week')
     if business:
         return business_date(date_offset, or_next=False, entity=entity)
     else:
@@ -622,46 +643,53 @@ def is_last_of_week(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> 
     return last_of_week(thedate, business, entity) == thedate
 
 
+@expect_date
 def get_first_weekday_of_month(thedate, weekday='MO'):
     """Get first X of the month
 
     >>> get_first_weekday_of_month(datetime.date(2014, 8, 1), 'WE')
-    datetime.date(2014, 8, 6)
+    Date(2014, 8, 6)
     >>> get_first_weekday_of_month(datetime.date(2014, 7, 31), 'WE')
-    datetime.date(2014, 7, 2)
+    Date(2014, 7, 2)
     >>> get_first_weekday_of_month(datetime.date(2014, 8, 6), 'WE')
-    datetime.date(2014, 8, 6)
+    Date(2014, 8, 6)
     """
-    day_obj = getattr(relativedelta, weekday)
-    return thedate + relativedelta.relativedelta(day=1, weekday=day_obj(1))
+    d = thedate.start_of('month')
+    if d.weekday() == day_obj.get(weekday):
+        return d
+    return d.next(day_obj.get(weekday))
 
 
+@expect_date
 def get_last_weekday_of_month(thedate, weekday='SU'):
     """Like `get_first`, but for the last X of month"""
-    day_obj = getattr(relativedelta, weekday)
-    return thedate + relativedelta.relativedelta(day=31, weekday=day_obj(-1))
+    d = thedate.end_of('month')
+    if d.weekday() == day_obj.get(weekday):
+        return d
+    return d.previous(day_obj.get(weekday))
 
 
+@expect_date
 def next_first_of_month(thedate=None, window=1, snap=True, tz=LCL):
     """Get next first of month
     if 'snap', round up to next month when date is past mid-month
 
     basic scenario
     >>> next_first_of_month(datetime.date(2015, 1, 1))
-    datetime.date(2015, 1, 1)
+    Date(2015, 1, 1)
     >>> next_first_of_month(datetime.date(2015, 1, 31))
-    datetime.date(2015, 2, 1)
+    Date(2015, 2, 1)
 
     advanced scenario
     >>> next_first_of_month(datetime.date(2015, 1, 1), 15)
-    datetime.date(2015, 1, 1)
+    Date(2015, 1, 1)
     >>> next_first_of_month(datetime.date(2015, 1, 1), 16)
-    datetime.date(2015, 2, 1)
+    Date(2015, 2, 1)
     >>> next_first_of_month(datetime.date(2015, 1, 1), 15, snap=False)
-    datetime.date(2015, 1, 1)
+    Date(2015, 1, 1)
     """
     window = window + 15 if snap else window
-    thenext = (thedate or today(tz=tz)) + relativedelta.relativedelta(days=window)
+    thenext = (thedate or pendulum.now(tz).date()).add(days=window)
     return first_of_month(thenext)
 
 
@@ -670,15 +698,15 @@ def next_last_date_of_week(thedate=None, business=False, entity: Type[NYSE] = NY
     """Get next end of week (Friday).
 
     >>> next_last_date_of_week(datetime.datetime(2018, 10, 8, 0, 0, 0))
-    datetime.date(2018, 10, 12)
+    Date(2018, 10, 12)
     >>> next_last_date_of_week(datetime.date(2018, 10, 12))
-    datetime.date(2018, 10, 19)
+    Date(2018, 10, 19)
     """
-    thedate = thedate or today(tz=entity.tz)
-    offset = relativedelta.relativedelta(days=1, weekday=relativedelta.FR)
+    thedate = thedate or pendulum.now(entity.tz).date()
+    offset = thedate.next(pendulum.FRIDAY)
     if business:
-        return business_date(thedate + offset, or_next=False, entity=entity)
-    return thedate + offset
+        return business_date(thedate, or_next=False, entity=entity)
+    return offset
 
 
 @expect_date
@@ -686,13 +714,13 @@ def next_relative_date_of_week_by_day(thedate, day='MO'):
     """Get next relative day of week by relativedelta code
 
     >>> next_relative_date_of_week_by_day(datetime.datetime(2020, 5, 18), 'SU')
-    datetime.date(2020, 5, 24)
+    Date(2020, 5, 24)
     >>> next_relative_date_of_week_by_day(datetime.datetime(2020, 5, 24), 'SU')
-    datetime.date(2020, 5, 24)
+    Date(2020, 5, 24)
     """
-    _last_of_week = last_of_week(thedate)
-    offset = relativedelta.relativedelta(days=1, weekday=getattr(relativedelta, day)(1))
-    return min(thedate + offset, _last_of_week)
+    if thedate.weekday() == day_obj.get(day):
+        return thedate
+    return thedate.next(day_obj.get(day))
 
 
 @expect_date
@@ -701,9 +729,9 @@ def business_date(thedate=None, or_next=True, tz=LCL, entity: Type[NYSE] = NYSE)
 
     9/1 is Saturday, 9/3 is Labor Day
     >>> business_date(datetime.date(2018, 9, 1))
-    datetime.date(2018, 9, 4)
+    Date(2018, 9, 4)
     """
-    thedate = thedate or today(tz=entity.tz)
+    thedate = thedate or pendulum.now(entity.tz).date()
     if is_business_day(thedate, entity):
         return thedate
     if or_next:
@@ -716,18 +744,18 @@ def weekday_or_previous_friday(thedate=None, tz=LCL):
     """Return the date if it is a weekday, else previous Friday
 
     >>> weekday_or_previous_friday(datetime.date(2019, 10, 6)) # Sunday
-    datetime.date(2019, 10, 4)
+    Date(2019, 10, 4)
     >>> weekday_or_previous_friday(datetime.date(2019, 10, 5)) # Saturday
-    datetime.date(2019, 10, 4)
+    Date(2019, 10, 4)
     >>> weekday_or_previous_friday(datetime.date(2019, 10, 4)) # Friday
-    datetime.date(2019, 10, 4)
+    Date(2019, 10, 4)
     >>> weekday_or_previous_friday(datetime.date(2019, 10, 3)) # Thursday
-    datetime.date(2019, 10, 3)
+    Date(2019, 10, 3)
     """
-    thedate = thedate or today(tz=tz)
+    thedate = thedate or pendulum.now(tz).date()
     dnum = thedate.weekday()
     if dnum in {SATURDAY, SUNDAY}:
-        return thedate - relativedelta.relativedelta(days=dnum - 4)
+        return thedate.subtract(days=dnum - 4)
     return thedate
 
 
@@ -741,9 +769,9 @@ def get_dates(since=None, until=None, window=0, business=False, entity: Type[NYS
     defaults to include ALL days (not just business days)
 
     >>> next(get_dates(since=datetime.date(2014,7,16), until=datetime.date(2014,7,16)))
-    datetime.date(2014, 7, 16)
+    Date(2014, 7, 16)
     >>> next(get_dates(since=datetime.date(2014,7,12), until=datetime.date(2014,7,16)))
-    datetime.date(2014, 7, 12)
+    Date(2014, 7, 12)
     >>> len(list(get_dates(since=datetime.date(2014,7,12), until=datetime.date(2014,7,16))))
     5
     >>> len(list(get_dates(since=datetime.date(2014,7,12), window=4)))
@@ -776,12 +804,12 @@ def get_dates(since=None, until=None, window=0, business=False, entity: Type[NYS
         if business:
             since = offset_date(until, -window, entity)
         else:
-            since = until - relativedelta.relativedelta(days=window)
+            since = until.subtract(days=window)
     elif since and not until:
         if business:
             until = offset_date(since, window, entity)
         else:
-            until = since + relativedelta.relativedelta(days=window)
+            until = since.add(days=window)
     assert since <= until, 'Since date must be earlier or equal to Until date'
     thedate = since
     while thedate <= until:
@@ -790,9 +818,10 @@ def get_dates(since=None, until=None, window=0, business=False, entity: Type[NYS
                 yield thedate
         else:
             yield thedate
-        thedate += relativedelta.relativedelta(days=1)
+        thedate = thedate.add(days=1)
 
 
+@expect_date
 def num_quarters(begdate, enddate=None, tz=LCL):
     """Return the number of quarters between two dates
     TODO: good enough implementation; refine rules to be heuristically precise
@@ -806,26 +835,27 @@ def num_quarters(begdate, enddate=None, tz=LCL):
     >>> round(num_quarters(datetime.date(2020, 1, 1), datetime.date(2020, 8, 1)), 2)
     2.33
     """
-    return 4 * days_between(begdate, enddate or today(tz=tz)) / 365.0
+    return 4 * days_between(begdate, enddate or pendulum.now(tz).date()) / 365.0
 
 
-def get_quarter_date(thedate, end=True) -> datetime.date:
+@expect_date
+def get_quarter_date(thedate, end=True) -> Date:
     """Return the quarter start or quarter end of a given date.
 
     >>> get_quarter_date(datetime.date(2013, 11, 5))
-    datetime.date(2013, 12, 31)
+    Date(2013, 12, 31)
     >>> get_quarter_date(datetime.date(2013, 11, 5), end=False)
-    datetime.date(2013, 10, 1)
+    Date(2013, 10, 1)
     >>> get_quarter_date(datetime.date(1999, 1, 19), end=False)
-    datetime.date(1999, 1, 1)
+    Date(1999, 1, 1)
     >>> get_quarter_date(datetime.date(2016, 3, 31))
-    datetime.date(2016, 3, 31)
+    Date(2016, 3, 31)
     """
     year = thedate.year
-    q1_start, q1_end = datetime.date(year, 1, 1), datetime.date(year, 3, 31)
-    q2_start, q2_end = datetime.date(year, 4, 1), datetime.date(year, 6, 30)
-    q3_start, q3_end = datetime.date(year, 7, 1), datetime.date(year, 9, 30)
-    q4_start, q4_end = datetime.date(year, 10, 1), datetime.date(year, 12, 31)
+    q1_start, q1_end = Date(year, 1, 1), Date(year, 3, 31)
+    q2_start, q2_end = Date(year, 4, 1), Date(year, 6, 30)
+    q3_start, q3_end = Date(year, 7, 1), Date(year, 9, 30)
+    q4_start, q4_end = Date(year, 10, 1), Date(year, 12, 31)
 
     if q1_start <= thedate <= q1_end:
         if end:
@@ -848,55 +878,49 @@ def get_quarter_date(thedate, end=True) -> datetime.date:
         return q4_start
 
 
-def get_previous_quarter_date(thedate, end=True) -> datetime.date:
+@expect_date
+def get_previous_quarter_date(thedate, end=True) -> Date:
     """Return the previous quarter start or quarter end of a given date.
 
     >>> get_previous_quarter_date(datetime.date(2013, 11, 5))
-    datetime.date(2013, 9, 30)
+    Date(2013, 9, 30)
     >>> get_previous_quarter_date(datetime.date(2013, 11, 5), end=False)
-    datetime.date(2013, 7, 1)
+    Date(2013, 7, 1)
     >>> get_previous_quarter_date(datetime.date(1999, 1, 19), end=False)
-    datetime.date(1998, 10, 1)
+    Date(1998, 10, 1)
     >>> get_previous_quarter_date(datetime.date(2016, 3, 31))
-    datetime.date(2015, 12, 31)
+    Date(2015, 12, 31)
 
     """
-    return get_quarter_date(get_quarter_date(thedate, end=False) - relativedelta.relativedelta(days=1), end=end)
+    return get_quarter_date(get_quarter_date(thedate, end=False).subtract(days=1), end=end)
 
 
 @expect_date
-def get_eom_dates(begdate, enddate) -> List[datetime.date]:
+def get_eom_dates(begdate, enddate) -> List[Date]:
     """Return a list of eom dates between and inclusive of begdate and enddate.
 
     >>> get_eom_dates(datetime.date(2018, 1, 5), datetime.date(2018, 4, 5))
-    [datetime.date(2018, 1, 31), datetime.date(2018, 2, 28), datetime.date(2018, 3, 31), datetime.date(2018, 4, 30)]
+    [Date(2018, 1, 31), Date(2018, 2, 28), Date(2018, 3, 31), Date(2018, 4, 30)]
     """
     assert begdate <= enddate
-    begdate = last_of_month(begdate)
-    r = relativedelta.relativedelta(day=31)
-    dates = []
-    d = begdate
-    while d <= enddate:
-        d += r
-        dates.append(d)
-        d += relativedelta.relativedelta(days=1)
-    return dates
+    interval = pendulum.interval(last_of_month(begdate), last_of_month(enddate))
+    return list(interval.range('months'))
 
 
 @expect_date
-def lookback_date(thedate, lookback='last') -> datetime.date:
+def lookback_date(thedate, lookback='last') -> Date:
     """Date back based on lookback string, ie last, week, month.
 
     >>> lookback_date(datetime.date(2018, 12, 7), 'last')
-    datetime.date(2018, 12, 6)
+    Date(2018, 12, 6)
     >>> lookback_date(datetime.date(2018, 12, 7), 'week')
-    datetime.date(2018, 11, 30)
+    Date(2018, 11, 30)
     >>> lookback_date(datetime.date(2018, 12, 7), 'month')
-    datetime.date(2018, 11, 7)
+    Date(2018, 11, 7)
     """
 
     def _lookback(years=0, months=0, days=0):
-        _offset = thedate - relativedelta.relativedelta(years=years, months=months, days=days)
+        _offset = thedate.subtract(years=years, months=months, days=days)
         return business_date(_offset, or_next=False)
 
     return {
@@ -948,59 +972,59 @@ def to_date(
 
     m[/-]d[/-]yyyy  6-23-2006
     >>> to_date('6-23-2006')
-    datetime.date(2006, 6, 23)
+    Date(2006, 6, 23)
 
     m[/-]d[/-]yy    6/23/06
     >>> to_date('6/23/06')
-    datetime.date(2006, 6, 23)
+    Date(2006, 6, 23)
 
     m[/-]d          6/23
-    >>> to_date('6/23') == datetime.date(today().year, 6, 23)
+    >>> to_date('6/23') == datetime.date(pendulum.today().year, 6, 23)
     True
 
     yyyy-mm-dd      2006-6-23
     >>> to_date('2006-6-23')
-    datetime.date(2006, 6, 23)
+    Date(2006, 6, 23)
 
     yyyymmdd        20060623
     >>> to_date('20060623')
-    datetime.date(2006, 6, 23)
+    Date(2006, 6, 23)
 
     dd-mon-yyyy     23-JUN-2006
     >>> to_date('23-JUN-2006')
-    datetime.date(2006, 6, 23)
+    Date(2006, 6, 23)
 
     mon-dd-yyyy     JUN-23-2006
     >>> to_date('20 Jan 2009')
-    datetime.date(2009, 1, 20)
+    Date(2009, 1, 20)
 
     month dd, yyyy  June 23, 2006
     >>> to_date('June 23, 2006')
-    datetime.date(2006, 6, 23)
+    Date(2006, 6, 23)
 
     dd-mon-yy
     >>> to_date('23-May-12')
-    datetime.date(2012, 5, 23)
+    Date(2012, 5, 23)
 
     ddmonyyyy
     >>> to_date('23May2012')
-    datetime.date(2012, 5, 23)
+    Date(2012, 5, 23)
 
     >>> to_date('Oct. 24, 2007', fmt='%b. %d, %Y')
-    datetime.date(2007, 10, 24)
+    Date(2007, 10, 24)
 
-    >>> to_date('Yesterday') == today()-relativedelta.relativedelta(days=1)
+    >>> to_date('Yesterday') == pendulum.today().subtract(days=1).date()
     True
-    >>> to_date('TODAY') == today()
+    >>> to_date('TODAY') == pendulum.today().date()
     True
     >>> to_date('Jan. 13, 2014')
-    datetime.date(2014, 1, 13)
+    Date(2014, 1, 13)
 
-    >>> to_date('March') == datetime.date(today().year, 3, today().day)
+    >>> to_date('March') == datetime.date(pendulum.today().year, 3, pendulum.today().day)
     True
 
     >>> to_date(np.datetime64('2000-01', 'D'))
-    datetime.date(2000, 1, 1)
+    Date(2000, 1, 1)
 
     only raise error when we explicitly say so
     >>> to_date('bad date') is None
@@ -1013,11 +1037,11 @@ def to_date(
 
     def date_for_symbol(s):
         if s == 'N':
-            return now(tz=entity.tz)
+            return pendulum.now(entity.tz)
         if s == 'T':
-            return today(tz=entity.tz)
+            return pendulum.now(entity.tz).date()
         if s == 'Y':
-            return today(tz=entity.tz) - relativedelta.relativedelta(days=1)
+            return pendulum.now(entity.tz).date().subtract(days=1)
         if s == 'P':
             return previous_business_day(entity=entity)
         if s == 'M':
@@ -1030,7 +1054,7 @@ def to_date(
                 yy += 2000
         except IndexError:
             logger.warning('Using default this year')
-            yy = today(tz=entity.tz).year
+            yy = pendulum.now(entity.tz).date().year
         return yy
 
     if not s:
@@ -1043,16 +1067,16 @@ def to_date(
     if isinstance(s, datetime.datetime):
         if any([s.hour, s.minute, s.second, s.microsecond]):
             logger.debug('Forced datetime with non-zero time to date')
-        return s.date()
+        return pendulum.instance(s).date()
     if isinstance(s, datetime.date):
-        return s
+        return pendulum.instance(s)
     if not isinstance(s, str):
         raise TypeError(f'Invalid type for date column: {s.__class__}')
 
     # always use the format if specified
     if fmt:
         try:
-            return datetime.date(*time.strptime(s, fmt)[:3])
+            return Date(*time.strptime(s, fmt)[:3])
         except ValueError:
             logger.debug('Format string passed to strptime failed')
 
@@ -1066,15 +1090,15 @@ def to_date(
                 if bus:
                     d = offset_date(d, n, business=True, entity=entity)
                 else:
-                    d += relativedelta.relativedelta(days=n)
+                    d = d.add(days=n)
             return d
         if 'today' in s.lower():
-            return today(tz=entity.tz)
+            return pendulum.now(entity.tz).date()
         if 'yester' in s.lower():
-            return today(tz=entity.tz) - relativedelta.relativedelta(days=1)
+            return pendulum.now(entity.tz).subtract(days=1).date()
 
     try:
-        return parser.parse(s).date()
+        return pendulum.instance(parser.parse(s).date())
     except (TypeError, ValueError):
         logger.debug('Dateutil parser failed .. trying our custom parsers')
 
@@ -1130,27 +1154,27 @@ def to_time(s, fmt=None, raise_err=False):
         hhmmss[.,]uuu am/pm
 
     >>> to_time('9:30')
-    datetime.time(9, 30)
+    Time(9, 30, 0)
     >>> to_time('9:30:15')
-    datetime.time(9, 30, 15)
+    Time(9, 30, 15)
     >>> to_time('9:30:15.751')
-    datetime.time(9, 30, 15, 751000)
+    Time(9, 30, 15, 751000)
     >>> to_time('9:30 AM')
-    datetime.time(9, 30)
+    Time(9, 30, 0)
     >>> to_time('9:30 pm')
-    datetime.time(21, 30)
+    Time(21, 30, 0)
     >>> to_time('9:30:15.751 PM')
-    datetime.time(21, 30, 15, 751000)
+    Time(21, 30, 15, 751000)
     >>> to_time('0930')  # dateutil treats this as a date, careful!!
-    datetime.time(9, 30)
+    Time(9, 30, 0)
     >>> to_time('093015')
-    datetime.time(9, 30, 15)
+    Time(9, 30, 15)
     >>> to_time('093015,751')
-    datetime.time(9, 30, 15, 751000)
+    Time(9, 30, 15, 751000)
     >>> to_time('0930 pm')
-    datetime.time(21, 30)
+    Time(21, 30, 0)
     >>> to_time('093015,751 PM')
-    datetime.time(21, 30, 15, 751000)
+    Time(21, 30, 15, 751000)
     """
 
     def seconds(m):
@@ -1177,13 +1201,13 @@ def to_time(s, fmt=None, raise_err=False):
         return
 
     if isinstance(s, datetime.datetime):
-        return s.time()
+        return pendulum.instance(s).time()
 
     if isinstance(s, datetime.time):
-        return s
+        return pendulum.instance(s).time()
 
     if fmt:
-        return datetime.time(*time.strptime(s, fmt)[3:6])
+        return Time(*time.strptime(s, fmt)[3:6])
 
     exps = (
         r'^(?P<h>\d{1,2})[:.](?P<m>\d{2})([:.](?P<s>\d{2})([.,](?P<u>\d+))?)?( +(?P<ap>[aApP][mM]))?$',
@@ -1198,14 +1222,12 @@ def to_time(s, fmt=None, raise_err=False):
             uu = micros(m)
             if is_pm(m) and hh < 12:
                 hh += 12
-            return datetime.time(hh, mm, ss, uu * 1000)
+            return Time(hh, mm, ss, uu * 1000)
     else:
         logger.debug('Custom parsers failed, trying dateutil parser')
 
     try:
-        parsed = parser.parse(s).time()
-        if parsed:
-            return parsed
+        return pendulum.instance(parser.parse(s)).time()
     except (TypeError, ValueError):
         pass
 
@@ -1227,20 +1249,20 @@ def to_datetime(
     Hint that the time is in EST
     >>> this_est = to_datetime('Fri, 31 Oct 2014 10:55:00', tzhint=EST)
     >>> this_est
-    datetime.datetime(2014, 10, 31, 10, 55, tzinfo=zoneinfo.ZoneInfo(key='US/Eastern'))
+    DateTime(2014, 10, 31, 10, 55, 0, tzinfo=Timezone('US/Eastern'))
 
     Assume UTC, conver to EST
     >>> this_est = to_datetime('Fri, 31 Oct 2014 14:55:00', tzhint=UTC, localize=EST)
     >>> this_est
-    datetime.datetime(2014, 10, 31, 10, 55, tzinfo=zoneinfo.ZoneInfo(key='US/Eastern'))
+    DateTime(2014, 10, 31, 10, 55, 0, tzinfo=Timezone('US/Eastern'))
 
     UTC time technically equals GMT
     >>> this_utc = to_datetime('Fri, 31 Oct 2014 14:55:00 GMT', tzhint=GMT, localize=UTC)
     >>> this_utc
-    datetime.datetime(2014, 10, 31, 14, 55, tzinfo=zoneinfo.ZoneInfo(key='UTC'))
+    DateTime(2014, 10, 31, 14, 55, 0, tzinfo=Timezone('UTC'))
     >>> this_gmt = to_datetime('Fri, 31 Oct 2014 14:55:00 -0400', tzhint=UTC, localize=GMT)
     >>> this_gmt
-    datetime.datetime(2014, 10, 31, 14, 55, tzinfo=zoneinfo.ZoneInfo(key='GMT'))
+    DateTime(2014, 10, 31, 14, 55, 0, tzinfo=Timezone('GMT'))
 
     We can freely compare time zones
     >>> this_est==this_gmt==this_utc
@@ -1250,9 +1272,9 @@ def to_datetime(
     >>> epoch(to_datetime(1707856982, tzhint=UTC))
     1707856982.0
     >>> to_datetime('Jan 29  2010', tzhint=EST)
-    datetime.datetime(2010, 1, 29, 0, 0, tzinfo=zoneinfo.ZoneInfo(key='US/Eastern'))
-    >>> to_datetime(np.datetime64('2000-01', 'D'))
-    datetime.datetime(2000, 1, 1, 0, 0)
+    DateTime(2010, 1, 29, 0, 0, 0, tzinfo=Timezone('US/Eastern'))
+    >>> to_datetime(np.datetime64('2000-01', 'D'), tzhint=UTC)
+    DateTime(2000, 1, 1, 0, 0, 0, tzinfo=Timezone('UTC'))
     >>> _ = to_datetime('Sep 27 17:11', tzhint=EST)
     >>> _.month, _.day, _.hour, _.minute
     (9, 27, 17, 11)
@@ -1263,28 +1285,29 @@ def to_datetime(
         return
 
     if isinstance(s, pd.Timestamp):
-        return s.to_pydatetime()
+        return pendulum.instance(s.to_pydatetime(), tz=tzhint)
     if isinstance(s, np.datetime64):
-        return np.datetime64(s, 'us').astype(datetime.datetime)
+        dtm = np.datetime64(s, 'us').astype(datetime.datetime)
+        return pendulum.instance(dtm, tz=tzhint)
     if isinstance(s, (int, float)):
-        return to_datetime(datetime.datetime.fromtimestamp(s).isoformat(),
-                           tzhint=tzhint, localize=localize, entity=entity)
+        iso = datetime.datetime.fromtimestamp(s).isoformat()
+        return to_datetime(iso, tzhint=tzhint, localize=localize, entity=entity)
     if isinstance(s, datetime.datetime) and not localize:
-        return s
+        return pendulum.instance(s, tz=tzhint)
     if isinstance(s, datetime.datetime):
         s = str(s)
     if isinstance(tzhint, str):
-        tzhint = ZoneInfo(tzhint)
+        tzhint = pendulum.tz.Timezone(tzhint)
     if isinstance(localize, str):
-        localize = ZoneInfo(localize)
+        localize = pendulum.tz.Timezone(localize)
     if isinstance(s, datetime.date):
         logger.debug('Forced date without time to datetime')
-        return datetime.datetime(s.year, s.month, s.day, tzinfo=tzhint)
+        return DateTime(s.year, s.month, s.day, tzinfo=tzhint)
     if not isinstance(s, str):
         raise TypeError(f'Invalid type for date column: {s.__class__}')
 
     try:
-        parsed = parser.parse(s)
+        parsed = pendulum.instance(parser.parse(s))
         if tzhint:
             parsed = parsed.replace(tzinfo=tzhint)
         if localize:
@@ -1299,16 +1322,16 @@ def to_datetime(
             d = to_date(bits[0])
             t = to_time(bits[1])
             if d is not None and t is not None:
-                return datetime.datetime.combine(d, t)
+                return DateTime.combine(d, t)
 
     d = to_date(s, entity=entity)
     if d is not None:
-        return datetime.datetime(d.year, d.month, d.day, 0, 0, 0)
+        return DateTime(d.year, d.month, d.day, 0, 0, 0, tz=tzhint)
 
-    current = today(tz=tzhint)
+    current = pendulum.now(tzhint).date()
     t = to_time(s)   # probably a bug when combining localized date with vanilla time
     if t is not None:
-        return datetime.datetime.combine(current, t)
+        return DateTime.combine(current, t)
 
     if raise_err:
         raise ValueError('Invalid date-time format: ' + s)
@@ -1465,7 +1488,7 @@ def years_between(begdate=None, enddate=None, basis: int = 0, tz=LCL):
             (date1day + date1month * 30 + date1year * 360)
         return daydiff360 / 360
 
-    begdate = begdate or today(tz=tz)
+    begdate = begdate or pendulum.now(tz).date()
     if enddate is None:
         return
 
@@ -1513,11 +1536,11 @@ def date_range(
        -  set set    beg=end - num
 
     >>> date_range(datetime.date(2014, 4, 3), None, 3)
-    (datetime.date(2014, 4, 3), datetime.date(2014, 4, 8))
-    >>> date_range(None, datetime.date(2014, 7, 27), 20, business=False)
-    (datetime.date(2014, 7, 7), datetime.date(2014, 7, 27))
-    >>> date_range(None, datetime.date(2014, 7, 27), 20)
-    (datetime.date(2014, 6, 27), datetime.date(2014, 7, 27))
+    (Date(2014, 4, 3), Date(2014, 4, 8))
+    >>> date_range(None, Date(2014, 7, 27), 20, business=False)
+    (Date(2014, 7, 7), Date(2014, 7, 27))
+    >>> date_range(None, Date(2014, 7, 27), 20)
+    (Date(2014, 6, 27), Date(2014, 7, 27))
     """
     if begdate:
         begdate = to_date(begdate, entity=entity)
@@ -1553,21 +1576,21 @@ def reference_date_13f(thedate):
 
     12/31/22 -> 2/15/23
     >>> reference_date_13f(datetime.date(2023, 2, 14))
-    datetime.date(2022, 9, 30)
+    Date(2022, 9, 30)
     >>> reference_date_13f(datetime.date(2023, 2, 15))
-    datetime.date(2022, 12, 31)
+    Date(2022, 12, 31)
 
     3/31/23 -> 5/16/23
     >>> reference_date_13f(datetime.date(2023, 5, 15))
-    datetime.date(2022, 12, 31)
+    Date(2022, 12, 31)
     >>> reference_date_13f(datetime.date(2023, 5, 16))
-    datetime.date(2023, 3, 31)
+    Date(2023, 3, 31)
 
     6/30/23 -> 8/15/23
     >>> reference_date_13f(datetime.date(2023, 8, 14))
-    datetime.date(2023, 3, 31)
+    Date(2023, 3, 31)
     >>> reference_date_13f(datetime.date(2023, 8, 15))
-    datetime.date(2023, 6, 30)
+    Date(2023, 6, 30)
 
     """
     ref_date = get_previous_quarter_date(thedate)
