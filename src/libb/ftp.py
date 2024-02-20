@@ -1,5 +1,4 @@
 import contextlib
-import datetime
 import ftplib
 import logging
 import os
@@ -86,14 +85,13 @@ def connect(sitename, directory=None, config=None):
     return cn
 
 
-def parse_ftp_dir_entry(line, tzhint, localize):
+def parse_ftp_dir_entry(line, tzinfo):
     for pattern in FTP_DIR_RE:
         if m := re.search(pattern, line):
             try:
                 return Entry(line, m.group(4), m.group(1)[0] == 'd',
-                             int(m.group(2)), to_datetime(m.group(3),
-                                                          tzhint=tzhint,
-                                                          localize=localize))
+                             int(m.group(2)),
+                             to_datetime(m.group(3)).replace(tzinfo=tzinfo))
             except Exception as exc:
                 logger.error(f'Error with line {line}, groups: {m.groups()}')
                 logger.exception(exc)
@@ -181,7 +179,7 @@ def sync_directory(cn, site, remotedir: str, localdir: Path, files, opts):
 
 
 def sync_file(cn, site, remotedir: str, localdir: Path, entry, opts):
-    if opts.ignoreolderthan and entry.datetime < (now() - datetime.timedelta(int(opts.ignoreolderthan))):
+    if opts.ignoreolderthan and entry.datetime < now().subtract(days=int(opts.ignoreolderthan)):
         logger.debug('File is too old: %s/%s, skipping (%s)', remotedir, entry.name, str(entry.datetime))
         return
     localfile = localdir / entry.name
@@ -302,7 +300,7 @@ def decrypt_all_pgp_files(config, sitename, opts):
             localpgpfile = (localdir / '.pgp') / name
             if opts.ignoreolderthan:
                 created_on = to_datetime(localfile.stat().st_ctime)
-                ignore_datetime = now() - datetime.timedelta(int(opts.ignoreolderthan))
+                ignore_datetime = now().subtract(days=int(opts.ignoreolderthan))
                 if created_on < ignore_datetime:
                     logger.debug('File is too old: %s/%s, skipping (%s)',
                                  localdir, name, str(created_on))
@@ -321,10 +319,9 @@ def decrypt_all_pgp_files(config, sitename, opts):
 class FtpConnection:
     """Wrapper around ftplib
     """
-    def __init__(self, hostname, username, password, tzhint=LCL, localize=LCL):
+    def __init__(self, hostname, username, password, tzinfo=LCL):
         self.ftp = ftplib.FTP(hostname, username, password)
-        self._tzhint = tzhint
-        self._localize = localize
+        self._tzinfo = tzinfo
 
     def pwd(self):
         """Return the current directory"""
@@ -340,7 +337,7 @@ class FtpConnection:
         self.ftp.dir(lines.append)
         entries = []
         for line in lines:
-            entry = parse_ftp_dir_entry(line, self._tzhint, self._localize)
+            entry = parse_ftp_dir_entry(line, self._tzinfo)
             if entry:
                 entries.append(entry)
         return entries
@@ -389,8 +386,7 @@ class SecureFtpConnection:
             look_for_keys=kw.get('look_for_keys', False),
         )
         self.ftp = self.ssh.open_sftp()
-        self._tzhint = kw.get('tzhint', LCL)
-        self._localize = kw.get('localize', LCL)
+        self._tzinfo = kw.get('tzinfo', LCL)
 
     def pwd(self):
         """Return the current directory"""
@@ -407,8 +403,7 @@ class SecureFtpConnection:
         for f in files:
             entry = Entry(f.longname, f.filename, stat.S_ISDIR(f.st_mode),
                           f.st_size,
-                          to_datetime(f.st_mtime, tzhint=self._tzhint,
-                                      localize=self._localize))
+                          to_datetime(f.st_mtime).replace(tzinfo=self._tzinfo))
             entries.append(entry)
         return entries
 

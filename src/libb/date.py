@@ -1284,7 +1284,7 @@ def to_datetime(
         return pendulum.instance(dtm)
     if isinstance(s, (int, float)):
         iso = datetime.datetime.fromtimestamp(s).isoformat()
-        return to_datetime(iso)
+        return to_datetime(iso).replace(tzinfo=LCL)
     if isinstance(s, datetime.datetime):
         return pendulum.instance(s)
     if isinstance(s, datetime.date):

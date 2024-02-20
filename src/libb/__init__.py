@@ -20,7 +20,7 @@ from .date import *
 from .dir import *
 from .exception import *
 from .format import *
-from .ftp import connect, sync_site
+from .ftp import connect, decrypt_all_pgp_files, sync_site
 from .io import *
 from .log import configure_logging, log_exception
 from .mail import *
