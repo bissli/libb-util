@@ -178,12 +178,12 @@ class Entity(metaclass=ABCMeta):
 
     @staticmethod
     @abstractmethod
-    def market_hours(begdate: datetime.date, enddate: datetime.date):
-        """Returns all market open and close times over a range"""
+    def business_hours(begdate: datetime.date, enddate: datetime.date):
+        """Returns all business open and close times over a range"""
 
     @staticmethod
     @abstractmethod
-    def holidays(begdate: datetime.date, enddate: datetime.date):
+    def business_holidays(begdate: datetime.date, enddate: datetime.date):
         """Returns only holidays over a range"""
 
 
@@ -204,7 +204,7 @@ class NYSE(Entity):
     @staticmethod
     @lru_cache
     @suppresswarning
-    def market_hours(begdate=BEGDATE, enddate=ENDDATE) -> Dict:
+    def business_hours(begdate=BEGDATE, enddate=ENDDATE) -> Dict:
         df = NYSE.calendar.schedule(begdate, enddate, tz=EST)
         open_close = [(o.to_pydatetime(), c.to_pydatetime())
                       for o, c in zip(df.market_open, df.market_close)]
@@ -212,7 +212,7 @@ class NYSE(Entity):
 
     @staticmethod
     @lru_cache
-    def holidays(begdate=BEGDATE, enddate=ENDDATE) -> Set:
+    def business_holidays(begdate=BEGDATE, enddate=ENDDATE) -> Set:
         return set(NYSE.calendar.holidays().holidays)
 
 
@@ -255,43 +255,43 @@ def is_business_day_range(begdate, enddate, entity: Type[NYSE] = NYSE) -> List[b
 
 
 @expect_date
-def market_open(thedate, entity: Type[NYSE] = NYSE) -> bool:
-    """Market open
+def business_open(thedate, entity: Type[NYSE] = NYSE) -> bool:
+    """Business open
 
     >>> thedate = datetime.date(2021, 4, 19) # Monday
-    >>> market_open(thedate, NYSE)
+    >>> business_open(thedate, NYSE)
     True
     >>> thedate = datetime.date(2021, 4, 17) # Saturday
-    >>> market_open(thedate, NYSE)
+    >>> business_open(thedate, NYSE)
     False
     >>> thedate = datetime.date(2021, 1, 18) # MLK Day
-    >>> market_open(thedate, NYSE)
+    >>> business_open(thedate, NYSE)
     False
     """
     return is_business_day(thedate, entity)
 
 
 @expect_date
-def market_hours(thedate, entity: Type[NYSE] = NYSE):
-    """Market hours
+def business_hours(thedate, entity: Type[NYSE] = NYSE):
+    """Business hours
 
     >>> thedate = datetime.date(2023, 1, 5)
-    >>> market_hours(thedate, NYSE)
+    >>> business_hours(thedate, NYSE)
     (... 9, 30, ... 16, 0, ...)
 
     >>> thedate = datetime.date(2023, 7, 3)
-    >>> market_hours(thedate, NYSE)
+    >>> business_hours(thedate, NYSE)
     (... 9, 30, ... 13, 0, ...)
 
     >>> thedate = datetime.date(2023, 11, 24)
-    >>> market_hours(thedate, NYSE)
+    >>> business_hours(thedate, NYSE)
     (... 9, 30, ... 13, 0, ...)
 
     >>> thedate = datetime.date(2023, 11, 25)
-    >>> market_hours(thedate, NYSE)
+    >>> business_hours(thedate, NYSE)
     (None, None)
     """
-    return entity.market_hours(thedate, thedate).get(thedate, (None, None))
+    return entity.business_hours(thedate, thedate).get(thedate, (None, None))
 
 
 # Date functions
