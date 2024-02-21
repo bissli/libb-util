@@ -89,7 +89,7 @@ if ENVIRONMENT is None:
 # Tmpdir
 tmpdir = Setting()
 if os.getenv('CONFIG_TMPDIR_DIR'):
-    tmpdir.dir = os.path.abspath(os.getenv('CONFIG_TMPDIR'))
+    tmpdir.dir = os.path.abspath(os.getenv('CONFIG_TMPDIR_DIR'))
 else:
     tmpdir.dir = tempfile.gettempdir()
 Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
