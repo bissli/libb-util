@@ -508,58 +508,61 @@ DEF_WEB_FMT = '%(levelname)-4s %(asctime)s %(machine)s %(name)s %(lineno)d [%(us
 WEB_FILTERS = ['machine', 'webserver']
 JOB_FILTERS = ['machine', 'preamble']
 
+LOG_CONF = {
+    'version': 1,
+    'loggers': {},
+    'formatters': {
+        'job_fmt': {'format': DEF_JOB_FMT},
+        'web_fmt': {'format': DEF_WEB_FMT},
+        'twd_fmt': {'format': DEF_JOB_FMT},
+    },
+    'filters': {
+        'machine': {
+            '()': 'libb.log.MachineFilter',
+            },
+        'webserver': {
+            '()': 'libb.log.WebServerFilter',
+            'ip_fn': lambda: web.ctx.get('ip'),
+            'user_fn': lambda: hasattr(web.ctx, 'session')
+            and web.ctx.session.get('user'),
+            },
+        'preamble': {
+            '()': 'libb.log.PreambleFilter',
+            'app': '%(app)s',
+            'args': '%(app_args)s',
+            'setup': '%(setup)s',
+            },
+        },
+    'handlers': {
+        'cmd': {
+            'level': 'DEBUG',
+            'formatter': 'job_fmt',
+            'filters': ['machine'],
+            'class': 'libb.log.ColoredStreamHandler',
+            },
+        'job_file': {
+            'level': 'INFO',
+            'class': 'libb.log.NonBufferedFileHandler',
+            'formatter': 'job_fmt',
+            'filters': JOB_FILTERS,
+            'filename': DEF_FILE_FMT,
+            },
+        'web_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'formatter': 'web_fmt',
+            'filters': WEB_FILTERS,
+            'filename': DEF_FILE_FMT,
+            'when': 'D',
+            'interval': 1,
+            'backupCount': 3,
+            },
+        },
+    }
+
 WEB_HANDLERS = ['web_file']
 JOB_HANDLERS = ['job_file']
 TWD_HANDLERS = []
-
-LOG_CONF = {'version': 1, 'loggers': {}}
-LOG_CONF['formatters'] = {
-    'job_fmt': {'format': DEF_JOB_FMT},
-    'web_fmt': {'format': DEF_WEB_FMT},
-    'twd_fmt': {'format': DEF_JOB_FMT},
-}
-LOG_CONF['filters'] = {
-    'machine': {
-        '()': 'libb.log.MachineFilter',
-    },
-    'webserver': {
-        '()': 'libb.log.WebServerFilter',
-        'ip_fn': lambda: web.ctx.get('ip'),
-        'user_fn': lambda: hasattr(web.ctx, 'session')
-        and web.ctx.session.get('user'),
-    },
-    'preamble': {
-        '()': 'libb.log.PreambleFilter',
-        'app': '%(app)s',
-        'args': '%(app_args)s',
-        'setup': '%(setup)s',
-    },
-}
-LOG_CONF['handlers'] = {
-    'cmd': {
-        'level': 'DEBUG',
-        'formatter': 'job_fmt',
-        'filters': ['machine'],
-        'class': 'libb.log.ColoredStreamHandler',
-    },
-    'job_file': {
-        'level': 'INFO',
-        'class': 'libb.log.NonBufferedFileHandler',
-        'formatter': 'job_fmt',
-        'filters': JOB_FILTERS,
-        'filename': DEF_FILE_FMT,
-    },
-    'web_file': {
-        'level': 'INFO',
-        'class': 'logging.handlers.TimedRotatingFileHandler',
-        'formatter': 'web_fmt',
-        'filters': WEB_FILTERS,
-        'filename': DEF_FILE_FMT,
-        'when': 'D',
-        'interval': 1,
-        'backupCount': 3,
-    },
-}
 
 if os.getenv('CONFIG_MANDRILL_APIKEY'):
     # named handlers
