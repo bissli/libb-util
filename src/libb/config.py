@@ -1,9 +1,12 @@
 """Config related settings, follows 12factor.net
 """
+import logging
 import os
 import platform
 import tempfile
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class Setting(dict):
@@ -80,7 +83,8 @@ if 'CONFIG_QA' in os.environ:
 if 'CONFIG_DEV' in os.environ:
     ENVIRONMENT = 'dev'
 if ENVIRONMENT is None:
-    raise AttributeError('Missing environmnet type, set in env variables')
+    import getpass
+    logger.error(f'User "{getpass.getuser()}" missing environmnet type, set in environment variables')
 
 # Tmpdir
 tmpdir = Setting()
