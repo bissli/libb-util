@@ -689,6 +689,8 @@ def configure_logging(setup='', app='', app_args=None, level=None):
         merge_dict(logconfig, JOB_CONF)
     elif setup == 'twd':
         merge_dict(logconfig, TWD_CONF)
+    elif setup == 'web':
+        merge_dict(logconfig, WEB_CONF)
 
     now = now()
     file_fmt = {
