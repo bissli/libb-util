@@ -89,6 +89,38 @@ expect_date = partial(expect, typ=datetime.date)
 expect_datetime = partial(expect, typ=datetime.datetime)
 
 
+def prefer_utc_timezone(f, force:bool = False):
+    """Return datetime as UTC.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        d = f(*args, **kwargs)
+        if not d:
+            return
+        if not force and d.tzinfo:
+            return d
+        return d.replace(tzinfo=UTC)
+    return wrapper
+
+
+def prefer_native_timezone(f, force:bool = False):
+    """Return datetime as native.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        d = f(*args, **kwargs)
+        if not d:
+            return
+        if not force and d.tzinfo:
+            return d
+        return d.replace(tzinfo=LCL)
+    return wrapper
+
+
+expect_native_timezone = partial(prefer_native_timezone, force=True)
+expect_utc_timezone = partial(prefer_utc_timezone, force=True)
+
+
 @expect_date
 def isoweek(thedate: datetime.date):
     """Week number 1-52 following ISO week-numbering
@@ -1139,6 +1171,7 @@ def to_date(
         raise ValueError('Failed to parse date: ' + s)
 
 
+@prefer_utc_timezone
 def to_time(s, fmt=None, raise_err=False):
     """Convert a string to a time handling many formats::
 
@@ -1151,27 +1184,27 @@ def to_time(s, fmt=None, raise_err=False):
         hhmmss[.,]uuu am/pm
 
     >>> to_time('9:30')
-    Time(9, 30, 0)
+    Time(9, 30, 0, tzinfo=Timezone('UTC'))
     >>> to_time('9:30:15')
-    Time(9, 30, 15)
+    Time(9, 30, 15, tzinfo=Timezone('UTC'))
     >>> to_time('9:30:15.751')
-    Time(9, 30, 15, 751000)
+    Time(9, 30, 15, 751000, tzinfo=Timezone('UTC'))
     >>> to_time('9:30 AM')
-    Time(9, 30, 0)
+    Time(9, 30, 0, tzinfo=Timezone('UTC'))
     >>> to_time('9:30 pm')
-    Time(21, 30, 0)
+    Time(21, 30, 0, tzinfo=Timezone('UTC'))
     >>> to_time('9:30:15.751 PM')
-    Time(21, 30, 15, 751000)
+    Time(21, 30, 15, 751000, tzinfo=Timezone('UTC'))
     >>> to_time('0930')  # dateutil treats this as a date, careful!!
-    Time(9, 30, 0)
+    Time(9, 30, 0, tzinfo=Timezone('UTC'))
     >>> to_time('093015')
-    Time(9, 30, 15)
+    Time(9, 30, 15, tzinfo=Timezone('UTC'))
     >>> to_time('093015,751')
-    Time(9, 30, 15, 751000)
+    Time(9, 30, 15, 751000, tzinfo=Timezone('UTC'))
     >>> to_time('0930 pm')
-    Time(21, 30, 0)
+    Time(21, 30, 0, tzinfo=Timezone('UTC'))
     >>> to_time('093015,751 PM')
-    Time(21, 30, 15, 751000)
+    Time(21, 30, 15, 751000, tzinfo=Timezone('UTC'))
     """
 
     def seconds(m):
@@ -1219,7 +1252,7 @@ def to_time(s, fmt=None, raise_err=False):
             uu = micros(m)
             if is_pm(m) and hh < 12:
                 hh += 12
-            return Time(hh, mm, ss, uu * 1000)
+            return Time(hh, mm, ss, uu * 1000).replace(tzinfo=UTC)
     else:
         logger.debug('Custom parsers failed, trying dateutil parser')
 
