@@ -5,6 +5,8 @@ from pkgutil import ModuleInfo, walk_packages
 from types import ModuleType
 from typing import Iterable
 
+# other {{{
+
 
 class OverrideModuleGetattr:
     """Class to wrap a Python module and override the __getattr__ method
@@ -105,24 +107,6 @@ def create_instance(classname, *args, **kwargs):
     return cls(*args, **kwargs)
 
 
-def get_packages_in_module(m: ModuleType) -> Iterable[ModuleInfo]:
-    """
-    >>> import libb
-    >>> _ = get_package_paths_in_module(libb)
-    >>> assert 'libb.module' in _
-    """
-    return walk_packages(m.__path__, prefix=m.__name__ + '.')  # type: ignore
-
-
-def get_package_paths_in_module(m: ModuleType) -> Iterable[str]:
-    """Useful for pytest conftestloading
-
-    conftest.py:
-    pytest_plugins = [*get_package_paths_in_module(tests.fixtures)]
-    """
-    return [package.name for package in get_packages_in_module(m)]
-
-
 class VirtualModule:
     def __init__(self, modname, submodules):
         try:
@@ -164,6 +148,29 @@ def create_virtual_module(modname, submodules):
 
     """
     VirtualModule(modname, submodules)
+
+# }}}
+# pytest {{{
+
+
+def get_packages_in_module(m: ModuleType) -> Iterable[ModuleInfo]:
+    """Useful for pytest conftestloading
+    >>> import libb
+    >>> _ = get_package_paths_in_module(libb)
+    >>> assert 'libb.module' in _
+    """
+    return walk_packages(m.__path__, prefix=m.__name__ + '.')  # type: ignore
+
+
+def get_package_paths_in_module(m: ModuleType) -> Iterable[str]:
+    """Useful for pytest conftestloading
+
+    conftest.py:
+    pytest_plugins = [*get_package_paths_in_module(tests.fixtures)]
+    """
+    return [package.name for package in get_packages_in_module(m)]
+
+# }}}
 
 
 if __name__ == '__main__':

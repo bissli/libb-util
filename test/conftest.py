@@ -2,37 +2,40 @@ import logging
 import os
 import os.path
 import sys
-import time
+import test.fixtures
 
-import docker
 import pytest
+from libb.module import get_package_paths_in_module
 
 logger = logging.getLogger(__name__)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-import config
+
+def pytest_addoption(parser):
+    parser.addoption(
+        '--log',
+        action='store',
+        default='INFO',
+        help='set logging level',
+    )
 
 
 @pytest.fixture(scope='session')
-def ftp_docker(request):
-    client = docker.from_env()
-    container = client.containers.run(
-        image='garethflowers/ftp-server',
-        auto_remove=True,
-        environment={
-            'FTP_USER': config.vendor.FOO.ftp.username,
-            'FTP_PASS': config.vendor.FOO.ftp.password,
-            },
-        name='ftp_server',
-        ports={
-            f'{port}/tcp': (config.vendor.FOO.ftp.hostname, f'{port}/tcp')
-            for port in [20, 21]+list(range(40000,40010))
-            },
-        volumes={config.tmpdir.dir: {'bind': '/data', 'mode': 'rw'}},
-        detach=True,
-        remove=True,
-    )
-    time.sleep(5)
-    request.addfinalizer(container.stop)
+def logger(request):
+    import logging
+
+    loglevel = request.config.getoption('--log')
+
+    numeric_level = getattr(logging, loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+
+    logging.basicConfig()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(numeric_level)
+    return logger
+
+
+pytest_plugins = [*get_package_paths_in_module(test.fixtures)]
