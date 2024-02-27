@@ -67,7 +67,7 @@ DEFAULT_TIMESERIES_COLORS = (
 )
 
 
-def timeseries(title, dates, series=[], labels=[], formats=[]):
+def numpy_timeseries_plot(title, dates, series=[], labels=[], formats=[]):
     """
     If 1 y series then no subplots,
     If 2 y series then same plot overlapping,

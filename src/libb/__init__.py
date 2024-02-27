@@ -13,7 +13,7 @@ def patch_mimetypes_init(wrapped, instance, args, kwargs):
     return wrapped([str(knownfiles)])
 
 
-from .chart import timeseries
+from .chart import numpy_timeseries_plot
 from .cmdline import parse_args
 from .config import Setting
 from .date import *
