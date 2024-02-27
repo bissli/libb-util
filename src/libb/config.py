@@ -86,10 +86,12 @@ if ENVIRONMENT is None:
     import getpass
     logger.error(f'User "{getpass.getuser()}" missing environmnet type, set in environment variables')
 
+__expandabspath = lambda p: os.path.abspath(os.path.expanduser(os.path.expandvars(p)))
+
 # Tmpdir
 tmpdir = Setting()
 if os.getenv('CONFIG_TMPDIR_DIR'):
-    tmpdir.dir = os.path.abspath(os.getenv('CONFIG_TMPDIR_DIR'))
+    tmpdir.dir = __expandabspath(os.getenv('CONFIG_TMPDIR_DIR'))
 else:
     tmpdir.dir = tempfile.gettempdir()
 Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
@@ -97,23 +99,23 @@ Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
 # Vendor Dir
 vendor = Setting()
 if os.getenv('CONFIG_VENDOR_DIR'):
-    vendor.dir = os.path.abspath(os.getenv('CONFIG_VENDOR_DIR'))
+    vendor.dir = __expandabspath(os.getenv('CONFIG_VENDOR_DIR'))
 else:
     vendor.dir = tempfile.gettempdir()
 Path(vendor.dir).mkdir(parents=True, exist_ok=True)
 
 # Local Dir
 local = Setting()
-local.dir = Path(os.path.expandvars(r'%APPDATA%')
+local.dir = Path(__expandabspath(r'%APPDATA%')
                  if 'Win' in PLATFORM
-                 else os.path.expanduser('~/.local/share/')) / 'libb'
+                 else __expandabspath('~/.local/share/')) / 'libb'
 local.dir = local.dir.as_posix()
 Path(local.dir).mkdir(parents=True, exist_ok=True)
 
 # Output Dir
 output = Setting()
 if os.getenv('CONFIG_OUTPUT_DIR'):
-    output.dir = os.path.abspath(os.getenv('CONFIG_OUTPUT_DIR'))
+    output.dir = __expandabspath(os.getenv('CONFIG_OUTPUT_DIR'))
 else:
     output.dir = tempfile.gettempdir()
 Path(output.dir).mkdir(parents=True, exist_ok=True)
