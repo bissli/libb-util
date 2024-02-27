@@ -69,7 +69,6 @@ class Setting(dict):
 
 # Environment
 CHECKTTY = 'CONFIG_CHECKTTY' in os.environ
-WEBAPP = 'CONFIG_WEBAPP' in os.environ
 TZ =  os.getenv('CONFIG_TZ')
 PLATFORM = platform.system()
 RELEASE = platform.release()
@@ -85,6 +84,14 @@ if 'CONFIG_DEV' in os.environ:
 if ENVIRONMENT is None:
     import getpass
     logger.error(f'User "{getpass.getuser()}" missing environmnet type, set in environment variables')
+
+# Environment (Legacy)
+WIN = 'Windows' in PLATFORM
+WSL = 'Microsoft' in RELEASE
+NIX = 'Linux' in PLATFORM and not WSL
+WEBAPP = 'CONFIG_WEBAPP' in os.environ
+checktty = CHECKTTY
+webapp = WEBAPP
 
 __expandabspath = lambda p: os.path.abspath(os.path.expanduser(os.path.expandvars(p)))
 
