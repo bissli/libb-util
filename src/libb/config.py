@@ -132,6 +132,14 @@ syslog = Setting()
 syslog.host = os.getenv('CONFIG_SYSLOG_HOST')
 syslog.port = os.getenv('CONFIG_SYSLOG_PORT')
 
+# TLS Syslog
+tlssyslog = Setting()
+tlssyslog.host = os.getenv('CONFIG_TLSSYSLOG_HOST')
+tlssyslog.port = os.getenv('CONFIG_TLSSYSLOG_PORT')
+tlssyslog.dir = None
+if os.getenv('CONFIG_TLSSYSLOG_DIR'):
+    tlssyslog.dir = __expandabspath(os.getenv('CONFIG_TLSSYSLOG_DIR'))
+
 # Intermedia Email
 mail = Setting()
 mail.domain = os.getenv('CONFIG_MAIL_DOMAIN')

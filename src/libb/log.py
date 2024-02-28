@@ -6,6 +6,7 @@ import logging
 import os
 import smtplib
 import socket
+import ssl
 import sys
 import urllib.error
 import urllib.parse
@@ -25,8 +26,11 @@ from libb import config
 with suppress(ImportError):
     import web
 
-with suppress(ImportError):
+try:
     import mailchimp_transactional as MailchimpTransactional
+    MAILCHIMP_ENABLED = True
+except ImportError:
+    MAILCHIMP_ENABLED = False
 
 with suppress(ImportError):
     from twisted.internet import reactor
@@ -564,7 +568,7 @@ WEB_HANDLERS = ['web_file']
 JOB_HANDLERS = ['job_file']
 TWD_HANDLERS = []
 
-if os.getenv('CONFIG_MANDRILL_APIKEY'):
+if MAILCHIMP_ENABLED and os.getenv('CONFIG_MANDRILL_APIKEY'):
     # named handlers
     WEB_HANDLERS.extend(['web_mail'])
     JOB_HANDLERS.extend(['job_mail'])
@@ -613,6 +617,39 @@ if os.getenv('CONFIG_SYSLOG_HOST') and os.getenv('CONFIG_SYSLOG_PORT'):
             'filters': WEB_FILTERS,
         },
     })
+if os.getenv('CONFIG_TLSSYSLOG_HOST') and os.getenv('CONFIG_TLSSYSLOG_PORT'):
+    # named handlers
+    WEB_HANDLERS.extend(['web_tlssysl'])
+    JOB_HANDLERS.extend(['job_tlssysl'])
+    TWD_HANDLERS.extend(['web_tlssysl'])
+    # handler config
+    LOG_CONF['handlers'].update({
+        'job_tlssysl': {
+            'level': 'INFO',
+            'class': 'tlssyslog.handlers.TLSSysLogHandler',
+            'address': (config.tlssyslog.host, config.tlssyslog.port),
+            'ssl_kwargs': {
+                'cert_reqs': ssl.CERT_REQUIRED,
+                'ssl_version': ssl.PROTOCOL_TLS,
+                'ca_certs': config.tslsyslog.dir
+                },
+            'formatter': 'job_fmt',
+            'filters': JOB_FILTERS,
+        },
+        'web_tlssysl': {
+            'level': 'INFO',
+            'class': 'tlssyslog.handlers.TLSSysLogHandler',
+            'address': (config.tlssyslog.host, config.tlssyslog.port),
+            'ssl_kwargs': {
+                'cert_reqs': ssl.CERT_REQUIRED,
+                'ssl_version': ssl.PROTOCOL_TLS,
+                'ca_certs': config.tslsyslog.dir
+                },
+            'formatter': 'web_fmt',
+            'filters': WEB_FILTERS,
+        },
+    })
+
 
 CMD_CONF = {
     'loggers': {
