@@ -763,6 +763,9 @@ def stream_is_tty(somestream):
     return isatty and isatty()
 
 
+stdout_is_tty = lambda: stream_is_tty(sys.stdout)
+
+
 def log_exception(logger):
     """Return wrapped function fn in try except and log exception with logger"""
     def wrapper(fn):

@@ -22,7 +22,7 @@ from .exception import *
 from .format import *
 from .ftp import connect, decrypt_all_pgp_files, sync_site
 from .io import *
-from .log import configure_logging, log_exception
+from .log import configure_logging, log_exception, stdout_is_tty
 from .mail import *
 from .maths import *
 from .module import *
