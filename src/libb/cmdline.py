@@ -1,3 +1,5 @@
+"""Commandline alternative to `click` (https://github.com/pallets/click)
+"""
 import importlib
 import logging
 import os
@@ -7,6 +9,8 @@ from optparse import OptionParser
 from libb import config
 
 logger = logging.getLogger(__name__)
+
+__all__ = ('parse_args',)
 
 
 def parse_args(options, usage=None):
@@ -27,7 +31,8 @@ def parse_args(options, usage=None):
 
 
 def create_parser(options, usage=None):
-    """We parse each option: short, long, help, [default, [action, [dest]]]"""
+    """We parse each option: short, long, help, [default, [action, [dest]]]
+    """
     from libb import scriptname
     parser = OptionParser(usage)
     for opt in options:
@@ -51,4 +56,20 @@ def create_parser(options, usage=None):
     return parser
 
 
-__all__ = ('parse_args',)
+if __name__ == '__main__':
+    from libb import cmdline, log
+    logger = logging.getLogger('cmd')
+
+    @log.log_exception(logger)
+    def main():
+        opts, args, parser = cmdline.parse_args((
+            ('-d', '--date', 'Date for calculation', 'P'),
+            ('-f', '--flag', 'Flag-only option with default', False, 'store_true'),
+            ('-a', '--address', 'Email address list', 'bissli'),
+        ), 'usage: %prog [options]')
+        if args:
+            parser.error('Unknown arguments: ' + ', '.join(args))
+
+        logger.info(f'Example: date={opts.date},flag={opts.flag},address={opts.address}')
+
+    main()
