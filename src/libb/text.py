@@ -8,12 +8,18 @@ import string
 import unicodedata
 from functools import reduce
 
-import chardet
-import ftfy
 from libb.util import collapse
-from rapidfuzz.distance import JaroWinkler
-from rapidfuzz.fuzz import token_set_ratio
-from rapidfuzz.process import extract
+
+with contextlib.suppress(ImportError):
+    import chardet
+
+with contextlib.suppress(ImportError):
+    import ftfy
+
+with contextlib.suppress(ImportError):
+    from rapidfuzz.distance import JaroWinkler
+    from rapidfuzz.fuzz import token_set_ratio
+    from rapidfuzz.process import extract
 
 logger = logging.getLogger(__name__)
 

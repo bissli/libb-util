@@ -1,12 +1,14 @@
-import base64
+import contextlib
 import logging
 import math
 from io import BytesIO
 
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
 import numpy as np
-from matplotlib import dates as mpl_dates
+
+with contextlib.suppress(ImportError):
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mtick
+    from matplotlib import dates as mpl_dates
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +69,18 @@ DEFAULT_TIMESERIES_COLORS = (
 )
 
 
-def numpy_timeseries_plot(title, dates, series=[], labels=[], formats=[]):
+def numpy_timeseries_plot(title, dates, series=None, labels=None, formats=None):
     """
     If 1 y series then no subplots,
     If 2 y series then same plot overlapping,
     If 3 y series or more then stack them vertically
     """
+    if formats is None:
+        formats = []
+    if labels is None:
+        labels = []
+    if series is None:
+        series = []
     plt.rcParams['figure.figsize'] = (6.4 * 1.5, 4.8 * 1.5)
     numy = len(series)
     assert numy == len(labels) == len(formats)

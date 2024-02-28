@@ -16,7 +16,8 @@ from libb import LCL, now, to_datetime
 
 logger = logging.getLogger(__name__)
 
-import paramiko
+with contextlib.suppress(ImportError):
+    import paramiko
 
 Entry = namedtuple('Entry', 'line name is_dir size datetime')
 FTP_DIR_RE = (

@@ -8,46 +8,77 @@ license = "0BSD"
 
 [tool.poetry.dependencies]
 python = "~3.11"
-poet-plugin = { git = "https://github.com/bissli/poet-exclusive-groups-plugin" }
 
 numpy = "*"
-matplotlib = "*"
 more-itertools = "^10.2.0"
 wrapt = "^1.16.0"
-paramiko = "^3.4.0"
+matplotlib = { version = "^3.8.3", optional = true }
+paramiko = { version = "^3.4.0", optional = true }
 # == date
 pandas-market-calendars = "*"
 pendulum = "^3.0.0"
 # == text
 regex = "^2023.12.25"
-rapidfuzz = "^3.6.1"
-ftfy = "^6.1.3"
-chardet = "^5.2.0"
+chardet = { version = "^5.2.0", optional = true }
+rapidfuzz = { version = "^3.6.1", optional = true }
+ftfy = { version = "^6.1.3", optional = true }
+# == db
+pandas-downcast = "^1.2.4"
+pyarrow = "^15.0.0" # can be removed on pandas 3 upgrade
+sqlalchemy = { version = "^2.0.27", extras = ["postgresql-psycopg2binary", "postgresql-psycopgbinary", "mssql-pymssql"], optional = true }
 # == mail
-mailchimp-transactional = "^1.0.56"
+mailchimp-transactional = { version = "^1.0.56", optional = true }
 # == logging
 tls-syslog = "0.2.0"
+# == web
+Flask = { version = "^3.0.2", optional = true }
+"web.py" = { version = "^0.62", optional = true }
+# == twisted
+Twisted = { version = "^23.8.0", optional = true }
+service-identity = { version = "^24.1.0", optional = true }
+# == test
+asserts = { version = "^0.12.0", optional = true }
+docker = { version = "^7.0.0", optional = true }
+pdbpp = { git = "https://github.com/pdbpp/pdbpp.git", rev = "master", optional = true }
+pytest = { version = "^8.0.0", optional = true }
+pytest-mock = { version = "^3.12.0", optional = true }
+pytest-runner = { version = "^6.0.1", optional = true }
+unittest2 = { version = "^1.1.0", optional = true }
+WebTest = { version = "^3.0.0", extras = ["web"], optional = true }
+# == deploy
+bump2version = { version = "^1.0.1", optional = true }
 
 [tool.poetry.extras]
-
-[tool.poetry.group.dev.dependencies]
-# == Test
-asserts = "^0.12.0"
-pytest = "^8.0.0"
-pytest-mock = "^3.12.0"
-pytest-runner = "^6.0.1"
-WebTest = "^3.0.0"
-docker = "^7.0.0"
-# == Misc
-Twisted = "^23.8.0"
-service-identity = "^24.1.0"
-"web.py" = "^0.62"
-Flask = "^3.0.2"
-mailchimp-transactional = "^1.0.56"
-pdbpp = { git = "https://github.com/pdbpp/pdbpp.git" }
-sqlalchemy = "<2"
-black = "^23.9.1"
-pyarrow = "^15.0.0" # can be removed on pandas 3 upgrade
+ftp = ["paramiko"]
+mail = ["mailchimp-transactional"]
+db = ["sqlalchemy"]
+math = ["matplotlib"]
+text = [
+  "ftfy",
+  "rapidfuzz",
+  "chardet",
+]
+web = [
+  "Twisted",
+  "service-identity",
+  "web.py",
+  "Flask",
+]
+twd = [
+  "Twisted",
+  "service-identity",
+]
+test = [
+  "asserts",
+  "docker",
+  "pdbpp",
+  "pytest",
+  "pytest-mock",
+  "pytest-runner",
+  "unittest2",
+  "WebTest",
+]
+deploy = ["bump2version"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
