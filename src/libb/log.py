@@ -681,24 +681,26 @@ def configure_logging(setup='', app='', app_args=None, level=None):
         set_level(level)
 
     logconfig = LOG_CONF
+
+    match setup:
+        case 'cmd':
+            merge_dict(logconfig, CMD_CONF)
+        case 'job':
+            merge_dict(logconfig, JOB_CONF)
+        case 'twd':
+            merge_dict(logconfig, TWD_CONF)
+        case 'web':
+            merge_dict(logconfig, WEB_CONF)
+
     if config.CHECKTTY and stream_is_tty(sys.stdout):
         merge_dict(logconfig, CMD_CONF)
-    elif setup == 'cmd':
-        merge_dict(logconfig, CMD_CONF)
-    elif setup == 'job':
-        merge_dict(logconfig, JOB_CONF)
-    elif setup == 'twd':
-        merge_dict(logconfig, TWD_CONF)
-    elif setup == 'web':
-        merge_dict(logconfig, WEB_CONF)
 
-    now = now()
     file_fmt = {
         'app': app,
         'app_args': ' '.join(app_args),
         'setup': setup,
-        'date': now.strftime('%Y%m%d'),
-        'time': now.strftime('%H%M%S'),
+        'date': now().strftime('%Y%m%d'),
+        'time': now().strftime('%H%M%S'),
         }
 
     def file_formatter(thed, str_fmt=file_fmt):
