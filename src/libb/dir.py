@@ -6,21 +6,17 @@ import glob
 import itertools
 import logging
 import os
-import posixpath
 import random
 import shutil
 import tempfile
 from contextlib import contextmanager
-from pathlib import (  # noqa
-    Path,
-    PosixPath,
-    PurePath,
-    PurePosixPath,
-    PureWindowsPath,
-    WindowsPath,
-)
+from pathlib import Path, PureWindowsPath
+from urllib.parse import unquote, urlparse
 
+import backoff
 import regex as re
+import requests
+import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +32,7 @@ def mkdir_p(path):
 
 
 @contextmanager
-def make_tmpdir(prefix=None):
+def make_tmpdir(prefix=None) -> Path:
     """Context manager to wrap a temporary directory with auto-cleanup
 
     >>> import os.path
@@ -56,12 +52,16 @@ def make_tmpdir(prefix=None):
     """
     prefix = prefix or tempfile.gettempdir()
     prefix = os.path.join(prefix, '')
-    path = tempfile.mkdtemp(prefix=prefix)
     try:
-        yield path
+        path = tempfile.mkdtemp(prefix=prefix)
+        yield Path(path)
     finally:
         try:
-            shutil.rmtree(path)
+            @backoff.on_exception(backoff.expo, shutil.Error, max_time=10)
+            def remove():
+                shutil.rmtree(path, ignore_errors=False)
+                logger.debug(f'Removed {path}')
+            remove()
         except IOError as io:
             logger.error(f'Failed to clean up temp dir {path}')
 
@@ -187,6 +187,28 @@ def load_files_tmpdir(patterns='*', thedate=None):
     return itertools.chain(*gen)
 
 
+@contextmanager
+def download_file(url) -> Path:
+    """Better file download from url
+    """
+    name = Path(urlparse(unquote(url)).path).name
+    with make_tmpdir() as tmpdir:
+        @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_time=30)
+        def get():
+            with requests.get(url, stream=True) as r:
+                save_path = tmpdir.joinpath(name)
+                total = int(r.headers.get('content-length', 0))
+                chunk = 16*1024*1024
+                with open(save_path, 'wb') as f, tqdm.tqdm(
+                    total=total, desc=name, unit='B', unit_scale=True
+                ) as p:
+                    while buf := r.raw.read(chunk):
+                        f.write(buf)
+                        p.update(len(buf))
+                return Path(save_path)
+        yield get()
+
+
 def splitall(path):
     r"""Split path into all its componenets
 
@@ -235,19 +257,10 @@ def resplit(path, *args):
     return re.split(r'{}'.format('|'.join(args)), path)
 
 
-def safe_join(directory, filename):
-    """Safely join `directory` and `filename`.  If this cannot be done,
-    this function returns ``None``.
-    via github.com/mitsuhiko/werkzeug security.py
+def expandabspath(p: str) -> str:
+    """Expand path to absolute path
     """
-    _os_alt_seps = [sep for sep in [os.path.sep, os.path.altsep] if sep not in {None, '/'}]
-    filename = posixpath.normpath(filename)
-    for sep in _os_alt_seps:
-        if sep in filename:
-            return None
-    if os.path.isabs(filename) or filename.startswith('../'):
-        return None
-    return os.path.join(directory, filename)
+    return os.path.abspath(os.path.expanduser(os.path.relpath(os.path.expandvars(p))))
 
 
 if __name__ == '__main__':

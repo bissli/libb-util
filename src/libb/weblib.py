@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+import posixpath
 import pstats
 import random
 import re
@@ -21,7 +22,7 @@ from itertools import accumulate
 
 import regex as re
 from dateutil import parser
-from libb import collapse, grouper, safe_join, splitcap
+from libb import collapse, expandabspath, grouper, splitcap
 
 with contextlib.suppress(ImportError):
     import web
@@ -542,9 +543,42 @@ def prefix_urls(pathpfx, classpfx, urls):
     return tuple(newurls)
 
 
+_os_alt_seps: list[str] = [
+    sep for sep in [os.sep, os.path.altsep] if sep is not None and sep != '/'
+]
+
+
+def safe_join(directory: str, *pathnames: str) -> str | None:
+    """Safely join zero or more untrusted path components to a base
+    directory to avoid escaping the base directory.
+    via github.com/mitsuhiko/werkzeug security.py
+
+    :param directory: The trusted base directory.
+    :param pathnames: The untrusted path components relative to the
+        base directory.
+    :return: A safe path, otherwise ``None``.
+    """
+    if not directory:
+        # Ensure we end up with ./path if directory="" is given,
+        # otherwise the first untrusted part could become trusted.
+        directory = '.'
+    parts = [directory]
+    for filename in pathnames:
+        if filename != '':
+            # normpath does not build path to root
+            filename = posixpath.normpath(filename)
+        if (any(sep in filename for sep in _os_alt_seps)
+                or os.path.isabs(filename)
+                or filename == '..'
+                or filename.startswith('../')):
+            return None
+        parts.append(filename)
+    return posixpath.join(*parts)
+
+
 def local_or_static_join(static, somepath):
     """Infer if user is referring to template in their working directory, or in static"""
-    localpath = os.path.abspath(somepath)
+    localpath = expandabspath(somepath)
     staticpath = safe_join(static, somepath)
     if os.path.exists(localpath):
         return localpath
