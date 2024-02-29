@@ -1,13 +1,14 @@
 """Used in logging colorized handler"""
 
-import os
 import sys
 from contextlib import contextmanager
+
+from libb import config
 
 #
 # use clint wrappers around python stdlib ctypes on Windows
 #
-if os.name == 'nt':
+if config.WIN:
     from clint.packages.colorama.win32 import (
         STDERR,
         STDOUT,
@@ -114,7 +115,7 @@ def choose_color_ansi(levelno):
 @contextmanager
 def set_color(color, stream=sys.stdout):
     """Set the color on the stream temporarily; only necessary on Windows"""
-    if os.name == 'nt':
+    if config.WIN:
         handle = NT_CONSOLE_HANDLE[stream.fileno()]
         default = GetConsoleScreenBufferInfo(handle).wAttributes
         try:
@@ -140,7 +141,7 @@ def write_color(color, message, stream=sys.stdout):
 
 
 if __name__ == '__main__':
-    if os.name == 'nt':
+    if config.WIN:
         for k in range(256):
             write_color(k, f'This is color {k}. How does it look?\n')
         print('Auto-reset!')

@@ -117,7 +117,7 @@ def colorize(f):
         levelno = record.levelno
         if not logger.is_tty:  # no access to terminal
             return f(logger, record, *other_args)
-        if 'Win' in config.PLATFORM:
+        if config.WIN:
             color = console.choose_color_windows(levelno)
         else:
             color = console.choose_color_ansi(levelno)
