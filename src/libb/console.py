@@ -6,10 +6,12 @@ from contextlib import contextmanager
 from libb import config
 
 #
-# use clint wrappers around python stdlib ctypes on Windows
+# use colorama wrappers around python stdlib ctypes on Windows
 #
 if config.WIN:
-    from clint.packages.colorama.win32 import (
+    import colorama
+    colorama.just_fix_windows_console()
+    from colorama.win32 import (
         STDERR,
         STDOUT,
         GetConsoleScreenBufferInfo,
