@@ -102,7 +102,7 @@ class MailClient:
             ext = types[content_type]
             if ext is None:
                 _, ext = os.path.splitext(filename)
-                ext = ext.strip('.')
+                ext = ext.strip('.').lower()
                 if ext not in list(types.values()):
                     logger.warning(f'Extension {ext} was not in list of types, skipping')
                     continue
