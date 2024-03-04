@@ -83,7 +83,7 @@ if 'CONFIG_DEV' in os.environ:
     ENVIRONMENT = 'dev'
 if ENVIRONMENT is None:
     import getpass
-    logger.error(f'User "{getpass.getuser()}" missing environmnet type, set in environment variables')
+    logger.error(f'User "{getpass.getuser()}" missing environment type, set in environment variables')
 
 # Environment (Legacy)
 WIN = 'Windows' in PLATFORM
