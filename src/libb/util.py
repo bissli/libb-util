@@ -1891,9 +1891,31 @@ def composable(decorators):
         @wraps(func)
         def f(*a, **kw):
             return composed(func)(*a, **kw)
-
         return f
 
+    return wrapped
+
+
+@contextmanager
+def suppress_print():
+    """Suppress `print` in case someone decided to include
+    """
+    try:
+        _original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+        yield
+    finally:
+        sys.stdout.close()
+        sys.stdout = _original_stdout
+
+
+def wrap_suppress_print(func):
+    """Decoractor for `suppress print`
+    """
+    @wraps(func)
+    def wrapped(*a, **kw):
+        with suppress_print():
+            return func(*a, **kw)
     return wrapped
 
 # }}}

@@ -7,7 +7,7 @@ from subprocess import PIPE, Popen
 from typing import List, Tuple
 
 import regex as re
-from libb import config
+from libb import config, wrap_suppress_print
 
 logger = logging.getLogger(__name__)
 
