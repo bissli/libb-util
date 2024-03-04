@@ -164,16 +164,17 @@ def kill_pid(pids: List[int] | Tuple[int]):
     return taskkill.taskkill_force_pid_children(pids=pids)
 
 
-def kill_app(*s: str, dry_run=False):
+@wrap_suppress_print
+def kill_app(*name: str, dry_run=False):
     r"""Search and terminate processes based on ordered string match in path
     Example \<parent>\<child>\<app>.exe
     kill_string('parent', 'child', 'app.exe')
     """
-    path = '.*'.join(s)+r'(\.exe)?$'
+    name = '.*'.join(name)+r'(\.exe)?$'
     return taskkill.taskkill_regex_rearch(dryrun=dry_run, kill_children=True,
                                           force_kill=True, title='.*',
                                           windowtext='.*', class_name='.*',
-                                          path=path)
+                                          path=name)
 
 
 if __name__ == '__main__':

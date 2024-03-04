@@ -1,3 +1,7 @@
+# vim: foldenable
+"""Main utilities module"""
+
+# {{{ Imports
 import ast
 import base64
 import difflib
@@ -15,15 +19,18 @@ import warnings
 from abc import ABCMeta
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, MutableMapping, MutableSet
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from functools import cmp_to_key, reduce, wraps
 from typing import Dict, Iterable, List
 
 import more_itertools
+import psutil
+import regex as re
 from trace_dkey import trace
 
 logger = logging.getLogger(__name__)
 
+# }}}
 # {{{ Itertools
 
 
@@ -895,6 +902,7 @@ def compose(*functions):
     return reduce(lambda f, g: lambda x: f(g(x)), functions)
 
 # }}}
+# {{{ List
 #
 # list like methods from different work
 #
@@ -959,8 +967,8 @@ def choose(n, k):
 def base64file(fil):
     return base64.encodestring(open(fil, 'rb').read())
 
-
-# {{{ Dictionary
+# }}}
+# Dict .......................................................... {{{1
 
 
 def ismapping(something):
@@ -998,6 +1006,20 @@ def flatten(kv, prefix=None):
                 yield '_'.join(prefix + [str(k)]), v
             else:
                 yield str(k), v
+
+
+def unnest(d, keys=None):
+    """Recursively convert dict into list of tuples
+    """
+    if keys is None:
+        keys = []
+    result = []
+    for k, v in d.items():
+        if isinstance(v, dict):
+            result.extend(unnest(v, keys + [k]))
+        else:
+            result.append(tuple(keys + [k, v]))
+    return result
 
 
 def cmp(left, right):
@@ -1131,12 +1153,12 @@ def get_attrs(klazz):
 def trace_key(d, attrname) -> List[List]:
     """Trace dictionary key in nested dictionary
 
-    >>> l={'a':{'b':{'c':{'d':{'e':{'f':1}}}}}}
+    >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))))
     >>> trace_key(l,'f')
     [['a', 'b', 'c', 'd', 'e', 'f']]
 
     Multiple locations
-    >>> l={'a':{'b':{'c':{'d':{'e':{'f':1}}}}},'f':2}
+    >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))), f=2)
     >>> trace_key(l,'f')
     [['a', 'b', 'c', 'd', 'e', 'f'], ['f']]
 
@@ -1155,12 +1177,12 @@ def trace_key(d, attrname) -> List[List]:
 def trace_value(d, attrname) -> List:
     """Trace values returned by `trace key`
 
-    >>> l={'a':{'b':{'c':{'d':{'e':{'f':1}}}}}}
+    >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))))
     >>> trace_value(l, 'f')
     [1]
 
     Multiple locations
-    >>> l={'a':{'b':{'c':{'d':{'e':{'f':1}}}}},'f':2}
+    >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))), f=2)
     >>> trace_value(l,'f')
     [1, 2]
 
@@ -1179,9 +1201,8 @@ def trace_value(d, attrname) -> List:
             _node = _node[key]
             values[i] = _node
     return values
-
-
-# }}}
+#  .............................................................. }}}1
+# {{{ Unsorted
 
 
 def suppresswarning(func):
@@ -1531,10 +1552,7 @@ def fuzzy_search(search_term, items):
         yield item, _max
 
 
-#
-# db-api utilities
-#
-
+# Database Utilities ..................................................... {{{1
 
 def chunked(cursor, size=1000):
     while True:
@@ -1543,8 +1561,9 @@ def chunked(cursor, size=1000):
             break
         yield from this_chunk
 
+#  ....................................................................... }}}1
+# Geography, Mercator Projections ........................................ {{{1
 
-# {{{ Geography, Mercator Projections
 
 def merc_x(lon, r_major=6378137.0):
     """Project longitude into mercator / radians from major axis
@@ -1575,7 +1594,8 @@ def merc_y(lat, r_major=6378137.0, r_minor=6356752.3142):
     y = 0.0 - r_major * math.log(ts)
     return y
 
-# }}}
+#  ....................................................................... }}}1
+# {{{ Unsorted
 
 
 def format_phone(phone):
@@ -1784,15 +1804,15 @@ def add_branch(tree, vector, value):
     >>> vector = ['b', 'c', 'd']
     >>> value = 'dog'
     >>> tree = add_branch(tree, vector, value)
-    >>> tree
-    {'a': 'apple', 'b': {'c': {'d': 'dog'}}}
+    >>> unnest(tree)
+    [('a', 'apple'), ('b', 'c', 'd', 'dog')]
 
     Example 2:
     >>> vector2 = ['b', 'c', 'e']
     >>> value2 = 'egg'
     >>> tree = add_branch(tree, vector2, value2)
-    >>> tree
-    {'a': 'apple', 'b': {'c': {'d': 'dog', 'e': 'egg'}}}
+    >>> unnest(tree)
+    [('a', 'apple'), ('b', 'c', 'd', 'dog'), ('b', 'c', 'e', 'egg')]
 
     """
     key = vector[0]
@@ -1875,6 +1895,37 @@ def composable(decorators):
         return f
 
     return wrapped
+
+# }}}
+# Processes .............................................................. {{{1
+
+
+def kill_proc(name=None, version=None, dry_run=False):
+    """Generic kill process utilitiy
+    """
+    assert name or version, 'Need something to kill'
+    _name = fr'.*{(name or "")}(\.exe)?$'
+    match = False
+    procs = []
+    for proc in psutil.process_iter(attrs=['name']):
+        try:
+            cmd = ''.join(proc.cmdline())
+        except:
+            continue
+        if _name and not re.match(_name, proc.name()):
+            continue
+        if version and version not in cmd:
+            continue
+        match = True
+        if dry_run:
+            return match
+        procs.append(proc)
+    gone, alive = psutil.wait_procs(procs, timeout=10)
+    for p in alive:
+        with suppress(Exception):
+            p.kill()
+    return match
+#  ....................................................................... }}}1
 
 
 if __name__ == '__main__':

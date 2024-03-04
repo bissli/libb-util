@@ -10,7 +10,9 @@ import random
 import shutil
 import tempfile
 from contextlib import contextmanager
-from pathlib import Path, PureWindowsPath
+from functools import reduce
+from pathlib import Path
+from typing import List
 from urllib.parse import unquote, urlparse
 
 import backoff
@@ -64,6 +66,35 @@ def make_tmpdir(prefix=None) -> Path:
             remove()
         except IOError as io:
             logger.error(f'Failed to clean up temp dir {path}')
+
+
+def get_directory_structure(rootdir):
+    """Creates a nested dictionary that represents the folder structure
+    of rootdir
+    """
+    dir = {}
+    rootdir = rootdir.rstrip(os.sep)
+    start = rootdir.rfind(os.sep) + 1
+    for path, dirs, files in os.walk(rootdir):
+        folders = path[start:].split(os.sep)
+        subdir = dict.fromkeys(files)
+        parent = reduce(dict.get, folders[:-1], dir)
+        parent[folders[-1]] = subdir
+    return dir
+
+
+def search(rootdir: str, name : str = None, extension: str = None) -> List:
+    """Search for file name, extension, or both (or neither) in directory
+    """
+    def match(file, s):
+        return re.match(fr'.*{s}({Path(file).suffix})?$', file)
+
+    for rootdir, _, files in os.walk(expandabspath(rootdir)):
+        for file in files:
+            if ((name and match(file, name)) or
+                    (extension and Path(file).suffix == extension) or
+                    (not name and not extension)):
+                yield os.path.join(rootdir, file)
 
 
 def safe_move(source, target, hard_remove=False):
@@ -187,6 +218,17 @@ def load_files_tmpdir(patterns='*', thedate=None):
     return itertools.chain(*gen)
 
 
+def dir_to_dict(path):
+    """Convert directory to dict (needs work)
+    """
+    d = {}
+    path = expandabspath(path)
+    for i in [os.path.join(path, i) for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]:
+        d[os.path.basename(i)] = dir_to_dict(i)
+    d['.files'] = [i for i in os.listdir(path) if os.path.isfile(os.path.join(path, i))]
+    return d
+
+
 @contextmanager
 def download_file(url) -> Path:
     """Better file download from url
@@ -212,24 +254,23 @@ def download_file(url) -> Path:
 def splitall(path):
     r"""Split path into all its componenets
 
-    TODO: tests pass on Windows, not on nix, better way? Not safe to use!
-    >> splitall('a/b/c')
+    >>> splitall('a/b/c')
     ['a', 'b', 'c']
-    >> splitall('/a/b/c/')
+    >>> splitall('/a/b/c/')
     ['/', 'a', 'b', 'c', '']
-    >> splitall('/')
+    >>> splitall('/')
     ['/']
-    >> splitall('C:')
+    >>> splitall('C:')
     ['C:']
-    >> splitall('C:\\')
+    >>> splitall('C:\\')
     ['C:\\']
-    >> splitall('C:\\a')
+    >>> splitall('C:\\a')
     ['C:\\', 'a']
-    >> splitall('C:\\a\\')
+    >>> splitall('C:\\a\\')
     ['C:\\', 'a', '']
-    >> splitall('C:\\a\\b')
+    >>> splitall('C:\\a\\b')
     ['C:\\', 'a', 'b']
-    >> splitall('a\\\b')
+    >>> splitall('a\\\b')
     ['a', 'b']
     """
     allparts = []
