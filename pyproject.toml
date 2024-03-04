@@ -11,8 +11,6 @@ python = "~3.11"
 
 numpy = "*"
 backoff = "*"
-more-itertools = "*"
-wrapt = "*"
 matplotlib = { version = "^3.8.3", optional = true }
 paramiko = { version = "^3.4.0", optional = true }
 # == win
@@ -35,6 +33,10 @@ sqlalchemy = { version = "^2.0.27", extras = ["postgresql-psycopg2binary", "post
 mailchimp-transactional = { version = "^1.0.56", optional = true }
 # == logging
 tls-syslog = "0.2.0"
+# == general
+trace-dkey = "0.0.6"
+more-itertools = "*"
+wrapt = "*"
 # == web
 Flask = { version = "^3.0.2", optional = true }
 "web.py" = { version = "^0.62", optional = true }

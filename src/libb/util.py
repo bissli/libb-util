@@ -20,6 +20,7 @@ from functools import cmp_to_key, reduce, wraps
 from typing import Dict, Iterable, List
 
 import more_itertools
+from trace_dkey import trace
 
 logger = logging.getLogger(__name__)
 
@@ -1125,6 +1126,60 @@ def get_attrs(klazz):
     """
     attrs = inspect.getmembers(klazz, lambda a: not (inspect.isroutine(a)))
     return [a for a in attrs if not (a[0].startswith('__') and a[0].endswith('__'))]
+
+
+def trace_key(d, attrname) -> List[List]:
+    """Trace dictionary key in nested dictionary
+
+    >>> l={'a':{'b':{'c':{'d':{'e':{'f':1}}}}}}
+    >>> trace_key(l,'f')
+    [['a', 'b', 'c', 'd', 'e', 'f']]
+
+    Multiple locations
+    >>> l={'a':{'b':{'c':{'d':{'e':{'f':1}}}}},'f':2}
+    >>> trace_key(l,'f')
+    [['a', 'b', 'c', 'd', 'e', 'f'], ['f']]
+
+    With missing key
+    >>> trace_key(l, 'g')
+    Traceback (most recent call last):
+    ...
+    AttributeError: g
+    """
+    t = trace(d, attrname)
+    if not t:
+        raise AttributeError(attrname)
+    return t
+
+
+def trace_value(d, attrname) -> List:
+    """Trace values returned by `trace key`
+
+    >>> l={'a':{'b':{'c':{'d':{'e':{'f':1}}}}}}
+    >>> trace_value(l, 'f')
+    [1]
+
+    Multiple locations
+    >>> l={'a':{'b':{'c':{'d':{'e':{'f':1}}}}},'f':2}
+    >>> trace_value(l,'f')
+    [1, 2]
+
+    With missing key
+    >>> trace_value(l, 'g')
+    Traceback (most recent call last):
+    ...
+    AttributeError: g
+    """
+    values = []
+    t = trace_key(d, attrname)
+    for i, result in enumerate(t):
+        _node = d
+        values.append(None)
+        for key in result:
+            _node = _node[key]
+            values[i] = _node
+    return values
+
 
 # }}}
 
