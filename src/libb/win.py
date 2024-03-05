@@ -4,15 +4,13 @@ import logging
 import os
 import socket
 from subprocess import PIPE, Popen
-from typing import List, Tuple
 
 import regex as re
-from libb import config, wrap_suppress_print
+from libb import config
 
 logger = logging.getLogger(__name__)
 
 if config.WIN:
-    import taskkill
     from win32com.client import GetObject
 
 
@@ -156,25 +154,6 @@ def exit_cmd():
     for p in WMI.ExecQuery('select * from Win32_Process where Name="cmd.exe"'):
         logger.debug('Killing PID:', p.Properties_('ProcessId').Value)
         os.system('taskkill /pid ' + str(p.Properties_('ProcessId').Value))
-
-
-def kill_pid(pids: List[int] | Tuple[int]):
-    """Terminate processes along with their child processes
-    """
-    return taskkill.taskkill_force_pid_children(pids=pids)
-
-
-@wrap_suppress_print
-def kill_app(*name: str, dry_run=False):
-    r"""Search and terminate processes based on ordered string match in path
-    Example \<parent>\<child>\<app>.exe
-    kill_string('parent', 'child', 'app.exe')
-    """
-    name = '.*'.join(name)+r'(\.exe)?$'
-    return taskkill.taskkill_regex_rearch(dryrun=dry_run, kill_children=True,
-                                          force_kill=True, title='.*',
-                                          windowtext='.*', class_name='.*',
-                                          path=name)
 
 
 if __name__ == '__main__':
