@@ -1,7 +1,7 @@
-# vim: foldenable
 """Main utilities module"""
 
 # {{{ Imports
+
 import ast
 import base64
 import difflib
@@ -165,8 +165,8 @@ def infinite_iterator(iterable):
 
     return next()
 
-# }}}
-# {{{ Collections (Non-Dict)
+#  ....................................................................... }}}1
+# Collections (Non-Dict) ................................................. {{{1
 
 
 class OrderedSet(MutableSet):
@@ -239,8 +239,8 @@ class OrderedSet(MutableSet):
             return len(self) == len(other) and list(self) == list(other)
         return set(self) == set(other)
 
-# }}}
-# {{{ Collections (Dict)
+# ........................................................................ }}}1
+# Collections (Dict) ..................................................... {{{1
 
 
 class attrdict(dict):
@@ -544,7 +544,7 @@ class CaseInsensitiveDict(MutableMapping):
         return str(dict(self.items()))
 
 # }}}
-# {{{ Class and Function Manipulations
+# Class and Object ..................................................... {{{1
 
 
 def attrs(*attrnames):
@@ -594,65 +594,6 @@ def attrs(*attrnames):
     caller_locals = sys._getframe(1).f_locals
     for attrname in attrnames:
         caller_locals[attrname] = _makeprop(attrname)
-
-
-@contextmanager
-def replacekey(d, key, newval):
-    """Handy bugger for temporarily patching a dict
-
-    >>> f = dict(x=13)
-    >>> with replacekey(f, 'x', 'pho'):
-    ...     f['x']
-    'pho'
-    >>> f['x']
-    13
-
-    if the dict does not have the key set before, we return to that state
-    >>> rand_key = str(int.from_bytes(os.urandom(10), sys.byteorder))
-    >>> with replacekey(os.environ, rand_key, '22'):
-    ...     os.environ[rand_key]=='22'
-    True
-    >>> rand_key in os.environ
-    False
-    """
-    wasset = key in d
-    oldval = d.get(key)
-    d[key] = newval
-    yield
-    if wasset:
-        d[key] = oldval
-    else:
-        del d[key]
-
-
-@contextmanager
-def replaceattr(obj, attrname, newval):
-    """Handy bugger for temporarily monkey patching an object
-
-    >>> class Foo: pass
-    >>> f = Foo()
-    >>> f.x = 13
-    >>> with replaceattr(f, 'x', 'pho'):
-    ...     f.x
-    'pho'
-    >>> f.x
-    13
-
-    if the obj did not have the attr set, we remove it
-    >>> with replaceattr(f, 'y', 'boo'):
-    ...     f.y=='boo'
-    True
-    >>> hasattr(f, 'y')
-    False
-    """
-    wasset = hasattr(obj, attrname)
-    oldval = getattr(obj, attrname, None)
-    setattr(obj, attrname, newval)
-    yield
-    if wasset:
-        setattr(obj, attrname, oldval)
-    else:
-        delattr(obj, attrname)
 
 
 class timeout:
@@ -883,6 +824,9 @@ def lazy_property(fn):
 
     return _lazy_property
 
+#  ....................................................................... }}}1
+# Functools .............................................................. {{{1
+
 
 def compose(*functions):
     """Return a function folding over a list of functions
@@ -901,11 +845,8 @@ def compose(*functions):
     """
     return reduce(lambda f, g: lambda x: f(g(x)), functions)
 
-# }}}
-# {{{ List
-#
-# list like methods from different work
-#
+#  ....................................................................... }}}1
+# List ................................................................... {{{1
 
 
 def same_order(ref, comp):
@@ -967,8 +908,8 @@ def choose(n, k):
 def base64file(fil):
     return base64.encodestring(open(fil, 'rb').read())
 
-# }}}
-# Dict .......................................................... {{{1
+#  ....................................................................... }}}1
+# Dict ................................................................... {{{1
 
 
 def ismapping(something):
@@ -1020,6 +961,65 @@ def unnest(d, keys=None):
         else:
             result.append(tuple(keys + [k, v]))
     return result
+
+
+@contextmanager
+def replacekey(d, key, newval):
+    """Handy bugger for temporarily patching a dict
+
+    >>> f = dict(x=13)
+    >>> with replacekey(f, 'x', 'pho'):
+    ...     f['x']
+    'pho'
+    >>> f['x']
+    13
+
+    if the dict does not have the key set before, we return to that state
+    >>> rand_key = str(int.from_bytes(os.urandom(10), sys.byteorder))
+    >>> with replacekey(os.environ, rand_key, '22'):
+    ...     os.environ[rand_key]=='22'
+    True
+    >>> rand_key in os.environ
+    False
+    """
+    wasset = key in d
+    oldval = d.get(key)
+    d[key] = newval
+    yield
+    if wasset:
+        d[key] = oldval
+    else:
+        del d[key]
+
+
+@contextmanager
+def replaceattr(obj, attrname, newval):
+    """Handy bugger for temporarily monkey patching an object
+
+    >>> class Foo: pass
+    >>> f = Foo()
+    >>> f.x = 13
+    >>> with replaceattr(f, 'x', 'pho'):
+    ...     f.x
+    'pho'
+    >>> f.x
+    13
+
+    if the obj did not have the attr set, we remove it
+    >>> with replaceattr(f, 'y', 'boo'):
+    ...     f.y=='boo'
+    True
+    >>> hasattr(f, 'y')
+    False
+    """
+    wasset = hasattr(obj, attrname)
+    oldval = getattr(obj, attrname, None)
+    setattr(obj, attrname, newval)
+    yield
+    if wasset:
+        setattr(obj, attrname, oldval)
+    else:
+        delattr(obj, attrname)
 
 
 def cmp(left, right):
@@ -1201,7 +1201,7 @@ def trace_value(d, attrname) -> List:
             _node = _node[key]
             values[i] = _node
     return values
-#  .............................................................. }}}1
+#  ....................................................................... }}}1
 # {{{ Unsorted
 
 
@@ -1952,3 +1952,5 @@ def kill_proc(name=None, version=None, dry_run=False):
 
 if __name__ == '__main__':
     __import__('doctest').testmod(optionflags=4 | 8 | 32)
+
+# vim: foldenable

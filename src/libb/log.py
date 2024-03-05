@@ -1,6 +1,9 @@
 """TODO:
 - Hander: 'twd_mail' - using defer() in the handler
 """
+
+# Imports ................................................................ {{{1
+
 import copy
 import logging
 import os
@@ -38,8 +41,63 @@ with suppress(ImportError):
     from twisted.internet.ssl import SSL, ClientContextFactory
     from twisted.mail.smtp import ESMTPSenderFactory
 
+#  ....................................................................... }}}1
+# Util ................................................................... {{{1
 
-# {{{ Filter
+
+def colorize(f):
+    """This decorator assumes logging handler with stream
+    converts stream to colored output, cross-platform
+    """
+    @wraps(f)
+    def wrapper(*args):
+        from libb import console
+        logger = args[0]
+        record = copy.copy(args[1])
+        other_args = args[2:] if len(args) > 2 else []
+        levelno = record.levelno
+        if not logger.is_tty:  # no access to terminal
+            return f(logger, record, *other_args)
+        if config.WIN:
+            color = console.choose_color_windows(levelno)
+        else:
+            color = console.choose_color_ansi(levelno)
+        with console.set_color(color, stream=logger.stream):
+            return f(logger, record, *other_args)
+    return wrapper
+
+
+def set_level(levelname):
+    """Simple utility for setting root logging via sqla"""
+    level_names = {v: k for k, v in logging._levelToName.items()}
+    level_names['WARN'] = level_names['WARNING']
+    level = level_names[levelname.upper()]
+    for handler in logging.root.handlers:
+        handler.setLevel(level)
+    logging.root.setLevel(level)
+
+
+def stream_is_tty(somestream):
+    """Check if stream, typically sys.stdout, running in terminal"""
+    isatty = getattr(somestream, 'isatty', None)
+    return isatty and isatty()
+
+
+def patch_webdriver(this_logger, this_webdriver):
+    """Patch logger with SMTP/Mandrill handler
+    - for sending webdriver-captured screenshots and errors
+    """
+    for h in this_logger.handlers:
+        if isinstance(h, (ScreenshotColoredSMTPHandler, ScreenshotColoredMandrillHandler)):
+            h.webdriver = this_webdriver
+            this_logger.warning(f'Patching handler {repr(h)} {logging.getLevelName(h.level)}')
+
+
+stdout_is_tty = lambda: stream_is_tty(sys.stdout)
+
+#  ....................................................................... }}}1
+# Filters ................................................................ {{{1
+
 
 class MachineFilter(logging.Filter):
     def filter(self, record):
@@ -100,30 +158,8 @@ class WebServerFilter(logging.Filter):
         record.user = self.user_fn() or ''
         return True
 
-# Filter }}}
-# {{{ Handler
-
-
-def colorize(f):
-    """This decorator assumes logging handler with stream
-    converts stream to colored output, cross-platform
-    """
-    @wraps(f)
-    def wrapper(*args):
-        from libb import console
-        logger = args[0]
-        record = copy.copy(args[1])
-        other_args = args[2:] if len(args) > 2 else []
-        levelno = record.levelno
-        if not logger.is_tty:  # no access to terminal
-            return f(logger, record, *other_args)
-        if config.WIN:
-            color = console.choose_color_windows(levelno)
-        else:
-            color = console.choose_color_ansi(levelno)
-        with console.set_color(color, stream=logger.stream):
-            return f(logger, record, *other_args)
-    return wrapper
+#  ....................................................................... }}}1
+# Handler ................................................................ {{{1
 
 
 class NonBufferedFileHandler(logging.FileHandler):
@@ -479,31 +515,14 @@ class URLHandler(HTTPHandler):
             self.handleError(record)
 
 
-# TODO class logging, stolen from the bowels of sqlalchemy
-
 def _add_default_handler(logger):
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s'))
     logger.addHandler(handler)
 
 
-_logged_classes = set()
-
-
-def class_logger(cls, enable=False):
-    logger = logging.getLogger(cls.__module__ + '.' + cls.__name__)
-    if enable == 'debug':
-        logger.setLevel(logging.DEBUG)
-    elif enable == 'info':
-        logger.setLevel(logging.INFO)
-    cls._should_log_debug = lambda self: logger.isEnabledFor(logging.DEBUG)
-    cls._should_log_info = lambda self: logger.isEnabledFor(logging.INFO)
-    cls.logger = logger
-    _logged_classes.add(cls)
-
-
-# Hanler }}}
-# {{{ Config
+#  ....................................................................... }}}1
+# Config ................................................................. {{{1
 
 DEF_FILE_FMT = os.path.join(config.tmpdir.dir, '%(app)s_%(date)s_%(time)s.log')
 DEF_JOB_FMT = '%(levelname)-4s %(asctime)s %(machine)s %(name)s %(lineno)d %(message)s'
@@ -700,8 +719,52 @@ for mod in (config.log.modules.extra or '').split(','):
     TWD_CONF['loggers'][mod] = TWD_CONF['loggers']['twd']
     WEB_CONF['loggers'][mod] = WEB_CONF['loggers']['web']
 
+#  ....................................................................... }}}1
+# Logger ................................................................. {{{1
 
-# Config }}}
+
+class StderrStreamLogger:
+    """Patch over stderr to log print statements to INFO
+    placeholders isatty and fileno mimic python stream
+    stderr still accessible at stderr.__stderr__
+    """
+
+    def __init__(self, logger):
+        self.logger = logger
+        self.level = logging.INFO
+        self.linebuf = ''
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.level, line.rstrip())
+
+    def isatty(self):
+        return False
+
+    def fileno(self):
+        return None
+
+
+#  ....................................................................... }}}1
+# Class Logging .......................................................... {{{1
+_logged_classes = set()
+
+
+def class_logger(cls, enable=False):
+    """Class logging, stolen from the bowels of sqlalchemy (TODO)
+    """
+    logger = logging.getLogger(cls.__module__ + '.' + cls.__name__)
+    if enable == 'debug':
+        logger.setLevel(logging.DEBUG)
+    elif enable == 'info':
+        logger.setLevel(logging.INFO)
+    cls._should_log_debug = lambda self: logger.isEnabledFor(logging.DEBUG)
+    cls._should_log_info = lambda self: logger.isEnabledFor(logging.INFO)
+    cls.logger = logger
+    _logged_classes.add(cls)
+
+#  ....................................................................... }}}1
+# Main ................................................................... {{{1
 
 
 def configure_logging(setup='', app='', app_args=None, level=None):
@@ -752,57 +815,6 @@ def configure_logging(setup='', app='', app_args=None, level=None):
     dictConfig(logconfig)
 
 
-class StderrStreamLogger:
-    """Patch over stderr to log print statements to INFO
-    placeholders isatty and fileno mimic python stream
-    stderr still accessible at stderr.__stderr__
-    """
-
-    def __init__(self, logger):
-        self.logger = logger
-        self.level = logging.INFO
-        self.linebuf = ''
-
-    def write(self, buf):
-        for line in buf.rstrip().splitlines():
-            self.logger.log(self.level, line.rstrip())
-
-    def isatty(self):
-        return False
-
-    def fileno(self):
-        return None
-
-
-def patch_webdriver(this_logger, this_webdriver):
-    """Patch logger with SMTP/Mandrill handler
-    - for sending webdriver-captured screenshots and errors
-    """
-    for h in this_logger.handlers:
-        if isinstance(h, (ScreenshotColoredSMTPHandler, ScreenshotColoredMandrillHandler)):
-            h.webdriver = this_webdriver
-            this_logger.warning(f'Patching handler {repr(h)} {logging.getLevelName(h.level)}')
-
-
-def set_level(levelname):
-    """Simple utility for setting root logging via sqla"""
-    level_names = {v: k for k, v in logging._levelToName.items()}
-    level_names['WARN'] = level_names['WARNING']
-    level = level_names[levelname.upper()]
-    for handler in logging.root.handlers:
-        handler.setLevel(level)
-    logging.root.setLevel(level)
-
-
-def stream_is_tty(somestream):
-    """Check if stream, typically sys.stdout, running in terminal"""
-    isatty = getattr(somestream, 'isatty', None)
-    return isatty and isatty()
-
-
-stdout_is_tty = lambda: stream_is_tty(sys.stdout)
-
-
 def log_exception(logger):
     """Return wrapped function fn in try except and log exception with logger"""
     def wrapper(fn):
@@ -815,6 +827,7 @@ def log_exception(logger):
                 raise exc
         return wrapped_fn
     return wrapper
+#  ....................................................................... }}}1
 
 
 if __name__ == '__main__':
@@ -829,3 +842,5 @@ if __name__ == '__main__':
         1 / 0
     except Exception as exc:
         logger.exception(exc)
+
+# vim: foldenable
