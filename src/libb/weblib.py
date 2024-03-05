@@ -361,7 +361,7 @@ def authd(checker_fn, fallback_fn):
     >>> client = app.test_client()
     >>> '403 Forbidden' in str(client.get('/restricted').data)
     True
-    >>> client.set_cookie('', 'allowed', '1')
+    >>> client.set_cookie('allowed', '1')
     >>> client.get('/restricted').data
     b'seekret!!!'
     """
@@ -832,7 +832,7 @@ class ProfileMiddleware:
     True
     >>> sh.flush()
     >>> would_log = mock.getvalue()
-    >>> print(would_log)  # doctest: +ELLIPSIS
+    >>> print(would_log)
     Run finished in ... seconds
         ...
     <BLANKLINE>
@@ -1154,4 +1154,4 @@ def websafe(val):
 
 
 if __name__ == '__main__':
-    __import__('doctest').testmod()
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)
