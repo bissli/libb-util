@@ -15,7 +15,7 @@ def patch_mimetypes_init(wrapped, instance, args, kwargs):
 
 from .chart import numpy_timeseries_plot
 from .cmdline import parse_args
-from .config import Setting
+from .config import Setting, expandabspath
 from .date import *
 from .dir import *
 from .exception import *

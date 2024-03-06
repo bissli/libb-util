@@ -298,11 +298,5 @@ def resplit(path, *args):
     return re.split(r'{}'.format('|'.join(args)), path)
 
 
-def expandabspath(p: str) -> str:
-    """Expand path to absolute path
-    """
-    return os.path.abspath(os.path.expanduser(os.path.relpath(os.path.expandvars(p))))
-
-
 if __name__ == '__main__':
     __import__('doctest').testmod()

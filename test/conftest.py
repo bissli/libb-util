@@ -1,7 +1,7 @@
 import logging
 import os
 import os.path
-import sys
+import site
 import test.fixtures
 
 import pytest
@@ -10,7 +10,7 @@ from libb.module import get_package_paths_in_module
 logger = logging.getLogger(__name__)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
+site.addsitedir(HERE)
 
 
 def pytest_addoption(parser):

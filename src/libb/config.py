@@ -68,6 +68,7 @@ class Setting(dict):
 
 
 # Environment
+HERE = os.path.abspath(os.path.dirname(__file__))
 CHECKTTY = 'CONFIG_CHECKTTY' in os.environ
 TZ =  os.getenv('CONFIG_TZ')
 PLATFORM = platform.system()
@@ -93,12 +94,26 @@ WEBAPP = 'CONFIG_WEBAPP' in os.environ
 checktty = CHECKTTY
 webapp = WEBAPP
 
-__expandabspath = lambda p: os.path.abspath(os.path.expanduser(os.path.expandvars(p)))
+
+def expandabspath(p: str) -> str:
+    """Expand path to absolute path"""
+    a = os.path.abspath
+    u = os.path.expanduser
+    v = os.path.expandvars
+
+    def r(x):
+        try:
+            return os.path.relpath(x)
+        except ValueError:
+            return os.path.abspath(x)
+
+    return a(u(r(v(p))))
+
 
 # Tmpdir
 tmpdir = Setting()
 if os.getenv('CONFIG_TMPDIR_DIR'):
-    tmpdir.dir = __expandabspath(os.getenv('CONFIG_TMPDIR_DIR'))
+    tmpdir.dir = expandabspath(os.getenv('CONFIG_TMPDIR_DIR'))
 else:
     tmpdir.dir = tempfile.gettempdir()
 Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
@@ -106,23 +121,23 @@ Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
 # Vendor Dir
 vendor = Setting()
 if os.getenv('CONFIG_VENDOR_DIR'):
-    vendor.dir = __expandabspath(os.getenv('CONFIG_VENDOR_DIR'))
+    vendor.dir = expandabspath(os.getenv('CONFIG_VENDOR_DIR'))
 else:
     vendor.dir = tempfile.gettempdir()
 Path(vendor.dir).mkdir(parents=True, exist_ok=True)
 
 # Local Dir
 local = Setting()
-local.dir = Path(__expandabspath(r'%APPDATA%')
+local.dir = Path(expandabspath(r'%APPDATA%')
                  if 'Win' in PLATFORM
-                 else __expandabspath('~/.local/share/')) / 'libb'
+                 else expandabspath('~/.local/share/')) / 'libb'
 local.dir = local.dir.as_posix()
 Path(local.dir).mkdir(parents=True, exist_ok=True)
 
 # Output Dir
 output = Setting()
 if os.getenv('CONFIG_OUTPUT_DIR'):
-    output.dir = __expandabspath(os.getenv('CONFIG_OUTPUT_DIR'))
+    output.dir = expandabspath(os.getenv('CONFIG_OUTPUT_DIR'))
 else:
     output.dir = tempfile.gettempdir()
 Path(output.dir).mkdir(parents=True, exist_ok=True)
@@ -138,7 +153,7 @@ tlssyslog.host = os.getenv('CONFIG_TLSSYSLOG_HOST')
 tlssyslog.port = os.getenv('CONFIG_TLSSYSLOG_PORT')
 tlssyslog.dir = None
 if os.getenv('CONFIG_TLSSYSLOG_DIR'):
-    tlssyslog.dir = __expandabspath(os.getenv('CONFIG_TLSSYSLOG_DIR'))
+    tlssyslog.dir = expandabspath(os.getenv('CONFIG_TLSSYSLOG_DIR'))
 
 # Intermedia Email
 mail = Setting()
@@ -170,3 +185,7 @@ Setting.lock()
 
 if __name__ == '__main__':
     __import__('doctest').testmod(optionflags=4 | 8 | 32)
+    print('tmpdir: '+tmpdir.dir)
+    print('vendor: '+vendor.dir)
+    print('local:  '+local.dir)
+    print('output: '+output.dir)
