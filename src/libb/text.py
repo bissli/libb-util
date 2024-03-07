@@ -3,11 +3,11 @@ import contextlib
 import logging
 import quopri
 import random
-import re
 import string
 import unicodedata
 from functools import reduce
 
+import regex as re
 from libb.util import collapse
 
 with contextlib.suppress(ImportError):
@@ -144,6 +144,49 @@ def round_digit_string(s, places=3) -> str:
         s = i if f == i else round(f, places)
         return str(s)
     return s
+
+
+def parse_number(s: str):
+    """Extract number from string
+
+    >>> parse_number('1,200m')
+    1200
+    >>> parse_number('100.0')
+    100.0
+    >>> parse_number('100')
+    100
+    >>> parse_number('0.002k')
+    0.002
+    >>> parse_number('-1')
+    -1
+    >>> parse_number('(1)')
+    -1
+    >>> parse_number('-100.0')
+    -100.0
+    >>> parse_number('(100.)')
+    -100.0
+    >>> parse_number('')
+    >>> parse_number('foo')
+    """
+    if not s:
+        return
+    if s.endswith('.'):
+        s+='0'
+    if s.endswith('.)'):
+        s = s[:-2]+'.0)'
+    num = ''.join(re.findall(r'[\(-\d\.\)]+', s))
+    if not num:
+        return
+    if neg := re.match(r'^\((.*)\)$', num):
+        num = '-'+neg.group(1)
+    i = f = None
+    with contextlib.suppress(Exception):
+        i = int(num)
+    with contextlib.suppress(Exception):
+        f = float(num)
+    if i == f:
+        return i
+    return f
 
 
 def truncate(s, width, suffix='...'):
