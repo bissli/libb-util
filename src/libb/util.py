@@ -1,6 +1,6 @@
 """Main utilities module"""
 
-# {{{ Imports
+# Imports ................................................................ {{{1
 
 import ast
 import base64
@@ -30,8 +30,8 @@ from trace_dkey import trace
 
 logger = logging.getLogger(__name__)
 
-# }}}
-# {{{ Itertools
+#  ....................................................................... }}}1
+# Itertools .............................................................. {{{1
 
 
 def isiterable(arg):
@@ -543,7 +543,7 @@ class CaseInsensitiveDict(MutableMapping):
     def __repr__(self):
         return str(dict(self.items()))
 
-# }}}
+#  .............................................................. }}}1
 # Class and Object ..................................................... {{{1
 
 
@@ -783,7 +783,7 @@ def lazy_property(fn):
     """Decorator that makes a property lazy-evaluated.
 
     >>> import time
-    >>> class Sloth(object):
+    >>> class Sloth:
     ...     def _slow_cool(self, n):
     ...         time.sleep(n)
     ...         return n**2
@@ -823,6 +823,33 @@ def lazy_property(fn):
         return getattr(self, attr_name)
 
     return _lazy_property
+
+
+class cachedstaticproperty:
+    """Works like @property and @staticmethod combined
+
+    >>> def somecalc():
+    ...     print('Running somecalc...')
+    ...     return 1
+
+    >>> class Foo:
+    ...    @cachedstaticproperty
+    ...    def somefunc():
+    ...        return somecalc()
+
+    >>> Foo.somefunc
+    Running somecalc...
+    1
+    >>> Foo.somefunc
+    1
+    """
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, inst, owner):
+        result = self.func()
+        setattr(owner, self.func.__name__, result)
+        return result
 
 #  ....................................................................... }}}1
 # Functools .............................................................. {{{1
