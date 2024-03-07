@@ -36,6 +36,7 @@ more-itertools = "*"
 wrapt = "*"
 psutil = "*"
 requests = "*"
+tqdm = "^4.66.2"
 # == web
 Flask = { version = "^3.0.2", optional = true }
 "web.py" = { version = "^0.62", optional = true }
