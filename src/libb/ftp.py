@@ -371,7 +371,8 @@ class FtpConnection:
         self.ftp.delete(remotefile)
 
     def close(self):
-        self.ftp.close()
+        with contextlib.suppress(Exception):
+            self.ftp.close()
 
 
 class SecureFtpConnection:
@@ -435,8 +436,9 @@ class SecureFtpConnection:
         self.ftp.remove(remotefile)
 
     def close(self):
-        self.ftp.close()
-        self.ssh.close()
+        with contextlib.suppress(Exception):
+            self.ftp.close()
+            self.ssh.close()
 
 
 class SslFtpConnection:
