@@ -8,7 +8,7 @@ import logging
 import os
 import re
 import time
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections import namedtuple
 from functools import lru_cache, partial, wraps
 from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Union
@@ -198,7 +198,7 @@ END:VCALENDAR
     """
 
 
-class Entity(metaclass=ABCMeta):
+class Entity(ABC):
     """ABC for named entity types"""
 
     tz = UTC
@@ -387,8 +387,7 @@ def previous_eom(
     thedate = thedate or pendulum.today().date()
     if business:
         return previous_business_day(first_of_month(thedate))
-    else:
-        return first_of_month(thedate).subtract(days=1)
+    return first_of_month(thedate).subtract(days=1)
 
 
 @expect_date
@@ -664,8 +663,7 @@ def last_of_week(
     date_offset = thedate.end_of('week')
     if business:
         return business_date(date_offset, or_next=False, entity=entity)
-    else:
-        return date_offset
+    return date_offset
 
 
 @expect_date
@@ -1168,7 +1166,7 @@ def to_date(
             return datetime.date(yy, mm, dd)
 
     if raise_err:
-        raise ValueError('Failed to parse date: ' + s)
+        raise ValueError('Failed to parse date: %s', s)
 
 
 @prefer_utc_timezone
@@ -1253,8 +1251,7 @@ def to_time(s, fmt=None, raise_err=False):
             if is_pm(m) and hh < 12:
                 hh += 12
             return Time(hh, mm, ss, uu * 1000).replace(tzinfo=UTC)
-    else:
-        logger.debug('Custom parsers failed, trying dateutil parser')
+    logger.debug('Custom parsers failed, trying dateutil parser')
 
     try:
         return pendulum.instance(parser.parse(s)).time()
@@ -1262,7 +1259,7 @@ def to_time(s, fmt=None, raise_err=False):
         pass
 
     if raise_err:
-        raise ValueError('Failed to parse time: ' + s)
+        raise ValueError('Failed to parse time: %s', s)
 
 
 def to_datetime(
@@ -1371,14 +1368,13 @@ def days_between(
         return 0
     if not business:
         return (enddate - begdate).days
-    else:
-        if begdate < enddate:
-            return len(list(get_dates(begdate, enddate, business=True, entity=entity))) - 1
-        return -len(list(get_dates(enddate, begdate, business=True, entity=entity))) + 1
+    if begdate < enddate:
+        return len(list(get_dates(begdate, enddate, business=True, entity=entity))) - 1
+    return -len(list(get_dates(enddate, begdate, business=True, entity=entity))) + 1
 
 
 @expect_date
-def years_between(begdate=None, enddate=None, basis: int = 0, tz=LCL):
+def years_between(begdate=None, enddate=None, basis: int = 0):
     """Years with Fractions (matches Excel YEARFRAC)
 
     Adapted from https://web.archive.org/web/20200915094905/https://dwheeler.com/yearfrac/calc_yearfrac.py
