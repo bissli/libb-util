@@ -449,12 +449,12 @@ class SslFtpConnection:
 
 
 if __name__ == '__main__':
-    from libb import log
+    from libb.log import configure_logging
 
     if len(sys.argv) != 2:
         print('usage: ftp config (e.g. site.FOO, site.BAR)')
         sys.exit(1)
-    log.configure_logging()
+    configure_logging()
     cn = connect(sys.argv[1])
     files = cn.dir()
     print(('\n'.join(map(repr, files))))

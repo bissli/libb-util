@@ -10,11 +10,12 @@ from libb import config
 
 logger = logging.getLogger(__name__)
 
-__all__ = ('parse_args',)
+__all__ = ['parse_args']
 
 
 def parse_args(options, usage=None):
-    from libb import configure_logging, replacekey
+    from libb import replacekey
+    from libb.log import configure_logging
     parser = create_parser(options, usage)
     opts, args = parser.parse_args()
     configure_logging(opts.logsetup)
@@ -57,10 +58,11 @@ def create_parser(options, usage=None):
 
 
 if __name__ == '__main__':
-    from libb import cmdline, log
+    from libb import cmdline
+    from libb.log import log_exception
     logger = logging.getLogger('cmd')
 
-    @log.log_exception(logger)
+    @log_exception(logger)
     def main():
         opts, args, parser = cmdline.parse_args((
             ('-d', '--date', 'Date for calculation', 'P'),
