@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import time
+import warnings
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from functools import lru_cache, partial, wraps
@@ -18,13 +19,88 @@ import pandas as pd
 import pandas_market_calendars as mcal
 import pendulum
 from dateutil import parser
-from libb import config
-from libb.util import suppresswarning
-from pendulum import Date, DateTime, Time
+
+warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
 logger = logging.getLogger(__name__)
 
-LCL = pendulum.tz.Timezone(config.TZ or pendulum.tz.get_local_timezone().name)
+__all__ = [
+    'EST',
+    'Entity',
+    'GMT',
+    'LCL',
+    'NYSE',
+    'UTC',
+    'business_date',
+    'business_hours',
+    'business_open',
+    'create_ics',
+    'date_range',
+    'days_between',
+    'days_overlap',
+    'epoch',
+    'expect',
+    'expect_date',
+    'expect_datetime',
+    'expect_native_timezone',
+    'expect_utc_timezone',
+    'first_of_month',
+    'first_of_week',
+    'first_of_year',
+    'get_dates',
+    'get_eom_dates',
+    'get_first_weekday_of_month',
+    'get_last_weekday_of_month',
+    'get_previous_quarter_date',
+    'get_quarter_date',
+    'is_business_day',
+    'is_business_day_range',
+    'is_first_of_month',
+    'is_first_of_week',
+    'is_last_of_month',
+    'is_last_of_week',
+    'isoweek',
+    'last_of_month',
+    'last_of_week',
+    'last_of_year',
+    'lookback_date',
+    'next_business_day',
+    'next_first_of_month',
+    'next_last_date_of_week',
+    'next_relative_date_of_week_by_day',
+    'now',
+    'num_quarters',
+    'offset_date',
+    'offset_from_beg_of_month',
+    'offset_from_end_of_month',
+    'prefer_native_timezone',
+    'prefer_utc_timezone',
+    'previous_business_day',
+    'previous_eom',
+    'previous_first_of_month',
+    'reference_date_13f',
+    'rfc3339',
+    'third_wednesday',
+    'to_date',
+    'to_datetime',
+    'to_string',
+    'to_time',
+    'today',
+    'weekday_or_previous_friday',
+    'years_between',
+    # for now
+    'Date',
+    'DateTime',
+    'Time',
+    'WeekDay',
+    ]
+
+Date = pendulum.Date
+DateTime = pendulum.DateTime
+Time = pendulum.Time
+WeekDay = pendulum.WeekDay
+
+LCL = pendulum.tz.Timezone(pendulum.tz.get_local_timezone().name)
 UTC = pendulum.tz.Timezone('UTC')
 GMT = pendulum.tz.Timezone('GMT')
 EST = pendulum.tz.Timezone('US/Eastern')
@@ -235,7 +311,6 @@ class NYSE(Entity):
 
     @staticmethod
     @lru_cache
-    @suppresswarning
     def business_hours(begdate=BEGDATE, enddate=ENDDATE) -> Dict:
         df = NYSE.calendar.schedule(begdate, enddate, tz=EST)
         open_close = [(o.to_pydatetime(), c.to_pydatetime())
@@ -268,7 +343,7 @@ def is_business_day(thedate=None, entity: Type[NYSE] = NYSE) -> bool:
     >>> is_business_day(thedate)
     True
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     return thedate in entity.business_days()
 
 
@@ -332,14 +407,14 @@ def business_hours(thedate, entity: Type[NYSE] = NYSE):
 def now(current: Optional[Union[datetime.date, datetime.datetime]] = None):
     """Native now function"""
     if current is None:
-        return pendulum.now()
+        return DateTime.now()
     return to_datetime(current, raise_err=True)  # for testing
 
 
 def today(current: Optional[Union[datetime.date, datetime.datetime]] = None):
     """Native today function"""
     if current is None:
-        return pendulum.today().date()
+        return DateTime.today().date()
     return to_date(current, raise_err=True)  # for testing
 
 
@@ -361,17 +436,17 @@ def first_of_year(thedate=None, tz=LCL) -> Date:
     """Does not need an arg, same with other funcs (`last_of_year`,
     `previous_eom`, &c.)
 
-    >>> first_of_year()==datetime.date(pendulum.today().year, 1, 1)
+    >>> first_of_year()==datetime.date(DateTime.today().year, 1, 1)
     True
     >>> first_of_year(datetime.date(2012, 12, 31))==datetime.date(2012, 1, 1)
     True
     """
-    return Date((thedate or pendulum.today().date()).year, 1, 1)
+    return Date((thedate or DateTime.today().date()).year, 1, 1)
 
 
 @expect_date
 def last_of_year(thedate=None, tz=LCL):
-    return Date((thedate or pendulum.today().date()).year, 12, 31)
+    return Date((thedate or DateTime.today().date()).year, 12, 31)
 
 
 # rename previous_last_of_month (reame business_day to business)
@@ -384,7 +459,7 @@ def previous_eom(
     >>> previous_eom(datetime.date(2021, 5, 30))
     Date(2021, 4, 30)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     if business:
         return previous_business_day(first_of_month(thedate))
     return first_of_month(thedate).subtract(days=1)
@@ -394,7 +469,7 @@ def previous_eom(
 def first_of_month(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
 ) -> Date:
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     begdate = Date(thedate.year, thedate.month, 1)
     if business:
         return business_date(begdate, or_next=True, entity=entity)
@@ -410,7 +485,7 @@ def previous_first_of_month(
     >>> previous_first_of_month(datetime.date(2021, 6, 15))
     Date(2021, 5, 1)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     return first_of_month(previous_eom(thedate, business, entity=entity),
                           business, entity=entity)
 
@@ -428,7 +503,7 @@ def last_of_month(
     >>> last_of_month(datetime.date(2023, 4, 30), True) # Sunday -> Friday
     Date(2023, 4, 28)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     offset_date = thedate.end_of('month')
     if business:
         return business_date(offset_date, or_next=False, entity=entity)
@@ -437,13 +512,13 @@ def last_of_month(
 
 @expect_date
 def is_first_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     return first_of_month(thedate, business, entity=entity) == thedate
 
 
 @expect_date
 def is_last_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     return last_of_month(thedate, business, entity=entity) == thedate
 
 
@@ -495,7 +570,7 @@ def previous_business_day(
     >>> previous_business_day(datetime.date(2021, 11, 24), 5)
     Date(2021, 11, 17)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     numdays = abs(numdays)
     while numdays > 0:
         try:
@@ -531,7 +606,7 @@ def next_business_day(
     >>> next_business_day(datetime.date(9999, 12, 31))
     Date(9999, 12, 31)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     numdays = abs(numdays)
     while numdays > 0:
         try:
@@ -571,7 +646,7 @@ def offset_date(
     >>> offset_date(datetime.date(2021, 11, 24), 0, False)
     Date(2021, 11, 24)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     while window != 0:
         try:
             if business:
@@ -615,11 +690,11 @@ def first_of_week(
     >>> first_of_week(datetime.date(2020, 5, 26), business=True)
     Date(2020, 5, 26)
     """
-    thedate = thedate or pendulum.today().date()
-    if thedate.weekday() == pendulum.MONDAY:
+    thedate = thedate or DateTime.today().date()
+    if thedate.weekday() == WeekDay.MONDAY:
         date_offset = thedate
     else:
-        date_offset = thedate.previous(pendulum.MONDAY)
+        date_offset = thedate.previous(WeekDay.MONDAY)
     if business:
         return business_date(date_offset, or_next=True, entity=entity)
     return date_offset
@@ -631,7 +706,7 @@ def is_first_of_week(thedate=None, business=False, entity: Type[NYSE] = NYSE) ->
 
     Business := if it's a holiday, get next business date
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     return first_of_week(thedate, business) == thedate
 
 
@@ -659,7 +734,7 @@ def last_of_week(
     >>> last_of_week(datetime.date(2020, 4, 9), business=True)
     Date(2020, 4, 9)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     date_offset = thedate.end_of('week')
     if business:
         return business_date(date_offset, or_next=False, entity=entity)
@@ -717,7 +792,7 @@ def next_first_of_month(thedate=None, window=1, snap=True, tz=LCL):
     Date(2015, 1, 1)
     """
     window = window + 15 if snap else window
-    thenext = (thedate or pendulum.today().date()).add(days=window)
+    thenext = (thedate or DateTime.today().date()).add(days=window)
     return first_of_month(thenext)
 
 
@@ -730,8 +805,8 @@ def next_last_date_of_week(thedate=None, business=False, entity: Type[NYSE] = NY
     >>> next_last_date_of_week(datetime.date(2018, 10, 12))
     Date(2018, 10, 19)
     """
-    thedate = thedate or pendulum.today().date()
-    offset = thedate.next(pendulum.FRIDAY)
+    thedate = thedate or DateTime.today().date()
+    offset = thedate.next(WeekDay.FRIDAY)
     if business:
         return business_date(thedate, or_next=False, entity=entity)
     return offset
@@ -759,7 +834,7 @@ def business_date(thedate=None, or_next=True, tz=LCL, entity: Type[NYSE] = NYSE)
     >>> business_date(datetime.date(2018, 9, 1))
     Date(2018, 9, 4)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     if is_business_day(thedate, entity):
         return thedate
     if or_next:
@@ -780,7 +855,7 @@ def weekday_or_previous_friday(thedate=None, tz=LCL):
     >>> weekday_or_previous_friday(datetime.date(2019, 10, 3)) # Thursday
     Date(2019, 10, 3)
     """
-    thedate = thedate or pendulum.today().date()
+    thedate = thedate or DateTime.today().date()
     dnum = thedate.weekday()
     if dnum in {SATURDAY, SUNDAY}:
         return thedate.subtract(days=dnum - 4)
@@ -863,7 +938,7 @@ def num_quarters(begdate, enddate=None, tz=LCL):
     >>> round(num_quarters(datetime.date(2020, 1, 1), datetime.date(2020, 8, 1)), 2)
     2.33
     """
-    return 4 * days_between(begdate, enddate or pendulum.today().date()) / 365.0
+    return 4 * days_between(begdate, enddate or DateTime.today().date()) / 365.0
 
 
 @expect_date
@@ -1006,7 +1081,7 @@ def to_date(
     Date(2006, 6, 23)
 
     m[/-]d          6/23
-    >>> to_date('6/23') == datetime.date(pendulum.today().year, 6, 23)
+    >>> to_date('6/23') == datetime.date(DateTime.today().year, 6, 23)
     True
 
     yyyy-mm-dd      2006-6-23
@@ -1040,14 +1115,14 @@ def to_date(
     >>> to_date('Oct. 24, 2007', fmt='%b. %d, %Y')
     Date(2007, 10, 24)
 
-    >>> to_date('Yesterday') == pendulum.today().subtract(days=1).date()
+    >>> to_date('Yesterday') == DateTime.today().subtract(days=1).date()
     True
-    >>> to_date('TODAY') == pendulum.today().date()
+    >>> to_date('TODAY') == DateTime.today().date()
     True
     >>> to_date('Jan. 13, 2014')
     Date(2014, 1, 13)
 
-    >>> to_date('March') == datetime.date(pendulum.today().year, 3, pendulum.today().day)
+    >>> to_date('March') == datetime.date(DateTime.today().year, 3, DateTime.today().day)
     True
 
     >>> to_date(np.datetime64('2000-01', 'D'))
@@ -1064,11 +1139,11 @@ def to_date(
 
     def date_for_symbol(s):
         if s == 'N':
-            return pendulum.today().date()
+            return DateTime.today().date()
         if s == 'T':
-            return pendulum.today().date()
+            return DateTime.today().date()
         if s == 'Y':
-            return pendulum.today().date().subtract(days=1)
+            return DateTime.today().date().subtract(days=1)
         if s == 'P':
             return previous_business_day()
         if s == 'M':
@@ -1081,7 +1156,7 @@ def to_date(
                 yy += 2000
         except IndexError:
             logger.warning('Using default this year')
-            yy = pendulum.today().date().year
+            yy = DateTime.today().date().year
         return yy
 
     if not s:
@@ -1120,9 +1195,9 @@ def to_date(
                     d = d.add(days=n)
             return d
         if 'today' in s.lower():
-            return pendulum.today().date()
+            return DateTime.today().date()
         if 'yester' in s.lower():
-            return pendulum.today().subtract(days=1).date()
+            return DateTime.today().subtract(days=1).date()
 
     try:
         return pendulum.instance(parser.parse(s).date())
@@ -1340,7 +1415,7 @@ def to_datetime(
     if d is not None:
         return DateTime(d.year, d.month, d.day, 0, 0, 0)
 
-    current = pendulum.today().date()
+    current = DateTime.today().date()
     t = to_time(s)
     if t is not None:
         return DateTime.combine(current, t)
@@ -1499,7 +1574,7 @@ def years_between(begdate=None, enddate=None, basis: int = 0):
             (date1day + date1month * 30 + date1year * 360)
         return daydiff360 / 360
 
-    begdate = begdate or pendulum.today().date()
+    begdate = begdate or DateTime.today().date()
     if enddate is None:
         return
 
@@ -1546,7 +1621,7 @@ def date_range(
       set  -  set    end=beg + num
        -  set set    beg=end - num
 
-    >>> date_range(datetime.date(2014, 4, 3), None, 3)
+    >>> date_range(Date(2014, 4, 3), None, 3)
     (Date(2014, 4, 3), Date(2014, 4, 8))
     >>> date_range(None, Date(2014, 7, 27), 20, business=False)
     (Date(2014, 7, 7), Date(2014, 7, 27))

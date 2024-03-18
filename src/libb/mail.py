@@ -17,6 +17,13 @@ with suppress(ImportError):
     import mailchimp_transactional as MailchimpTransactional
     from mailchimp_transactional.api_client import ApiClientError
 
+__all__ = [
+    'send_mail',
+    'get_mail_status',
+    'parse_rfc2047',
+    'MailClient',
+    ]
+
 logger = logging.getLogger(__name__)
 
 
@@ -156,7 +163,7 @@ class MailClient:
                     for _part in part.get_payload()[1:]:
                         body += self._flatten_payload(_part, decode)
                     break
-                elif content_type == 'text/plain' and 'attachment' not in content_disposition:
+                if content_type == 'text/plain' and 'attachment' not in content_disposition:
                     body += part.get_payload(decode=decode)
             if decode:
                 body = str(body, errors='ignore')
@@ -223,13 +230,12 @@ class MailClient:
         msg = ''
         if isinstance(payload, str):
             msg += payload
-        else:
-            if isinstance(payload, list):
-                for item in payload:
-                    msg += self._flatten_payload(item, decode)
-            elif payload:
-                payload = payload.get_payload(decode=decode)
-                msg += self._flatten_payload(payload, decode)
+        elif isinstance(payload, list):
+            for item in payload:
+                msg += self._flatten_payload(item, decode)
+        elif payload:
+            payload = payload.get_payload(decode=decode)
+            msg += self._flatten_payload(payload, decode)
         return msg
 
 

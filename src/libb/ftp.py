@@ -12,12 +12,18 @@ import time
 from collections import defaultdict, namedtuple
 from pathlib import Path
 
-from libb import LCL, now, to_datetime
+from libb import now, to_datetime
 
 logger = logging.getLogger(__name__)
 
 with contextlib.suppress(ImportError):
     import paramiko
+
+__all__ = [
+    'connect',
+    'decrypt_all_pgp_files',
+    'sync_site',
+    ]
 
 Entry = namedtuple('Entry', 'line name is_dir size datetime')
 FTP_DIR_RE = (
@@ -180,7 +186,7 @@ def sync_directory(cn, site, remotedir: str, localdir: Path, files, opts):
 
 
 def sync_file(cn, site, remotedir: str, localdir: Path, entry, opts):
-    if opts.ignoreolderthan and entry.datetime < now().subtract(days=int(opts.ignoreolderthan)):
+    if opts.ignoreolderthan and entry.datetime < pendulum.now().subtract(days=int(opts.ignoreolderthan)):
         logger.debug('File is too old: %s/%s, skipping (%s)', remotedir, entry.name, str(entry.datetime))
         return
     localfile = localdir / entry.name
@@ -320,9 +326,9 @@ def decrypt_all_pgp_files(config, sitename, opts):
 class FtpConnection:
     """Wrapper around ftplib
     """
-    def __init__(self, hostname, username, password, tzinfo=LCL):
+    def __init__(self, hostname, username, password, **kw):
         self.ftp = ftplib.FTP(hostname, username, password)
-        self._tzinfo = tzinfo
+        self._tzinfo = kw.get('tzinfo', LCL)
 
     def pwd(self):
         """Return the current directory"""

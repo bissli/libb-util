@@ -5,8 +5,21 @@ import re
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'Percent',
+    'capitalize',
+    'capwords',
+    'commafy',
+    'fmt',
+    'format',
+    'format_secondsdelta',
+    'format_timedelta',
+    'format_timeinterval',
+    'splitcap',
+    ]
 
-def fmt(value, style):
+
+def format(value, style):
     """Format a numeric value supporting things
     like commas, parens for negative values and
     special cases for zeros.
@@ -72,7 +85,7 @@ def fmt(value, style):
         if val == 0:
             if 'z' in fmt:
                 return ''
-            elif 'Z' in fmt:
+            if 'Z' in fmt:
                 return '-'
 
         # scale if using %, #, S, K, M or B formats
@@ -132,6 +145,9 @@ def fmt(value, style):
     except Exception as exc:
         logger.exception(exc)
         return value or ''
+
+
+fmt = format
 
 
 def format_timeinterval(start, end=None):
@@ -311,8 +327,8 @@ class Percent(float):
     """A haq to format as percentages pivoted display tables
     """
 
-    def __new__(klass, val):
-        p = float.__new__(klass, val)
+    def __new__(cls, val):
+        p = float.__new__(cls, val)
         p.pct = True
         return p
 

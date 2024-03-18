@@ -17,153 +17,16 @@ import signal
 import sys
 import warnings
 from abc import ABCMeta
-from collections import defaultdict
 from collections.abc import Iterable, Mapping, MutableMapping, MutableSet
 from contextlib import contextmanager, suppress
 from functools import cmp_to_key, reduce, wraps
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
-import more_itertools
 import psutil
-import regex as re
+from more_itertools import collapse
 from trace_dkey import trace
 
 logger = logging.getLogger(__name__)
-
-#  ....................................................................... }}}1
-# Itertools .............................................................. {{{1
-
-
-def isiterable(arg):
-    """Check for iterable type (but not String)"""
-    return isinstance(arg, Iterable) and not isinstance(arg, str)
-
-
-def divide(iterable, size):
-    """Split an iterable into sub-iterables of length `size`
-
-    >>> list(divide(list(range(10)), 5))
-    [(0, 1, 2, 3, 4), (5, 6, 7, 8, 9)]
-    """
-    iterable = iter(iterable)
-    while True:
-        chunk = tuple(itertools.islice(iterable, size))
-        if chunk:
-            yield chunk
-        if len(chunk) < size:
-            break
-
-
-def collapse(*args):
-    """Recursive flatten of list of lists, returns a generator in original order
-    equivalent effect to more_itertools.collapse
-
-    >>> l1 = ['a', ['b', ('c', 'd')]]
-    >>> l2 = [0, 1, (2, 3), [[4, 5, (6, 7, (8,), [9]), 10]], (11,)]
-    >>> list(collapse([l1, -2, -1, l2]))
-    ['a', 'b', 'c', 'd', -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    """
-    return (e for a in args for e in (collapse(*a) if isinstance(a, (tuple, list)) else (a,)))
-
-
-def groupby(iterable, keyfunc):
-    """TODO: add tests!"""
-    groups = defaultdict(list)
-    for item in iterable:
-        groups[keyfunc(item)].append(item)
-    return groups
-
-
-def compact(iterable):
-    """Get the none junk out of an iterable -- also removes zero!!
-
-    >>> compact([0,2,3,4,None,5])
-    (2, 3, 4, 5)
-    """
-    return tuple(item for item in iterable if item)
-
-
-def hashby(iterable, keyfunc):
-    return {keyfunc(item): item for item in iterable}
-
-
-def negate_permute(*items):
-    """For each item in iterable items,
-    rebuild tuple with just the one item negated,
-    get all permutations of tuple with negated item
-    ~= permutation of each + and - version of each item
-
-    >>> next(negate_permute(1, 2))
-    (-1, 1, -2, 2)
-    >>> next(negate_permute(-float('inf'), 0))
-    (inf, -inf, 0, 0)
-    """
-    yield from itertools.permutations(itertools.chain(*((-a, a) for a in items)))
-
-
-def partition(pred, iterable):
-    """Partition an iterable by False/True of function `pred`
-
-    >>> falses, trues = partition(lambda x: x==1, [1, 2, 3, 1, 2, 3])
-    >>> list(falses)
-    [2, 3, 2, 3]
-    >>> list(trues)
-    [1, 1]
-
-    >>> somedict = dict(a=1, b=2, c=3)
-    >>> falses, trues = partition(lambda kv: kv[0] in ('a','b'), list(somedict.items()))
-    >>> list(falses)
-    [('c', 3)]
-    >>> list(trues)
-    [('a', 1), ('b', 2)]
-
-    >>> somegen = (_ for _ in range(10))
-    >>> odd, even = partition(lambda x: x % 2 == 0, somegen)
-    >>> list(odd)
-    [1, 3, 5, 7, 9]
-    >>> list(even)
-    [0, 2, 4, 6, 8]
-    """
-    return more_itertools.partition(pred, iterable)
-
-
-def roundrobin(*iterables):
-    """Pluck one at a time from an arbitrary number of iterables
-    - Recipe credited to George Sakkis
-
-    >>> " ".join(roundrobin('ABC', 'D', 'EF'))
-    'A D E B F C'
-    """
-    return more_itertools.roundrobin(*iterables)
-
-
-def grouper(n, iterable, fillvalue=None):
-    """Group list into list of sublists
-
-    >>> [''.join(_) for _ in grouper(3, 'ABCDEFG', 'x')]
-    ['ABC', 'DEF', 'Gxx']
-    """
-    return more_itertools.grouper(iterable, n, incomplete='fill', fillvalue=fillvalue)
-
-
-def infinite_iterator(iterable):
-    """Exactly what it says
-
-    >>> ii = infinite_iterator([1,2,3,4,5])
-    >>> [next(ii) for i in range(9)]
-    [1, 2, 3, 4, 5, 1, 2, 3, 4]
-    """
-    global i
-    i = 0
-
-    def next():
-        global i
-        while True:
-            n = iterable[i % len(iterable)]
-            i += 1
-            yield n
-
-    return next()
 
 #  ....................................................................... }}}1
 # Collections (Non-Dict) ................................................. {{{1
@@ -543,59 +406,9 @@ class CaseInsensitiveDict(MutableMapping):
     def __repr__(self):
         return str(dict(self.items()))
 
+
 #  .............................................................. }}}1
-# Class and Object ..................................................... {{{1
-
-
-def attrs(*attrnames):
-    """Lazily stuff in get/setters
-
-    >>> class Foo:
-    ...     _a = 1
-    ...     _b = 2
-    ...     _c = 3
-    ...     attrs('a', 'b', 'c')
-    ...     _z = (_a, _b, _c,)
-    ...     z = property(lambda x: x._z)
-
-    vanilla attrs work fine
-    >>> f = Foo()
-    >>> f.a
-    1
-    >>> f.a+f.b==f.c
-    True
-
-    beware of link between cls._a and self._a
-    >>> f.a = 2
-    >>> f.a
-    2
-    >>> f._a
-    1
-
-    we can also do lazy definitions like our `z`
-    >>> len(f.z)==3
-    True
-    >>> sum(f.z)==6
-    True
-    >>> f.z[0]==f._z[0]==1
-    True
-    >>> f.z = (4, 5, 6,)
-    >>> sum(f.z)
-    15
-    >>> f.a==2
-    True
-    """
-
-    def _makeprop(name):
-        _get = lambda self: getattr(self, f'_{name}')
-        _set = lambda self, value: setattr(self, f'_{name}', value)
-        return property(_get, _set)
-
-    caller_locals = sys._getframe(1).f_locals
-    for attrname in attrnames:
-        caller_locals[attrname] = _makeprop(attrname)
-
-
+# Timeout ..................................................... {{{1
 class timeout:
     """with statement to manage timeouts for potential hanging code
     http://stackoverflow.com/a/22348885/424380
@@ -625,231 +438,6 @@ class timeout:
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
-
-
-def include(source, names=()):
-    """Include greedy classproperty dict in declaration
-
-    >>> d = dict(x=10, y='foo')
-    >>> class Foo:
-    ...     include(d)
-
-    >>> Foo.x
-    10
-    >>> Foo.y
-    'foo'
-    >>> class Boo:
-    ...     include(d, ('y',))
-
-    >>> hasattr(Boo, 'x')
-    False
-    >>> hasattr(Boo, 'y')
-    True
-    """
-    sys._getframe(1).f_locals.update({name: source[name] for name in names} if names else source)
-
-
-def singleton(cls):
-    """Elegant singleton enforcement via python decorators wiki
-
-    >>> @singleton
-    ... class Foo:
-    ...     _x = 100
-    ...     _y = 'y'
-    ...     attrs('x', 'y')
-
-    >>> F = Foo
-    >>> F() is F() is F
-    True
-    >>> id(F()) == id(F())
-    True
-    >>> f = F()
-    >>> f.x == F().x == f.x == 100
-    True
-    >>> F.x = 50
-    >>> f.x == F().x == F.x == 50
-    True
-
-    >>> import copy
-    >>> fc = copy.deepcopy(f)
-    >>> FC = copy.deepcopy(F)
-    >>> fc.y==f.y==F.y==FC.y=='y'
-    True
-    """
-    obj = cls()
-    # dunders are looked up on the type (class), not instance
-    obj.__class__ = type(obj.__class__.__name__, (obj.__class__,), {})
-    obj.__class__.__call__ = lambda x: x
-    return obj
-
-
-def memoize(obj):
-    """Keep dict of function calls as a function attribute
-    re: http://stackoverflow.com/a/3243694/424380
-    re: https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
-    NOTE: we also have one from web.py which is nice ...
-
-    unique n-length arrays of ints whose abs val sums to k:
-    V(n,0)=1; V(0,k)=0; V(n,k) = V(n-1,k) + V(n,k-1) + V(n-1,k-1);
-
-    >>> def n_with_sum_k(n, k):
-    ...     if n==0:
-    ...         return 0
-    ...     elif k==0:
-    ...         return 1
-    ...     else:
-    ...         less_n = n_with_sum_k(n-1, k)
-    ...         less_k = n_with_sum_k(n, k-1)
-    ...         less_both = n_with_sum_k(n-1, k-1)
-    ...         return less_n + less_k + less_both
-
-    >>> n_with_sum_k_mz = memoize(n_with_sum_k)
-    >>> n_with_sum_k_mz(3, 5)
-    61
-    >>> n_with_sum_k_mz.cache
-    {'(3, 5){}': 61}
-    """
-
-    cache = obj.cache = {}
-
-    @wraps(obj)
-    def memoizer(*args, **kwargs):
-        key = str(args) + str(kwargs)
-        if key not in cache:
-            cache[key] = obj(*args, **kwargs)
-        return cache[key]
-
-    return memoizer
-
-
-class classproperty(property):
-    """Decorator like @property for classes instead of instances
-
-    >>> class Foo:
-    ...     include(dict(a=1, b=2))
-    ...     @classproperty
-    ...     def c(cls):
-    ...         return cls.a+cls.b
-
-    >>> Foo.a
-    1
-    >>> Foo.b
-    2
-    >>> Foo.c
-    3
-    >>> Foo.a = 2
-    >>> Foo.c
-    4
-    """
-
-    def __get__(desc, self, cls):
-        return desc.fget(cls)
-
-
-def delegate(deleg, attrs):
-    """Delegate methods to other objects attached to your object
-
-    >>> class X:
-    ...     a = 1
-
-    >>> class Y:
-    ...     x = X()
-    ...     delegate('x', 'a')
-
-    >>> Y().a
-    1
-
-    >>> class A:
-    ...     def echo(self, x):
-    ...         print(x)
-
-    >>> class B:
-    ...     a = A()
-    ...     delegate('a', ['echo'])
-
-    >>> B().echo('whoa!')
-    whoa!
-    """
-
-    def _makeprop(attr):
-        return property(lambda self: getattr(getattr(self, deleg), attr))
-
-    caller_locals = sys._getframe(1).f_locals
-    for attr in attrs:
-        caller_locals[attr] = _makeprop(attr)
-
-
-def lazy_property(fn):
-    """Decorator that makes a property lazy-evaluated.
-
-    >>> import time
-    >>> class Sloth:
-    ...     def _slow_cool(self, n):
-    ...         time.sleep(n)
-    ...         return n**2
-    ...     @lazy_property
-    ...     def slow(self):
-    ...         return True
-    ...     @lazy_property
-    ...     def cool(self):
-    ...         return self._slow_cool(3)
-    >>> x = time.time()
-    >>> s = Sloth()
-    >>> time.time()-x < 1
-    True
-    >>> time.time()-x < 1
-    True
-    >>> hasattr(s, '_lazy_slow')
-    False
-    >>> s.slow
-    True
-    >>> hasattr(s, '_lazy_slow')
-    True
-    >>> s.cool
-    9
-    >>> 3 < time.time()-x < 6
-    True
-    >>> s.cool
-    9
-    >>> 3 < time.time()-x < 6
-    True
-    """
-    attr_name = '_lazy_' + fn.__name__
-
-    @property
-    def _lazy_property(self):
-        if not hasattr(self, attr_name):
-            setattr(self, attr_name, fn(self))
-        return getattr(self, attr_name)
-
-    return _lazy_property
-
-
-class cachedstaticproperty:
-    """Works like @property and @staticmethod combined
-
-    >>> def somecalc():
-    ...     print('Running somecalc...')
-    ...     return 1
-
-    >>> class Foo:
-    ...    @cachedstaticproperty
-    ...    def somefunc():
-    ...        return somecalc()
-
-    >>> Foo.somefunc
-    Running somecalc...
-    1
-    >>> Foo.somefunc
-    1
-    """
-    def __init__(self, func):
-        self.func = func
-
-    def __get__(self, inst, owner):
-        result = self.func()
-        setattr(owner, self.func.__name__, result)
-        return result
 
 #  ....................................................................... }}}1
 # Functools .............................................................. {{{1
@@ -919,8 +507,7 @@ def coalesce(*args):
 def getitem(sequence, index, default=None):
     if index < len(sequence):
         return sequence[index]
-    else:
-        return default
+    return default
 
 
 def choose(n, k):
@@ -969,11 +556,10 @@ def flatten(kv, prefix=None):
     for k, v in list(kv.items()):
         if isinstance(v, dict):
             yield from flatten(v, prefix + [str(k)])
+        elif prefix:
+            yield '_'.join(prefix + [str(k)]), v
         else:
-            if prefix:
-                yield '_'.join(prefix + [str(k)]), v
-            else:
-                yield str(k), v
+            yield str(k), v
 
 
 def unnest(d, keys=None):
@@ -1069,9 +655,9 @@ def cmp(left, right):
         _ = all(left) and all(right)  # check if iterable
         if None in left and None in right:
             return 0
-        elif None in left and None not in right:
+        if None in left and None not in right:
             return -1
-        elif None not in left and None in right:
+        if None not in left and None in right:
             return 1
         return _cmp(left, right)
     except TypeError:
@@ -1079,9 +665,9 @@ def cmp(left, right):
 
     if left is None and right is None:
         return 0
-    elif left is None and right is not None:
+    if left is None and right is not None:
         return -1
-    elif left is not None and right is None:
+    if left is not None and right is None:
         return 1
     return _cmp(left, right)
 
@@ -1127,7 +713,7 @@ def multikeysort(items: List[Dict], columns, _cmp=cmp, inplace=False):
         columns = (columns,)
 
     m = re.compile(r'^-')
-    known = set(collapse(*[list(d.keys()) for d in items]))
+    known = set(collapse([list(d.keys()) for d in items]))
     columns = [x for x in columns if x and m.sub('', x) in known]
 
     i = operator.itemgetter
@@ -1362,11 +948,10 @@ def backfill(values):
                 filled = [latest] * missing
                 missing = 0
             filled.append(val)
+        elif latest is None:
+            missing += 1
         else:
-            if latest is None:
-                missing += 1
-            else:
-                filled.append(latest)
+            filled.append(latest)
     return filled or values
 
 
@@ -1400,11 +985,10 @@ def backfill_iterdict(iterdict):
                     for j in range(missing[k]):
                         filled[j][k] = latest[k]
                 this[k] = v
+            elif latest.get(k) is None:
+                missing[k] = (missing.get(k) or 0) + 1
             else:
-                if latest.get(k) is None:
-                    missing[k] = (missing.get(k) or 0) + 1
-                else:
-                    this[k] = latest[k]
+                this[k] = latest[k]
         filled.append(this)
     return filled
 
@@ -1533,6 +1117,7 @@ def merge_dict(old, new, inplace=True):
         ...
     TypeError: can only concatenate list (not "tuple") to list
     """
+    from libb.iterutils import isiterable
     if not inplace:
         # thread-safe solution
         old = json.loads(json.dumps(old))

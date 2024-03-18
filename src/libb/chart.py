@@ -12,6 +12,8 @@ with contextlib.suppress(ImportError):
 
 logger = logging.getLogger(__name__)
 
+__all__ = ['numpy_timeseries_plot']
+
 
 class NiceScale:
     """ "nicest" numbers in decimal are 1, 2, and 5, and all power-of-ten multiples of these numbers.

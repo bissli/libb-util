@@ -8,7 +8,7 @@ import unicodedata
 from functools import reduce
 
 import regex as re
-from libb.util import collapse
+from more_itertools import collapse
 
 with contextlib.suppress(ImportError):
     import chardet
@@ -294,7 +294,7 @@ def strtobool(val):
         val = val.lower()
         if val in {'y', 'yes', 't', 'true', 'on', '1'}:
             return True
-        elif val in {'', 'n', 'no', 'f', 'false', 'off', '0'}:
+        if val in {'', 'n', 'no', 'f', 'false', 'off', '0'}:
             return False
     raise ValueError('invalid truth value %r' % (val,))
 

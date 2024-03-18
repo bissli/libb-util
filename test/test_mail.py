@@ -1,10 +1,9 @@
 import pytest
-from libb import config
-from libb.mail import send_mail
+from libb import config, mail
 
 
 def test_send():
-    send_mail(
+    mail.send_mail(
         config.mail.fromemail,
         [config.mail.adminemail],
         'Test message',
@@ -18,7 +17,7 @@ def test_send():
         bcclist=[config.mail.toemail],
     )
 
-    send_mail(
+    mail.send_mail(
         config.mail.fromemail,
         [config.mail.adminemail],
         'Test message',

@@ -19,10 +19,11 @@ import urllib.request
 import uuid
 from functools import update_wrapper, wraps
 from itertools import accumulate
+from urllib.parse import urlsplit, urlunsplit
 
-import regex as re
+import more_itertools
 from dateutil import parser
-from libb import collapse, expandabspath, grouper, splitcap
+from libb import expandabspath, splitcap
 
 with contextlib.suppress(ImportError):
     import web
@@ -582,7 +583,7 @@ def local_or_static_join(static, somepath):
     staticpath = safe_join(static, somepath)
     if os.path.exists(localpath):
         return localpath
-    elif os.path.exists(staticpath):
+    if os.path.exists(staticpath):
         return staticpath
     raise OSError('That template does not exist on your path or in the local package.')
 
@@ -615,7 +616,7 @@ def build_breadcrumb(ctx):
 
 def breadcrumbify(url_app_tuple):
     """Assuming web.py style mapping, patch url mapping into subapps"""
-    url_app_tuple = list(collapse(url_app_tuple))
+    url_app_tuple = list(more_itertools.collapse(url_app_tuple))
     for i, app_or_url in enumerate(url_app_tuple):
         if isinstance(app_or_url, web.application):
             app_or_url.fvars['breadcrumb'] = url_app_tuple[i - 1]
@@ -657,7 +658,7 @@ def appmenu(urls, home='', fmt=_format_link):
     """
     links = (
         f"    <li><a href=\"{urllib.parse.urljoin(home, link.strip('/') + '/')}\">{fmt(name)}</a></li>\n"
-        for link, name in grouper(2, collapse(urls))
+        for link, name in more_itertools.grouper(more_itertools.collapse(urls), 2)
     )
     return f"<ul class=\"menu\">\n{''.join(links)}</ul>"
 
@@ -695,8 +696,7 @@ def render_field(field):
     def to_html(field):
         if isinstance(field, web.form.Input):
             return field.render()
-        else:
-            return str(field)
+        return str(field)
 
     html = []
     error = get_error(field)
@@ -732,12 +732,11 @@ def login_protected(priv_level=3, login_level=1):
                 msg = 'You are not logged in'
                 web.ctx.session['msgs'].append((msg, 'error'))
                 raise web.forbidden  # web.webapi.forbidden()
-            elif not web.ctx.session['priv'] >= priv_level:
+            if not web.ctx.session['priv'] >= priv_level:
                 msg = 'Your permissions are not high enough'
                 web.ctx.session['msgs'].append((msg, 'error'))
                 raise web.forbidden
-            else:
-                return fn(*args, **kwargs)
+            return fn(*args, **kwargs)
 
         return wrapped
 
@@ -1015,9 +1014,8 @@ def validip(ip, defaultaddr='0.0.0.0', defaultport=8080):
                     return (match.group(1), int(match.group(2)))
             else:
                 return (match.group(1), port)
-    else:
-        if validip6addr(ip):
-            return (ip, port)
+    elif validip6addr(ip):
+        return (ip, port)
     # end ipv6 code
 
     ip = ip.split(':', 1)
@@ -1060,8 +1058,7 @@ def validaddr(string_):
     """
     if '/' in string_:
         return string_
-    else:
-        return validip(string_)
+    return validip(string_)
 
 
 def urlquote(val):

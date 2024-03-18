@@ -8,6 +8,34 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'Setting',
+    'expandabspath',
+    # global settings
+    'tmpdir',
+    'vendor',
+    'local',
+    'output',
+    'syslog',
+    'tlssyslog',
+    'mail',
+    'mandrill',
+    'log',
+    'gpg',
+    # global vars
+    'CHECKTTY',
+    'PLATFORM',
+    'RELEASE',
+    'ENVIRONMENT',
+    # global vars (legacy)
+    'WIN',
+    'WSL',
+    'NIX',
+    'WEBAPP',
+    'checktty',
+    'webapp',
+    ]
+
 
 class Setting(dict):
     """Dict where d['foo'] can also be accessed as d.foo
@@ -54,7 +82,7 @@ class Setting(dict):
     def __setattr__(self, name, val):
         if self._locked:
             raise ValueError('This Setting object is locked from editing')
-        elif name not in self:
+        if name not in self:
             self[name] = Setting()
         self[name] = val
 
@@ -70,7 +98,6 @@ class Setting(dict):
 # Environment
 HERE = os.path.abspath(os.path.dirname(__file__))
 CHECKTTY = 'CONFIG_CHECKTTY' in os.environ
-TZ =  os.getenv('CONFIG_TZ')
 PLATFORM = platform.system()
 RELEASE = platform.release()
 ENVIRONMENT = None
@@ -96,7 +123,13 @@ webapp = WEBAPP
 
 
 def expandabspath(p: str) -> str:
-    """Expand path to absolute path"""
+    """Expand path to absolute path
+
+    >>> import os
+    >>> os.environ['SPAM'] = 'eggs'
+    >>> assert expandabspath('~/$SPAM') == os.path.expanduser('~/eggs')
+    >>> assert expandabspath('/foo') == '/foo'
+    """
     a = os.path.abspath
     u = os.path.expanduser
     v = os.path.expandvars
