@@ -22,6 +22,11 @@ __all__ = [
     'get_mail_status',
     'parse_rfc2047',
     'MailClient',
+    'GENERAL_TYPES',
+    'EXCEL_TYPES',
+    'PDF_TYPES',
+    'ALLOWED_ATTACHMENT_TYPES',
+    'ALLOWED_MIME_TYPES',
     ]
 
 logger = logging.getLogger(__name__)
