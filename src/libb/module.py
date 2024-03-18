@@ -1,11 +1,12 @@
 import inspect
 import sys
 import types
+from importlib import util as importlib_util
 from pkgutil import ModuleInfo, walk_packages
 from types import ModuleType
 from typing import Iterable
 
-# other {{{
+import regex as re
 
 
 class OverrideModuleGetattr:
@@ -100,6 +101,38 @@ def get_function(funcname, module=None):
     if hasattr(module, funcname):
         return getattr(module, funcname)
     return None
+
+
+def load_module(name, path):
+    """Load module from path
+
+    m = load_module('foo', './foo.py')
+    m.bar()
+
+    """
+    module_spec = importlib_util.spec_from_file_location(name, path)
+    module = importlib_util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(module)
+    return module
+
+
+def patch_load(module_name: str, funcs: list, releft: str='',
+               reright: str='', repl: str='_', module_name_prefix=''):
+    """Patch import module with test_ prefix for specified tables
+    executed as
+        ```
+        mod = patch_load(<module_name>, <funcs>)
+        mod.<func_name>(<*params>)
+        ```
+    """
+    spec = importlib_util.find_spec(f'{module_name_prefix}{module_name}')
+    source = spec.loader.get_source(f'{module_name_prefix}{module_name}')
+    source = re.sub(rf"{releft}({'|'.join(funcs)}){reright}", fr'{repl}\1', source)
+    module = importlib_util.module_from_spec(spec)
+    codeobj = compile(source, module.__spec__.origin, 'exec')
+    exec(codeobj, module.__dict__)
+    sys.modules[module_name] = module
+    return module
 
 
 def create_instance(classname, *args, **kwargs):
