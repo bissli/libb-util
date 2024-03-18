@@ -1327,59 +1327,6 @@ def get_calling_function():
     raise AttributeError('func not found')
 
 
-def extend_instance(obj, cls, left=True):
-    """Apply mixins/extend base class after creation
-
-    TODO: add better tests. ABC changes order precedence L-R.
-
-    >>> from pprint import pprint
-    >>> class X:pass
-    >>> class Y: pass
-    >>> class Z:pass
-    >>> class A(X,Y):pass
-    >>> class B(A,Y,Z):pass
-    >>> class F(B): pass
-    >>> pprint(F.mro())
-    [<class '....F'>,
-     <class '....B'>,
-     <class '....A'>,
-     <class '....X'>,
-     <class '....Y'>,
-     <class '....Z'>,
-     <class 'object'>]
-    >>> class F_L:
-    ...     def __init__(self):
-    ...         extend_instance(self, B, left=True)
-    >>> class F_R:
-    ...     def __init__(self):
-    ...         extend_instance(self, B, left=False)
-    >>> f_l = F_L()
-    >>> pprint(f_l.__class__.__mro__)
-    (<class '....F_L'>,
-     <class '....B'>,
-     <class '....A'>,
-     <class '....X'>,
-     <class '....Y'>,
-     <class '....Z'>,
-     <class '....F_L'>,
-     <class 'object'>)
-    >>> f_r = F_R()
-    >>> pprint(f_r.__class__.__mro__)
-    (<class '....F_R'>,
-     <class '....F_R'>,
-     <class '....B'>,
-     <class '....A'>,
-     <class '....X'>,
-     <class '....Y'>,
-     <class '....Z'>,
-     <class 'object'>)
-    """
-    if left:
-        obj.__class__ = type(obj.__class__.__name__, (cls, obj.__class__), {})
-    else:
-        obj.__class__ = type(obj.__class__.__name__, (obj.__class__, cls), {})
-
-
 def add_branch(tree, vector, value):
     """
     Given a dict, a vector, and a value, insert the value into the dict
