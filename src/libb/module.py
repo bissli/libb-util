@@ -158,32 +158,28 @@ class VirtualModule:
         if attrname in self._submodules:
             __import__(self._submodules[attrname])
             return sys.modules[self._submodules[attrname]]
-        else:
-            return self._mod.__dict__[attrname]
+        return self._mod.__dict__[attrname]
 
 
 def create_virtual_module(modname, submodules):
     """Create virtual module with submodule from other module
 
     >>> import libb
-    >>> create_virtual_module('libb', {'new_date': 'libb.date'})
+    >>> create_virtual_module('libb', {'new_date': 'libb'})
     >>> import libb
-    >>> libb.date.to_date('2010-01-01')
-    datetime.date(2010, 1, 1)
+    >>> libb.to_date('2010-01-01')
+    Date(2010, 1, 1)
     >>> libb.new_date.to_date('2010-01-01')
-    datetime.date(2010, 1, 1)
+    Date(2010, 1, 1)
 
     >>> import libb
-    >>> create_virtual_module('foo', {'date': 'libb.date'})
+    >>> create_virtual_module('foo', {'date': 'libb'})
     >>> import foo
     >>> foo.date.to_date('2010-01-01')
-    datetime.date(2010, 1, 1)
+    Date(2010, 1, 1)
 
     """
     VirtualModule(modname, submodules)
-
-# }}}
-# pytest {{{
 
 
 def get_packages_in_module(m: ModuleType) -> Iterable[ModuleInfo]:
@@ -202,8 +198,6 @@ def get_package_paths_in_module(m: ModuleType) -> Iterable[str]:
     pytest_plugins = [*get_package_paths_in_module(tests.fixtures)]
     """
     return [package.name for package in get_packages_in_module(m)]
-
-# }}}
 
 
 if __name__ == '__main__':
