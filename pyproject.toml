@@ -16,8 +16,7 @@ paramiko = { version = "^3.4.0", optional = true }
 # == win
 colorama = { version = "*", markers = "sys_platform == 'win32'" }
 # == date
-pandas-market-calendars = "*"
-pendulum = "^3.0.0"
+libb-date = { git = "https://github.com/bissli/libb-date.git", rev = "master" }
 # == text
 regex = "*"
 chardet = { version = "^5.2.0", optional = true }
