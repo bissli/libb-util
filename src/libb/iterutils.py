@@ -7,15 +7,27 @@ import more_itertools
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    'chunked',
+    'chunked_even',
     'collapse',
     'compact',
+    'grouper',
     'hashby',
     'infinite_iterator',
     'iscollection',
     'isiterable',
+    'partition',
+    'roundrobin',
     'unique',
     'unique_iter',
     ]
+
+
+chunked = more_itertools.chunked
+chunked_even = more_itertools.chunked_even
+grouper = more_itertools.grouper
+partition = more_itertools.partition
+roundrobin = more_itertools.roundrobin
 
 
 def isiterable(obj):

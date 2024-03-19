@@ -37,10 +37,3 @@ from libb.thread import *
 from libb.util import *
 from libb.weblib import *
 from libb.win import *
-from more_itertools import (
-    chunked,
-    chunked_even,
-    grouper,
-    partition,
-    roundrobin,
-)
