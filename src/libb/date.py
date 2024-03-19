@@ -78,7 +78,6 @@ __all__ = [
     'previous_business_day',
     'previous_eom',
     'previous_first_of_month',
-    'reference_date_13f',
     'rfc3339',
     'third_wednesday',
     'to_date',
@@ -1653,36 +1652,6 @@ def to_string(thedate, fmt: str) -> str:
     '1/5/2022'
     """
     return thedate.strftime(fmt.replace('%-', '%#') if os.name == 'nt' else fmt)
-
-
-def reference_date_13f(thedate):
-    """Date on which 13F filings becomes public.
-
-    13F due 45 days after the end of each quarter.
-
-    12/31/22 -> 2/15/23
-    >>> reference_date_13f(datetime.date(2023, 2, 14))
-    Date(2022, 9, 30)
-    >>> reference_date_13f(datetime.date(2023, 2, 15))
-    Date(2022, 12, 31)
-
-    3/31/23 -> 5/16/23
-    >>> reference_date_13f(datetime.date(2023, 5, 15))
-    Date(2022, 12, 31)
-    >>> reference_date_13f(datetime.date(2023, 5, 16))
-    Date(2023, 3, 31)
-
-    6/30/23 -> 8/15/23
-    >>> reference_date_13f(datetime.date(2023, 8, 14))
-    Date(2023, 3, 31)
-    >>> reference_date_13f(datetime.date(2023, 8, 15))
-    Date(2023, 6, 30)
-
-    """
-    ref_date = get_previous_quarter_date(thedate)
-    if thedate <= offset_date(ref_date, 45):
-        ref_date = get_previous_quarter_date(ref_date)
-    return ref_date
 
 
 if __name__ == '__main__':
