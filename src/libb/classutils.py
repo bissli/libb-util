@@ -1,3 +1,5 @@
+import ast
+import inspect
 import logging
 import sys
 from functools import wraps
@@ -347,6 +349,19 @@ def extend_instance(obj, cls, left=True):
         obj.__class__ = type(obj.__class__.__name__, (cls, obj.__class__), {})
     else:
         obj.__class__ = type(obj.__class__.__name__, (obj.__class__, cls), {})
+
+
+def find_decorators(target):
+    """https://stackoverflow.com/a/9580006"""
+    res = {}
+
+    def visit_function_def(node):
+        res[node.name] = [ast.dump(e) for e in node.decorator_list]
+
+    V = ast.NodeVisitor()
+    V.visit_FunctionDef = visit_function_def
+    V.visit(compile(inspect.getsource(target), '?', 'exec', ast.PyCF_ONLY_AST))
+    return res
 
 
 if __name__ == '__main__':

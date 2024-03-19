@@ -10,7 +10,8 @@ from typing import Iterable
 
 import numpy as np
 import regex as re
-from libb.util import cmp, suppresswarning
+from libb.util import suppresswarning
+from libb.dictutils import cmp
 
 np.set_printoptions(linewidth=np.inf)
 

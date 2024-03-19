@@ -18,6 +18,7 @@ from libb.chart import *
 from libb.classutils import *
 from libb.config import Setting, expandabspath
 from libb.date import *
+from libb.dictutils import *
 from libb.dir import *
 from libb.exception import *
 from libb.formatutils import *
