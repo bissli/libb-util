@@ -6,12 +6,11 @@ from decimal import Decimal
 from fractions import Fraction
 from functools import reduce, wraps
 from math import ceil, floor, isnan, log10, sqrt
-from typing import Iterable
 
 import numpy as np
 import regex as re
-from libb.util import suppresswarning
 from libb.dictutils import cmp
+from libb.util import suppresswarning
 
 np.set_printoptions(linewidth=np.inf)
 

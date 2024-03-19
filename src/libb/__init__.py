@@ -25,7 +25,7 @@ from libb.formatutils import *
 from libb.io import *
 from libb.iterutils import *
 from libb.log import *
-from libb.maths import *
+from libb.mathutils import *
 from libb.module import *
 from libb.montecarlo import *
 from libb.pathutils import *
