@@ -8,7 +8,7 @@ import unicodedata
 from functools import reduce
 
 import regex as re
-from more_itertools import collapse
+from libb.iterutils import collapse
 
 with contextlib.suppress(ImportError):
     import chardet

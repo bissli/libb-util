@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from functools import cmp_to_key
 from typing import Dict, List
 
-from more_itertools import collapse
+from libb.iterutils import collapse
 from trace_dkey import trace
 
 logger = logging.getLogger(__name__)

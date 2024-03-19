@@ -2,7 +2,7 @@ import itertools
 import logging
 from collections.abc import Iterable
 
-import more_itertools
+import more_itertools as _more_itertools
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,12 @@ __all__ = [
     ]
 
 
-chunked = more_itertools.chunked
-chunked_even = more_itertools.chunked_even
-grouper = more_itertools.grouper
-partition = more_itertools.partition
-roundrobin = more_itertools.roundrobin
+chunked = _more_itertools.chunked
+chunked_even = _more_itertools.chunked_even
+grouper = _more_itertools.grouper
+partition = _more_itertools.partition
+roundrobin = _more_itertools.roundrobin
+unique_iter = _more_itertools.unique_everseen
 
 
 def isiterable(obj):
@@ -77,9 +78,6 @@ def unique(iterable, key=None):
     [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
     """
     return list(unique_iter(iterable, key))
-
-
-unique_iter = more_itertools.unique_everseen
 
 
 def compact(iterable):

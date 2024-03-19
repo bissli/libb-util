@@ -21,9 +21,8 @@ from functools import update_wrapper, wraps
 from itertools import accumulate
 from urllib.parse import urlsplit, urlunsplit
 
-import more_itertools
 from dateutil import parser
-from libb import expandabspath, splitcap
+from libb import collapse, expandabspath, grouper, splitcap
 
 with contextlib.suppress(ImportError):
     import web
@@ -629,7 +628,7 @@ def build_breadcrumb(ctx):
 
 def breadcrumbify(url_app_tuple):
     """Assuming web.py style mapping, patch url mapping into subapps"""
-    url_app_tuple = list(more_itertools.collapse(url_app_tuple))
+    url_app_tuple = list(collapse(url_app_tuple))
     for i, app_or_url in enumerate(url_app_tuple):
         if isinstance(app_or_url, web.application):
             app_or_url.fvars['breadcrumb'] = url_app_tuple[i - 1]
@@ -671,7 +670,7 @@ def appmenu(urls, home='', fmt=_format_link):
     """
     links = (
         f"    <li><a href=\"{urllib.parse.urljoin(home, link.strip('/') + '/')}\">{fmt(name)}</a></li>\n"
-        for link, name in more_itertools.grouper(more_itertools.collapse(urls), 2)
+        for link, name in grouper(collapse(urls), 2)
     )
     return f"<ul class=\"menu\">\n{''.join(links)}</ul>"
 
