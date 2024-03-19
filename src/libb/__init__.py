@@ -13,7 +13,7 @@ def patch_mimetypes_init(wrapped, instance, args, kwargs):
     return wrapped([str(knownfiles)])
 
 
-from libb import cmdline, ftp, mail
+from libb import cmdline, date, ftp, mail
 from libb.chart import *
 from libb.classutils import *
 from libb.config import Setting, expandabspath
