@@ -34,7 +34,6 @@ __all__ = [
     'days_between',
     'days_overlap',
     'epoch',
-    'expect',
     'first_of_month',
     'first_of_week',
     'first_of_year',
