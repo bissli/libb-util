@@ -7,6 +7,7 @@ import more_itertools
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    'collapse',
     'compact',
     'hashby',
     'infinite_iterator',
@@ -114,6 +115,30 @@ def infinite_iterator(iterable):
             yield n
 
     return next()
+
+
+def collapse(*args, base_type=(tuple, list)):
+    """Recursive flatten of list of lists, returns a generator
+    in original order. Similar to more_itertools.collapse.
+
+    >>> l1 = ['a', ['b', ('c', 'd')]]
+    >>> l2 = [0, 1, (2, 3), [[4, 5, (6, 7, (8,), [9]), 10]], (11,)]
+    >>> list(collapse([l1, -2, -1, l2]))
+    ['a', 'b', 'c', 'd', -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+    >>> iterable = [(1, 2), ([3, 4], [[5], [6]])]
+    >>> list(collapse(iterable))
+    [1, 2, 3, 4, 5, 6]
+
+    >>> iterable = [('a', ['b']), ('c', ['d'])]
+    >>> list(collapse(iterable))
+    ['a', 'b', 'c', 'd']
+
+    >>> iterable = (({'a': 'foo', 'b': 'bar', 'c': 'baz'},),)
+    >>> list(collapse(iterable))
+    [{'a': 'foo', 'b': 'bar', 'c': 'baz'}]
+    """
+    return (e for a in args for e in (collapse(*a) if isinstance(a, base_type) else (a,)))
 
 
 if __name__ == '__main__':

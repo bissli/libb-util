@@ -39,7 +39,6 @@ from libb.win import *
 from more_itertools import (
     chunked,
     chunked_even,
-    collapse,
     grouper,
     partition,
     roundrobin,
