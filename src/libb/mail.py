@@ -143,8 +143,8 @@ class MailClient:
         try:
             parsed_sent_time = datetime.datetime.strptime(sent_time, pattern)
         except ValueError:
-            from libb import to_datetime
-            parsed_sent_time = to_datetime(sent_time)
+            from libb.date import DateTime
+            parsed_sent_time = DateTime.parse(sent_time)
         return parsed_sent_time
 
     def parse_email_addresses(self, addr):
@@ -215,7 +215,7 @@ class MailClient:
         """Takes an imap mail object and parses each section accordingly and returns
         all sections in an attrdict
         """
-        from libb import attrdict
+        from libb.dictutils import attrdict
         parsed_email = attrdict()
         if not email['Date']:
             return
