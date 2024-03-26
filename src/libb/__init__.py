@@ -29,6 +29,7 @@ from libb.mathutils import *
 from libb.module import *
 from libb.montecarlo import *
 from libb.pathutils import *
+from libb.procutils import *
 from libb.rand import *
 from libb.streamutils import *
 from libb.syncd import *

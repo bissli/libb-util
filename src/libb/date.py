@@ -5,7 +5,6 @@ import contextlib
 import datetime
 import logging
 import os
-import re
 import time
 import warnings
 from collections import namedtuple
@@ -15,7 +14,6 @@ import libb_date
 import numpy as np
 import pandas as pd
 import pendulum
-from dateutil import parser
 
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
@@ -61,8 +59,6 @@ __all__ = [
     'now',
     'num_quarters',
     'offset_date',
-    'offset_from_beg_of_month',
-    'offset_from_end_of_month',
     'previous_business_day',
     'previous_eom',
     'previous_first_of_month',
@@ -224,7 +220,7 @@ def is_business_day(thedate=None, entity: Type[NYSE] = NYSE) -> bool:
     >>> is_business_day(thedate)
     True
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     return thedate in entity.business_days()
 
 
@@ -303,17 +299,17 @@ def first_of_year(thedate=None, tz=LCL) -> Date:
     """Does not need an arg, same with other funcs (`last_of_year`,
     `previous_eom`, &c.)
 
-    >>> first_of_year()==datetime.date(now().year, 1, 1)
+    >>> first_of_year()==datetime.date(today().year, 1, 1)
     True
     >>> first_of_year(datetime.date(2012, 12, 31))==datetime.date(2012, 1, 1)
     True
     """
-    return Date((thedate or today()).year, 1, 1)
+    return Date(thedate).first_of('year')
 
 
 @expect_date
 def last_of_year(thedate=None, tz=LCL):
-    return Date((thedate or today()).year, 12, 31)
+    return Date(thedate).last_of('year')
 
 
 # rename previous_last_of_month (reame business_day to business)
@@ -326,7 +322,7 @@ def previous_eom(
     >>> previous_eom(datetime.date(2021, 5, 30))
     Date(2021, 4, 30)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     if business:
         return previous_business_day(first_of_month(thedate))
     return first_of_month(thedate).subtract(days=1)
@@ -336,7 +332,7 @@ def previous_eom(
 def first_of_month(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
 ) -> Date:
-    thedate = thedate or today()
+    thedate = Date(thedate)
     begdate = Date(thedate.year, thedate.month, 1)
     if business:
         return business_date(begdate, or_next=True, entity=entity)
@@ -352,7 +348,7 @@ def previous_first_of_month(
     >>> previous_first_of_month(datetime.date(2021, 6, 15))
     Date(2021, 5, 1)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     return first_of_month(previous_eom(thedate, business, entity=entity),
                           business, entity=entity)
 
@@ -370,7 +366,7 @@ def last_of_month(
     >>> last_of_month(datetime.date(2023, 4, 30), True) # Sunday -> Friday
     Date(2023, 4, 28)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     offset_date = thedate.end_of('month')
     if business:
         return business_date(offset_date, or_next=False, entity=entity)
@@ -379,29 +375,14 @@ def last_of_month(
 
 @expect_date
 def is_first_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
-    thedate = thedate or today()
+    thedate = Date(thedate)
     return first_of_month(thedate, business, entity=entity) == thedate
 
 
 @expect_date
 def is_last_of_month(thedate=None, business=False, entity: Type[NYSE] = NYSE) -> bool:
-    thedate = thedate or today()
+    thedate = Date(thedate)
     return last_of_month(thedate, business, entity=entity) == thedate
-
-
-@expect_date
-def offset_from_end_of_month(
-    thedate, window=-1, business=False, entity: Type[NYSE] = NYSE
-):
-    """For last_business_day_of_month -> last_of_month ?"""
-    raise NotImplementedError('Not Implemented')
-
-
-@expect_date
-def offset_from_beg_of_month(
-    thedate, window=1, business=False, entity: Type[NYSE] = NYSE
-):
-    raise NotImplementedError('Not Implemented')
 
 
 @expect_date
@@ -437,16 +418,7 @@ def previous_business_day(
     >>> previous_business_day(datetime.date(2021, 11, 24), 5)
     Date(2021, 11, 17)
     """
-    thedate = thedate or today()
-    numdays = abs(numdays)
-    while numdays > 0:
-        try:
-            thedate = thedate.subtract(days=1)
-        except OverflowError:
-            return thedate
-        if is_business_day(thedate, entity):
-            numdays -= 1
-    return thedate
+    return Date(thedate).business().subtract(days=numdays)
 
 
 @expect_date
@@ -473,16 +445,7 @@ def next_business_day(
     >>> next_business_day(datetime.date(9999, 12, 31))
     Date(9999, 12, 31)
     """
-    thedate = thedate or today()
-    numdays = abs(numdays)
-    while numdays > 0:
-        try:
-            thedate = thedate.add(days=1)
-        except OverflowError:
-            return thedate
-        if is_business_day(thedate, entity):
-            numdays -= 1
-    return thedate
+    return Date(thedate).business().add(days=numdays)
 
 
 @expect_date
@@ -513,7 +476,7 @@ def offset_date(
     >>> offset_date(datetime.date(2021, 11, 24), 0, False)
     Date(2021, 11, 24)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     while window != 0:
         try:
             if business:
@@ -557,7 +520,7 @@ def first_of_week(
     >>> first_of_week(datetime.date(2020, 5, 26), business=True)
     Date(2020, 5, 26)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     if thedate.weekday() == WeekDay.MONDAY:
         date_offset = thedate
     else:
@@ -573,7 +536,7 @@ def is_first_of_week(thedate=None, business=False, entity: Type[NYSE] = NYSE) ->
 
     Business := if it's a holiday, get next business date
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     return first_of_week(thedate, business) == thedate
 
 
@@ -601,7 +564,7 @@ def last_of_week(
     >>> last_of_week(datetime.date(2020, 4, 9), business=True)
     Date(2020, 4, 9)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     date_offset = thedate.end_of('week')
     if business:
         return business_date(date_offset, or_next=False, entity=entity)
@@ -624,7 +587,7 @@ def get_first_weekday_of_month(thedate, weekday='MO'):
     >>> get_first_weekday_of_month(datetime.date(2014, 8, 6), 'WE')
     Date(2014, 8, 6)
     """
-    d = thedate.start_of('month')
+    d = Date(thedate).start_of('month')
     if d.weekday() == day_obj.get(weekday):
         return d
     return d.next(day_obj.get(weekday))
@@ -659,7 +622,7 @@ def next_first_of_month(thedate=None, window=1, snap=True, tz=LCL):
     Date(2015, 1, 1)
     """
     window = window + 15 if snap else window
-    thenext = (thedate or today()).add(days=window)
+    thenext = (Date(thedate)).add(days=window)
     return first_of_month(thenext)
 
 
@@ -672,7 +635,7 @@ def next_last_date_of_week(thedate=None, business=False, entity: Type[NYSE] = NY
     >>> next_last_date_of_week(datetime.date(2018, 10, 12))
     Date(2018, 10, 19)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     offset = thedate.next(WeekDay.FRIDAY)
     if business:
         return business_date(thedate, or_next=False, entity=entity)
@@ -701,7 +664,7 @@ def business_date(thedate=None, or_next=True, tz=LCL, entity: Type[NYSE] = NYSE)
     >>> business_date(datetime.date(2018, 9, 1))
     Date(2018, 9, 4)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     if is_business_day(thedate, entity):
         return thedate
     if or_next:
@@ -722,7 +685,7 @@ def weekday_or_previous_friday(thedate=None, tz=LCL):
     >>> weekday_or_previous_friday(datetime.date(2019, 10, 3)) # Thursday
     Date(2019, 10, 3)
     """
-    thedate = thedate or today()
+    thedate = Date(thedate)
     dnum = thedate.weekday()
     if dnum in {WeekDay.SATURDAY, WeekDay.SUNDAY}:
         return thedate.subtract(days=dnum - 4)
@@ -768,6 +731,8 @@ def get_dates(since=None, until=None, window=0, business=False, entity: Type[NYS
     >>> len(list(get_dates(since=datetime.date(2015,1,3), window=5, business=True)))
     5
     """
+    since = Date(since) if since else None
+    until = Date(until) if until else None
     window = abs(int(window))
     assert until or since, 'Since or until is required'
     if until and not since:
@@ -890,7 +855,7 @@ def lookback_date(thedate, lookback='last') -> Date:
     """
 
     def _lookback(years=0, months=0, days=0):
-        _offset = thedate.subtract(years=years, months=months, days=days)
+        _offset = Date(thedate).subtract(years=years, months=months, days=days)
         return business_date(_offset, or_next=False)
 
     return {
@@ -948,7 +913,7 @@ def to_date(
     Date(2006, 6, 23)
 
     m[/-]d          6/23
-    >>> to_date('6/23') == datetime.date(now().year, 6, 23)
+    >>> to_date('6/23') == datetime.date(today().year, 6, 23)
     True
 
     yyyy-mm-dd      2006-6-23
@@ -971,10 +936,6 @@ def to_date(
     >>> to_date('June 23, 2006')
     Date(2006, 6, 23)
 
-    dd-mon-yy
-    >>> to_date('23-May-12')
-    Date(2012, 5, 23)
-
     ddmonyyyy
     >>> to_date('23May2012')
     Date(2012, 5, 23)
@@ -989,7 +950,7 @@ def to_date(
     >>> to_date('Jan. 13, 2014')
     Date(2014, 1, 13)
 
-    >>> to_date('March') == datetime.date(now().year, 3, now().day)
+    >>> to_date('March') == datetime.date(today().year, 3, today().day)
     True
 
     >>> to_date(np.datetime64('2000-01', 'D'))
@@ -1003,112 +964,7 @@ def to_date(
     ...
     ValueError: Failed to parse date: bad date
     """
-
-    def date_for_symbol(s):
-        if s == 'N':
-            return today()
-        if s == 'T':
-            return today()
-        if s == 'Y':
-            return today().subtract(days=1)
-        if s == 'P':
-            return previous_business_day()
-        if s == 'M':
-            return previous_eom()
-
-    def year(m):
-        try:
-            yy = int(m.group('y'))
-            if yy < 100:
-                yy += 2000
-        except IndexError:
-            logger.warning('Using default this year')
-            yy = today().year
-        return yy
-
-    if not s:
-        if raise_err:
-            raise ValueError('Empty value')
-        return
-
-    if isinstance(s, (np.datetime64, pd.Timestamp)):
-        s = to_datetime(s)
-    if isinstance(s, datetime.datetime):
-        if any([s.hour, s.minute, s.second, s.microsecond]):
-            logger.debug('Forced datetime with non-zero time to date')
-        return pendulum.instance(s).date()
-    if isinstance(s, datetime.date):
-        return pendulum.instance(s)
-    if not isinstance(s, str):
-        raise TypeError(f'Invalid type for date column: {s.__class__}')
-
-    # always use the format if specified
-    if fmt:
-        try:
-            return Date(*time.strptime(s, fmt)[:3])
-        except ValueError:
-            logger.debug('Format string passed to strptime failed')
-
-    # handle special symbolic values: T, Y-2, P-1b
-    if shortcodes:
-        if m := re.match(DATEMATCH, s):
-            d = date_for_symbol(m.group(1))
-            if m.group(2):
-                bus = m.group(2)[-1] == 'b'
-                n = int(m.group(2).replace('b', ''))
-                if bus:
-                    d = offset_date(d, n, business=True)
-                else:
-                    d = d.add(days=n)
-            return d
-        if 'today' in s.lower():
-            return today()
-        if 'yester' in s.lower():
-            return today().subtract(days=1)
-
-    try:
-        return pendulum.instance(parser.parse(s).date())
-    except (TypeError, ValueError):
-        logger.debug('Dateutil parser failed .. trying our custom parsers')
-
-    # Regex with Month Numbers
-    exps = (
-        r'^(?P<m>\d{1,2})[/-](?P<d>\d{1,2})[/-](?P<y>\d{4})$',
-        r'^(?P<m>\d{1,2})[/-](?P<d>\d{1,2})[/-](?P<y>\d{1,2})$',
-        r'^(?P<m>\d{1,2})[/-](?P<d>\d{1,2})$',
-        r'^(?P<y>\d{4})-(?P<m>\d{1,2})-(?P<d>\d{1,2})$',
-        r'^(?P<y>\d{4})(?P<m>\d{2})(?P<d>\d{2})$',
-    )
-    for exp in exps:
-        if m := re.match(exp, s):
-            mm = int(m.group('m'))
-            dd = int(m.group('d'))
-            yy = year(m)
-            return datetime.date(yy, mm, dd)
-
-    # Regex with Month Name
-    exps = (
-        r'^(?P<d>\d{1,2})[- ](?P<m>[A-Za-z]{3,})[- ](?P<y>\d{4})$',
-        r'^(?P<m>[A-Za-z]{3,})[- ](?P<d>\d{1,2})[- ](?P<y>\d{4})$',
-        r'^(?P<m>[A-Za-z]{3,}) (?P<d>\d{1,2}), (?P<y>\d{4})$',
-        r'^(?P<d>\d{2})(?P<m>[A-Z][a-z]{2})(?P<y>\d{4})$',
-        r'^(?P<d>\d{1,2})-(?P<m>[A-Z][a-z][a-z])-(?P<y>\d{2})$',
-        r'^(?P<d>\d{1,2})-(?P<m>[A-Z]{3})-(?P<y>\d{2})$',
-    )
-    for exp in exps:
-        if m := re.match(exp, s):
-            logger.debug('Matched month name')
-            try:
-                mm = MONTH_SHORTNAME[m.group('m').lower()[:3]]
-            except KeyError:
-                logger.debug('Month name did not match MONTH_SHORTNAME')
-                continue
-            dd = int(m.group('d'))
-            yy = year(m)
-            return datetime.date(yy, mm, dd)
-
-    if raise_err:
-        raise ValueError('Failed to parse date: %s', s)
+    return Date.parse(s, fmt, raise_err, shortcodes)
 
 
 @prefer_utc_timezone
@@ -1146,62 +1002,7 @@ def to_time(s, fmt=None, raise_err=False):
     >>> to_time('093015,751 PM')
     Time(21, 30, 15, 751000, tzinfo=Timezone('UTC'))
     """
-
-    def seconds(m):
-        try:
-            return int(m.group('s'))
-        except Exception:
-            return 0
-
-    def micros(m):
-        try:
-            return int(m.group('u'))
-        except Exception:
-            return 0
-
-    def is_pm(m):
-        try:
-            return m.group('ap').lower() == 'pm'
-        except Exception:
-            return False
-
-    if not s:
-        if raise_err:
-            raise ValueError('Empty value')
-        return
-
-    if isinstance(s, datetime.datetime):
-        return pendulum.instance(s).time()
-
-    if isinstance(s, datetime.time):
-        return pendulum.instance(s)
-
-    if fmt:
-        return Time(*time.strptime(s, fmt)[3:6])
-
-    exps = (
-        r'^(?P<h>\d{1,2})[:.](?P<m>\d{2})([:.](?P<s>\d{2})([.,](?P<u>\d+))?)?( +(?P<ap>[aApP][mM]))?$',
-        r'^(?P<h>\d{2})(?P<m>\d{2})((?P<s>\d{2})([.,](?P<u>\d+))?)?( +(?P<ap>[aApP][mM]))?$',
-    )
-
-    for exp in exps:
-        if m := re.match(exp, s):
-            hh = int(m.group('h'))
-            mm = int(m.group('m'))
-            ss = seconds(m)
-            uu = micros(m)
-            if is_pm(m) and hh < 12:
-                hh += 12
-            return Time(hh, mm, ss, uu * 1000).replace(tzinfo=UTC)
-    logger.debug('Custom parsers failed, trying dateutil parser')
-
-    try:
-        return pendulum.instance(parser.parse(s)).time()
-    except (TypeError, ValueError):
-        pass
-
-    if raise_err:
-        raise ValueError('Failed to parse time: %s', s)
+    return Time.parse(s, fmt, raise_err)
 
 
 def to_datetime(
@@ -1244,51 +1045,7 @@ def to_datetime(
     >>> _.month, _.day, _.hour, _.minute
     (9, 27, 17, 11)
     """
-    if not s:
-        if raise_err:
-            raise ValueError('Empty value')
-        return
-
-    if isinstance(s, pd.Timestamp):
-        return pendulum.instance(s.to_pydatetime())
-    if isinstance(s, np.datetime64):
-        dtm = np.datetime64(s, 'us').astype(datetime.datetime)
-        return pendulum.instance(dtm)
-    if isinstance(s, (int, float)):
-        iso = datetime.datetime.fromtimestamp(s).isoformat()
-        return to_datetime(iso).replace(tzinfo=LCL)
-    if isinstance(s, datetime.datetime):
-        return pendulum.instance(s)
-    if isinstance(s, datetime.date):
-        logger.debug('Forced date without time to datetime')
-        return DateTime(s.year, s.month, s.day, tzinfo=LCL)
-    if not isinstance(s, str):
-        raise TypeError(f'Invalid type for date column: {s.__class__}')
-
-    try:
-        return pendulum.instance(parser.parse(s))
-    except (TypeError, ValueError) as err:
-        logger.debug('Dateutil parser failed .. trying our custom parsers')
-
-    for delim in (' ', ':'):
-        bits = s.split(delim, 1)
-        if len(bits) == 2:
-            d = to_date(bits[0])
-            t = to_time(bits[1])
-            if d is not None and t is not None:
-                return DateTime.combine(d, t)
-
-    d = to_date(s)
-    if d is not None:
-        return DateTime(d.year, d.month, d.day, 0, 0, 0)
-
-    current = today()
-    t = to_time(s)
-    if t is not None:
-        return DateTime.combine(current, t)
-
-    if raise_err:
-        raise ValueError('Invalid date-time format: ' + s)
+    return DateTime.parse(s, raise_err)
 
 
 @expect_date
