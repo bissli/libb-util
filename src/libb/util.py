@@ -489,16 +489,6 @@ def fuzzy_search(search_term, items):
         yield item, _max
 
 
-# Database Utilities ..................................................... {{{1
-
-def chunked(cursor, size=1000):
-    while True:
-        this_chunk = cursor.fetchmany(size)
-        if not this_chunk:
-            break
-        yield from this_chunk
-
-#  ....................................................................... }}}1
 # Geography, Mercator Projections ........................................ {{{1
 
 
