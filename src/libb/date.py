@@ -1,11 +1,6 @@
-"""TODO: rename last -> end, first -> beg."""
-
-import calendar
 import contextlib
 import datetime
 import logging
-import os
-import time
 import warnings
 from collections import namedtuple
 from typing import List, Optional, Tuple, Type, Union
@@ -13,7 +8,6 @@ from typing import List, Optional, Tuple, Type, Union
 import libb_date
 import numpy as np
 import pandas as pd
-import pendulum
 
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
@@ -234,7 +228,7 @@ def is_business_day_range(begdate, enddate, entity: Type[NYSE] = NYSE) -> List[b
     [True, True, True, False, True, False, False]
     """
     assert begdate <= enddate
-    for thedate in get_dates(since=begdate, until=enddate, business=False):
+    for thedate in DateRange(begdate, enddate).series():
         yield is_business_day(thedate, entity)
 
 
@@ -283,7 +277,7 @@ def business_hours(thedate, entity: Type[NYSE] = NYSE):
 
 def epoch(d: datetime.datetime):
     """Translate a datetime object into unix seconds since epoch"""
-    return time.mktime(d.timetuple())
+    return DateTime(d).epoch()
 
 
 def rfc3339(d: datetime.datetime):
@@ -291,7 +285,7 @@ def rfc3339(d: datetime.datetime):
     >>> rfc3339('Fri, 31 Oct 2014 10:55:00')
     '2014-10-31T10:55:00+00:00'
     """
-    return to_datetime(d).isoformat()
+    return DateTime.parse(d).rfc3339()
 
 
 @expect_date
@@ -315,28 +309,24 @@ def last_of_year(thedate=None, tz=LCL):
 # rename previous_last_of_month (reame business_day to business)
 @expect_date
 def previous_eom(
-    thedate=None, business=False, entity: Type[NYSE] = NYSE
-) -> Date:
+    thedate=None, business=False, entity: Type[NYSE] = NYSE) -> Date:
     """Previous EOM
 
     >>> previous_eom(datetime.date(2021, 5, 30))
     Date(2021, 4, 30)
     """
-    thedate = Date(thedate)
     if business:
-        return previous_business_day(first_of_month(thedate))
-    return first_of_month(thedate).subtract(days=1)
+        return Date(thedate).start_of('month').business().subtract(days=1)
+    return Date(thedate).start_of('month').subtract(days=1)
 
 
 @expect_date
 def first_of_month(
     thedate=None, business=False, entity: Type[NYSE] = NYSE
 ) -> Date:
-    thedate = Date(thedate)
-    begdate = Date(thedate.year, thedate.month, 1)
     if business:
-        return business_date(begdate, or_next=True, entity=entity)
-    return begdate
+        return Date(thedate).start_of('month').business().add()
+    return Date(thedate).start_of('month')
 
 
 @expect_date
@@ -348,9 +338,10 @@ def previous_first_of_month(
     >>> previous_first_of_month(datetime.date(2021, 6, 15))
     Date(2021, 5, 1)
     """
-    thedate = Date(thedate)
-    return first_of_month(previous_eom(thedate, business, entity=entity),
-                          business, entity=entity)
+    d = Date(thedate).start_of('month').subtract(days=1).start_of('month')
+    if business:
+        return d.business().add()
+    return d
 
 
 @expect_date
@@ -366,11 +357,9 @@ def last_of_month(
     >>> last_of_month(datetime.date(2023, 4, 30), True) # Sunday -> Friday
     Date(2023, 4, 28)
     """
-    thedate = Date(thedate)
-    offset_date = thedate.end_of('month')
     if business:
-        return business_date(offset_date, or_next=False, entity=entity)
-    return offset_date
+        return Date(thedate).end_of('month').business().subtract()
+    return Date(thedate).end_of('month')
 
 
 @expect_date
@@ -395,14 +384,16 @@ def third_wednesday(year, month):
     Date(2023, 3, 15)
     >>> third_wednesday(2022, 12)
     Date(2022, 12, 21)
-    >>> third_wednesday(2023, 6)
+    >>> d = third_wednesday(2023, 6)
+    >>> d
     Date(2023, 6, 21)
+    >>> assert hasattr(d, '_business')
     """
     third = Date(year, month, 15)  # lowest 3rd day
     w = third.weekday()
     if w != WeekDay.WEDNESDAY:
         third = third.replace(day=(15 + (WeekDay.WEDNESDAY - w) % 7))
-    return third
+    return Date(third)
 
 
 @expect_date
@@ -476,26 +467,9 @@ def offset_date(
     >>> offset_date(datetime.date(2021, 11, 24), 0, False)
     Date(2021, 11, 24)
     """
-    thedate = Date(thedate)
-    while window != 0:
-        try:
-            if business:
-                if window > 0:
-                    thedate = next_business_day(thedate, 1, entity)
-                if window < 0:
-                    thedate = previous_business_day(thedate, 1, entity)
-            else:
-                if window > 0:
-                    thedate = thedate.add(days=1)
-                if window < 0:
-                    thedate = thedate.subtract(days=1)
-        except OverflowError:
-            return thedate
-        if window > 0:
-            window -= 1
-        else:
-            window += 1
-    return thedate
+    if business:
+        return Date(thedate).business().add(days=window)
+    return Date(thedate).add(days=window)
 
 
 @expect_date
@@ -520,14 +494,9 @@ def first_of_week(
     >>> first_of_week(datetime.date(2020, 5, 26), business=True)
     Date(2020, 5, 26)
     """
-    thedate = Date(thedate)
-    if thedate.weekday() == WeekDay.MONDAY:
-        date_offset = thedate
-    else:
-        date_offset = thedate.previous(WeekDay.MONDAY)
     if business:
-        return business_date(date_offset, or_next=True, entity=entity)
-    return date_offset
+        return Date(thedate).start_of('week').business().add()
+    return Date(thedate).start_of('week')
 
 
 @expect_date
@@ -564,11 +533,9 @@ def last_of_week(
     >>> last_of_week(datetime.date(2020, 4, 9), business=True)
     Date(2020, 4, 9)
     """
-    thedate = Date(thedate)
-    date_offset = thedate.end_of('week')
     if business:
-        return business_date(date_offset, or_next=False, entity=entity)
-    return date_offset
+        return Date(thedate).end_of('week').business().subtract()
+    return Date(thedate).end_of('week')
 
 
 @expect_date
@@ -596,7 +563,7 @@ def get_first_weekday_of_month(thedate, weekday='MO'):
 @expect_date
 def get_last_weekday_of_month(thedate, weekday='SU'):
     """Like `get_first`, but for the last X of month"""
-    d = thedate.end_of('month')
+    d = Date(thedate).end_of('month')
     if d.weekday() == day_obj.get(weekday):
         return d
     return d.previous(day_obj.get(weekday))
@@ -622,7 +589,7 @@ def next_first_of_month(thedate=None, window=1, snap=True, tz=LCL):
     Date(2015, 1, 1)
     """
     window = window + 15 if snap else window
-    thenext = (Date(thedate)).add(days=window)
+    thenext = Date(thedate).add(days=window)
     return first_of_month(thenext)
 
 
@@ -635,11 +602,9 @@ def next_last_date_of_week(thedate=None, business=False, entity: Type[NYSE] = NY
     >>> next_last_date_of_week(datetime.date(2018, 10, 12))
     Date(2018, 10, 19)
     """
-    thedate = Date(thedate)
-    offset = thedate.next(WeekDay.FRIDAY)
     if business:
-        return business_date(thedate, or_next=False, entity=entity)
-    return offset
+        return Date(thedate).business().next(WeekDay.FRIDAY)
+    return Date(thedate).next(WeekDay.FRIDAY)
 
 
 @expect_date
@@ -652,8 +617,8 @@ def next_relative_date_of_week_by_day(thedate, day='MO'):
     Date(2020, 5, 24)
     """
     if thedate.weekday() == day_obj.get(day):
-        return thedate
-    return thedate.next(day_obj.get(day))
+        return Date(thedate)
+    return Date(thedate).next(day_obj.get(day))
 
 
 @expect_date
@@ -664,12 +629,9 @@ def business_date(thedate=None, or_next=True, tz=LCL, entity: Type[NYSE] = NYSE)
     >>> business_date(datetime.date(2018, 9, 1))
     Date(2018, 9, 4)
     """
-    thedate = Date(thedate)
-    if is_business_day(thedate, entity):
-        return thedate
     if or_next:
-        return next_business_day(thedate, entity=entity)
-    return previous_business_day(thedate, entity=entity)
+        return Date(thedate).business().add()
+    return Date(thedate).business().subtract()
 
 
 @expect_date
@@ -688,7 +650,7 @@ def weekday_or_previous_friday(thedate=None, tz=LCL):
     thedate = Date(thedate)
     dnum = thedate.weekday()
     if dnum in {WeekDay.SATURDAY, WeekDay.SUNDAY}:
-        return thedate.subtract(days=dnum - 4)
+        return thedate.previous(WeekDay.FRIDAY)
     return thedate
 
 
@@ -731,29 +693,9 @@ def get_dates(since=None, until=None, window=0, business=False, entity: Type[NYS
     >>> len(list(get_dates(since=datetime.date(2015,1,3), window=5, business=True)))
     5
     """
-    since = Date(since) if since else None
-    until = Date(until) if until else None
-    window = abs(int(window))
-    assert until or since, 'Since or until is required'
-    if until and not since:
-        if business:
-            since = offset_date(until, -window, entity)
-        else:
-            since = until.subtract(days=window)
-    elif since and not until:
-        if business:
-            until = offset_date(since, window, entity)
-        else:
-            until = since.add(days=window)
-    assert since <= until, 'Since date must be earlier or equal to Until date'
-    thedate = since
-    while thedate <= until:
-        if business:
-            if is_business_day(thedate, entity=entity):
-                yield thedate
-        else:
-            yield thedate
-        thedate = thedate.add(days=1)
+    if business:
+        return DateRange(since, until).business().series(window)
+    return DateRange(since, until).series(window)
 
 
 @expect_date
@@ -770,7 +712,7 @@ def num_quarters(begdate, enddate=None, tz=LCL):
     >>> round(num_quarters(datetime.date(2020, 1, 1), datetime.date(2020, 8, 1)), 2)
     2.33
     """
-    return 4 * days_between(begdate, enddate or today()) / 365.0
+    return DateRange(begdate, enddate).interval_quarters()
 
 
 @expect_date
@@ -786,31 +728,9 @@ def get_quarter_date(thedate, end=True) -> Date:
     >>> get_quarter_date(datetime.date(2016, 3, 31))
     Date(2016, 3, 31)
     """
-    year = thedate.year
-    q1_start, q1_end = Date(year, 1, 1), Date(year, 3, 31)
-    q2_start, q2_end = Date(year, 4, 1), Date(year, 6, 30)
-    q3_start, q3_end = Date(year, 7, 1), Date(year, 9, 30)
-    q4_start, q4_end = Date(year, 10, 1), Date(year, 12, 31)
-
-    if q1_start <= thedate <= q1_end:
-        if end:
-            return q1_end
-        return q1_start
-
-    if q2_start <= thedate <= q2_end:
-        if end:
-            return q2_end
-        return q2_start
-
-    if q3_start <= thedate <= q3_end:
-        if end:
-            return q3_end
-        return q3_start
-
-    if q4_start <= thedate <= q4_end:
-        if end:
-            return q4_end
-        return q4_start
+    if end:
+        return Date(thedate).last_of('quarter')
+    return Date(thedate).first_of('quarter')
 
 
 @expect_date
@@ -827,7 +747,9 @@ def get_previous_quarter_date(thedate, end=True) -> Date:
     Date(2015, 12, 31)
 
     """
-    return get_quarter_date(get_quarter_date(thedate, end=False).subtract(days=1), end=end)
+    if end:
+        return Date(thedate).first_of('quarter').subtract(days=1).last_of('quarter')
+    return Date(thedate).first_of('quarter').subtract(days=1).first_of('quarter')
 
 
 @expect_date
@@ -838,8 +760,7 @@ def get_eom_dates(begdate, enddate) -> List[Date]:
     [Date(2018, 1, 31), Date(2018, 2, 28), Date(2018, 3, 31), Date(2018, 4, 30)]
     """
     assert begdate <= enddate
-    interval = pendulum.interval(last_of_month(begdate), last_of_month(enddate))
-    return list(interval.range('months'))
+    return DateRange(begdate, enddate).end_of_series('month')
 
 
 @expect_date
@@ -853,18 +774,7 @@ def lookback_date(thedate, lookback='last') -> Date:
     >>> lookback_date(datetime.date(2018, 12, 7), 'month')
     Date(2018, 11, 7)
     """
-
-    def _lookback(years=0, months=0, days=0):
-        _offset = Date(thedate).subtract(years=years, months=months, days=days)
-        return business_date(_offset, or_next=False)
-
-    return {
-        'last': _lookback(days=1),
-        'week': _lookback(days=7),
-        'month': _lookback(months=1),
-        'quarter': _lookback(months=3),
-        'year': _lookback(years=1),
-    }.get(lookback)
+    return Date(thedate).lookback(lookback)
 
 
 # === Parsing Strings into Dates and Times ===
@@ -1063,13 +973,9 @@ def days_between(
     >>> days_between(to_date('2018/9/10'), to_date('2018/9/6'), True)
     -2
     """
-    if begdate == enddate:
-        return 0
-    if not business:
-        return (enddate - begdate).days
-    if begdate < enddate:
-        return len(list(get_dates(begdate, enddate, business=True, entity=entity))) - 1
-    return -len(list(get_dates(enddate, begdate, business=True, entity=entity))) + 1
+    if business:
+        return DateRange(begdate, enddate).business().interval_days()
+    return DateRange(begdate, enddate).interval_days()
 
 
 @expect_date
@@ -1109,118 +1015,7 @@ def years_between(begdate=None, enddate=None, basis: int = 0):
     >>> '{:.4f}'.format(years_between(begdate, enddate, 4))
     '0.9167'
     """
-
-    def average_year_length(date1, date2):
-        """Algorithm for average year length"""
-        days = days_between(datetime.date(date1.year, 1, 1), datetime.date(date2.year + 1, 1, 1))
-        years = (date2.year - date1.year) + 1
-        return days / years
-
-    def feb29_between(date1, date2):
-        """Requires date2.year = (date1.year + 1) or date2.year = date1.year.
-
-        Returns True if "Feb 29" is between the two dates (date1 may be Feb29).
-        Two possibilities: date1.year is a leap year, and date1 <= Feb 29 y1,
-        or date2.year is a leap year, and date2 > Feb 29 y2.
-        """
-        mar1_date1_year = datetime.date(date1.year, 3, 1)
-        if calendar.isleap(date1.year) and (date1 < mar1_date1_year) and (date2 >= mar1_date1_year):
-            return True
-        mar1_date2_year = datetime.date(date2.year, 3, 1)
-        if calendar.isleap(date2.year) and (date2 >= mar1_date2_year) and (date1 < mar1_date2_year):
-            return True
-        return False
-
-    def appears_lte_one_year(date1, date2):
-        """Returns True if date1 and date2 "appear" to be 1 year or less apart.
-
-        This compares the values of year, month, and day directly to each other.
-        Requires date1 <= date2; returns boolean. Used by basis 1.
-        """
-        if date1.year == date2.year:
-            return True
-        if ((date1.year + 1) == date2.year) and (
-            (date1.month > date2.month) or ((date1.month == date2.month) and (date1.day >= date2.day))
-        ):
-            return True
-        return False
-
-    def basis0(date1, date2):
-        # change day-of-month for purposes of calculation.
-        date1day, date1month, date1year = date1.day, date1.month, date1.year
-        date2day, date2month, date2year = date2.day, date2.month, date2.year
-        if date1day == 31 and date2day == 31:
-            date1day = 30
-            date2day = 30
-        elif date1day == 31:
-            date1day = 30
-        elif date1day == 30 and date2day == 31:
-            date2day = 30
-        # Note: If date2day==31, it STAYS 31 if date1day < 30.
-        # Special fixes for February:
-        elif date1month == 2 and date2month == 2 and is_last_of_month(date1) \
-            and is_last_of_month(date2):
-            date1day = 30  # Set the day values to be equal
-            date2day = 30
-        elif date1month == 2 and is_last_of_month(date1):
-            date1day = 30  # "Illegal" Feb 30 date.
-        daydiff360 = (date2day + date2month * 30 + date2year * 360) \
-            - (date1day + date1month * 30 + date1year * 360)
-        return daydiff360 / 360
-
-    def basis1(date1, date2):
-        if appears_lte_one_year(date1, date2):
-            if date1.year == date2.year and calendar.isleap(date1.year):
-                year_length = 366.0
-            elif feb29_between(date1, date2) or (date2.month == 2 and date2.day == 29):
-                year_length = 366.0
-            else:
-                year_length = 365.0
-            return days_between(date1, date2) / year_length
-        return days_between(date1, date2) / average_year_length(date1, date2)
-
-    def basis2(date1, date2):
-        return days_between(date1, date2) / 360.0
-
-    def basis3(date1, date2):
-        return days_between(date1, date2) / 365.0
-
-    def basis4(date1, date2):
-        # change day-of-month for purposes of calculation.
-        date1day, date1month, date1year = date1.day, date1.month, date1.year
-        date2day, date2month, date2year = date2.day, date2.month, date2.year
-        if date1day == 31:
-            date1day = 30
-        if date2day == 31:
-            date2day = 30
-        # Remarkably, do NOT change Feb. 28 or 29 at ALL.
-        daydiff360 = (date2day + date2month * 30 + date2year * 360) - \
-            (date1day + date1month * 30 + date1year * 360)
-        return daydiff360 / 360
-
-    begdate = begdate or today()
-    if enddate is None:
-        return
-
-    sign = 1
-    if begdate > enddate:
-        begdate, enddate = enddate, begdate
-        sign = -1
-    if begdate == enddate:
-        return 0.0
-
-    if basis == 0:
-        return basis0(begdate, enddate) * sign
-    if basis == 1:
-        return basis1(begdate, enddate) * sign
-    if basis == 2:
-        return basis2(begdate, enddate) * sign
-    if basis == 3:
-        return basis3(begdate, enddate) * sign
-    if basis == 4:
-        return basis4(begdate, enddate) * sign
-
-    raise ValueError('Basis range [0, 4]. Unknown basis {basis}.')
+    return DateRange(begdate, enddate).interval_years(basis)
 
 
 # === Parsing Range of Dates ===
@@ -1252,22 +1047,9 @@ def date_range(
     >>> date_range(None, Date(2014, 7, 27), 20)
     (Date(2014, 6, 27), Date(2014, 7, 27))
     """
-    if begdate:
-        begdate = to_date(begdate)
-    if enddate:
-        enddate = to_date(enddate)
-
-    if begdate and enddate:
-        return begdate, enddate
-
-    window = int(window) if window else 0
-
-    if (not begdate and not enddate) or enddate:
-        begdate = offset_date(enddate, -abs(window), business, entity)
-    else:
-        enddate = offset_date(begdate, abs(window), business, entity)
-
-    return begdate, enddate
+    if business:
+        return DateRange(begdate, enddate).business().range(window)
+    return DateRange(begdate, enddate).range(window)
 
 
 def to_string(thedate, fmt: str) -> str:
@@ -1276,7 +1058,7 @@ def to_string(thedate, fmt: str) -> str:
     >>> to_string(datetime.date(2022, 1, 5), '%-m/%-d/%Y')
     '1/5/2022'
     """
-    return thedate.strftime(fmt.replace('%-', '%#') if os.name == 'nt' else fmt)
+    return Date.to_string(thedate, fmt)
 
 
 if __name__ == '__main__':
