@@ -13,10 +13,8 @@ import signal
 import sys
 import warnings
 from collections.abc import Iterable, MutableSet
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from functools import reduce, wraps
-
-import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -736,35 +734,6 @@ def wrap_suppress_print(func):
     return wrapped
 
 # }}}
-# Processes .............................................................. {{{1
-
-
-def kill_proc(name=None, version=None, dry_run=False):
-    """Generic kill process utilitiy
-    """
-    assert name or version, 'Need something to kill'
-    _name = fr'.*{(name or "")}(\.exe)?$'
-    match = False
-    procs = []
-    for proc in psutil.process_iter(attrs=['name']):
-        try:
-            cmd = ''.join(proc.cmdline())
-        except:
-            continue
-        if _name and not re.match(_name, proc.name()):
-            continue
-        if version and version not in cmd:
-            continue
-        match = True
-        if dry_run:
-            return match
-        procs.append(proc)
-    gone, alive = psutil.wait_procs(procs, timeout=10)
-    for p in alive:
-        with suppress(Exception):
-            p.kill()
-    return match
-#  ....................................................................... }}}1
 
 
 if __name__ == '__main__':

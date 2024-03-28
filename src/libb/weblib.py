@@ -22,7 +22,7 @@ from itertools import accumulate
 from urllib.parse import urlsplit, urlunsplit
 
 from dateutil import parser
-from libb import collapse, expandabspath, grouper, splitcap
+from libb import collapse, delay, expandabspath, grouper, splitcap
 
 with contextlib.suppress(ImportError):
     import web
@@ -114,7 +114,7 @@ def paged(order_by_df, per_page_df):
 def rsleep(always=0, rand_extra=8):
     seconds = max(always + (random.randrange(0, max(rand_extra, 1) * 1000) * 0.001), 0)
     logger.debug(f'Sleeping {seconds:0.2f} seconds ...')
-    time.sleep(seconds)
+    delay(seconds)
 
 
 def rand_retry(x_times=10, exception=Exception):
