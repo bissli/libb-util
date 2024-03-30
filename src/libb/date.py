@@ -69,7 +69,7 @@ __all__ = [
     'timezone',
     'Date',
     'DateTime',
-    'DateRange',
+    'Interval',
     'Time',
     'WeekDay',
     'expect_native_timezone',
@@ -84,7 +84,7 @@ __all__ = [
 
 LCL = libb_date.LCL
 Date = libb_date.Date
-DateRange = libb_date.DateRange
+Interval = libb_date.Interval
 DateTime = libb_date.DateTime
 Time = libb_date.Time
 WeekDay = libb_date.WeekDay
@@ -228,7 +228,7 @@ def is_business_day_range(begdate, enddate, entity: Type[NYSE] = NYSE) -> List[b
     [True, True, True, False, True, False, False]
     """
     assert begdate <= enddate
-    for thedate in DateRange(begdate, enddate).series():
+    for thedate in Interval(begdate, enddate).series():
         yield is_business_day(thedate, entity)
 
 
@@ -694,8 +694,8 @@ def get_dates(since=None, until=None, window=0, business=False, entity: Type[NYS
     5
     """
     if business:
-        return DateRange(since, until).business().series(window)
-    return DateRange(since, until).series(window)
+        return Interval(since, until).business().series(window)
+    return Interval(since, until).series(window)
 
 
 @expect_date
@@ -712,7 +712,7 @@ def num_quarters(begdate, enddate=None, tz=LCL):
     >>> round(num_quarters(datetime.date(2020, 1, 1), datetime.date(2020, 8, 1)), 2)
     2.33
     """
-    return DateRange(begdate, enddate).interval_quarters()
+    return Interval(begdate, enddate).quarters()
 
 
 @expect_date
@@ -760,7 +760,7 @@ def get_eom_dates(begdate, enddate) -> List[Date]:
     [Date(2018, 1, 31), Date(2018, 2, 28), Date(2018, 3, 31), Date(2018, 4, 30)]
     """
     assert begdate <= enddate
-    return DateRange(begdate, enddate).end_of_series('month')
+    return Interval(begdate, enddate).end_of_series('month')
 
 
 @expect_date
@@ -974,8 +974,8 @@ def days_between(
     -2
     """
     if business:
-        return DateRange(begdate, enddate).business().interval_days()
-    return DateRange(begdate, enddate).interval_days()
+        return Interval(begdate, enddate).business().days()
+    return Interval(begdate, enddate).days()
 
 
 @expect_date
@@ -1015,7 +1015,7 @@ def years_between(begdate=None, enddate=None, basis: int = 0):
     >>> '{:.4f}'.format(years_between(begdate, enddate, 4))
     '0.9167'
     """
-    return DateRange(begdate, enddate).interval_years(basis)
+    return Interval(begdate, enddate).years(basis)
 
 
 # === Parsing Range of Dates ===
@@ -1048,8 +1048,8 @@ def date_range(
     (Date(2014, 6, 27), Date(2014, 7, 27))
     """
     if business:
-        return DateRange(begdate, enddate).business().range(window)
-    return DateRange(begdate, enddate).range(window)
+        return Interval(begdate, enddate).business().range(window)
+    return Interval(begdate, enddate).range(window)
 
 
 def to_string(thedate, fmt: str) -> str:
