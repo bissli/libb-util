@@ -12,87 +12,12 @@ import re
 import signal
 import sys
 import warnings
-from collections.abc import Iterable, MutableSet
 from contextlib import contextmanager
 from functools import reduce, wraps
 
 logger = logging.getLogger(__name__)
 
 #  ....................................................................... }}}1
-# Collections (Non-Dict) ................................................. {{{1
-
-
-class OrderedSet(MutableSet):
-    """From Raymond Hettinger on ActiveState
-    https://code.activestate.com/recipes/576694/
-
-    >>> s = OrderedSet('abracadaba')
-    >>> t = OrderedSet('simsalabim')
-    >>> (s | t)
-    OrderedSet(['a', 'b', 'r', 'c', 'd', 's', 'i', 'm', 'l'])
-    >>> (s & t)
-    OrderedSet(['a', 'b'])
-    >>> (s - t)
-    OrderedSet(['r', 'c', 'd'])
-    """
-
-    def __init__(self, iterable=None):
-        self.end = end = []
-        end += [None, end, end]         # sentinel node for doubly linked list
-        self.map = {}                   # key --> [key, prev, next]
-        if iterable is not None:
-            self |= iterable
-
-    def __len__(self):
-        return len(self.map)
-
-    def __contains__(self, key):
-        return key in self.map
-
-    def add(self, key):
-        if key not in self.map:
-            end = self.end
-            curr = end[1]
-            curr[2] = end[1] = self.map[key] = [key, curr, end]
-
-    def discard(self, key):
-        if key in self.map:
-            key, prev, next = self.map.pop(key)
-            prev[2] = next
-            next[1] = prev
-
-    def __iter__(self):
-        end = self.end
-        curr = end[2]
-        while curr is not end:
-            yield curr[0]
-            curr = curr[2]
-
-    def __reversed__(self):
-        end = self.end
-        curr = end[1]
-        while curr is not end:
-            yield curr[0]
-            curr = curr[1]
-
-    def pop(self, last=True):
-        if not self:
-            raise KeyError('set is empty')
-        key = self.end[1][0] if last else self.end[2][0]
-        self.discard(key)
-        return key
-
-    def __repr__(self):
-        if not self:
-            return '%s()' % (self.__class__.__name__,)
-        return '%s(%r)' % (self.__class__.__name__, list(self))
-
-    def __eq__(self, other):
-        if isinstance(other, OrderedSet):
-            return len(self) == len(other) and list(self) == list(other)
-        return set(self) == set(other)
-
-# ........................................................................ }}}1
 # Timeout ..................................................... {{{1
 
 
@@ -127,27 +52,6 @@ class timeout:
         signal.alarm(0)
 
 #  ....................................................................... }}}1
-# Functools .............................................................. {{{1
-
-
-def compose(*functions):
-    """Return a function folding over a list of functions
-    each arg must have a single param, so that it is explicit
-
-    >>> f = lambda x: x+4
-    >>> g = lambda y: y/2
-    >>> h = lambda z: z*3
-    >>> fgh = compose(f, g, h)
-
-    beware of order for non-commutative functions (first in, **last** out)
-    >>> fgh(2)==h(g(f(2)))
-    False
-    >>> fgh(2)==f(g(h(2)))
-    True
-    """
-    return reduce(lambda f, g: lambda x: f(g(x)), functions)
-
-#  ....................................................................... }}}1
 # List ................................................................... {{{1
 
 
@@ -173,18 +77,6 @@ def same_order(ref, comp):
         except ValueError:
             return False
     return sorted(order) == order
-
-
-def invert(dct):
-    return {v: k for k, v in list(dct.items())}
-
-
-def mapkeys(func, dct):
-    return {func(key): val for key, val in list(dct.items())}
-
-
-def mapvals(func, dct):
-    return {key: func(val) for key, val in list(dct.items())}
 
 
 def coalesce(*args):
@@ -281,42 +173,6 @@ def multimethod(*types):
         return mm
 
     return register
-
-
-def peel(str_or_iter):
-    """Peel iterator one by one, yield item, aliasor item, item
-
-    >>> list(peel(["a", ("", "b"), "c"]))
-    [('a', 'a'), ('', 'b'), ('c', 'c')]
-    """
-    things = (_ for _ in str_or_iter)
-    while things:
-        try:
-            this = next(things)
-        except StopIteration:
-            return
-        if isinstance(this, (tuple, list)):
-            yield this
-        else:
-            yield this, this
-
-
-def rpeel(str_or_iter):
-    """Peel iterator one by one, yield alias if tuple, else item"
-
-    >>> list(rpeel(["a", ("", "b"), "c"]))
-    ['a', 'b', 'c']
-    """
-    things = (_ for _ in str_or_iter)
-    while things:
-        try:
-            this = next(things)
-        except StopIteration:
-            return
-        if isinstance(this, (tuple, list)):
-            yield this[-1]
-        else:
-            yield this
 
 
 def backfill(values):
@@ -542,163 +398,6 @@ def format_phone(phone):
 def kryptophy(blah):
     """Intentionally mysterious"""
     return int('0x' + ''.join([hex(ord(x))[2:] for x in blah]), 16)
-
-
-def copydoc(fromfunc, sep='\n', basefirst=True):
-    """Decorator: Copy the docstring of `fromfunc`
-
-    >>> class A():
-    ...     def myfunction():
-    ...         '''Documentation for A.'''
-    ...         pass
-
-    >>> class B(A):
-    ...     @copydoc(A.myfunction)
-    ...     def myfunction():
-    ...         '''Extra details for B.'''
-    ...         pass
-
-    >>> class C(A):
-    ...     @copydoc(A.myfunction, basefirst=False)
-    ...     def myfunction():
-    ...         '''Extra details for B.'''
-    ...         pass
-
-    do not activate doctests!
-    >>> class D():
-    ...     def myfunction():
-    ...         '''.>>> 2 + 2 = 5'''
-    ...         pass
-
-    >>> class E(D):
-    ...     @copydoc(D.myfunction)
-    ...     def myfunction():
-    ...         '''Extra details for E.'''
-    ...         pass
-
-    >>> help(B.myfunction)
-    Help on function myfunction in module ...:
-    <BLANKLINE>
-    myfunction()
-        Documentation for A.
-        Extra details for B.
-    <BLANKLINE>
-    >>> help(C.myfunction)
-    Help on function myfunction in module ...:
-    <BLANKLINE>
-    myfunction()
-        Extra details for B.
-        Documentation for A.
-    <BLANKLINE>
-    >>> help(E.myfunction)
-    Help on function myfunction in module ...:
-    <BLANKLINE>
-    myfunction()
-        .>>> 2 + 2 = 5 # doctest: +DISABLE
-        Extra details for E.
-    <BLANKLINE>
-    """
-
-    def _disable_doctest(docstr):
-        docstr_disabled = ''
-        for line in docstr.splitlines():
-            docstr_disabled += line
-            if '>>>' in line:
-                docstr_disabled += ' # doctest: +DISABLE'
-        return docstr_disabled
-
-    def _decorator(func):
-        sourcedoc = _disable_doctest(fromfunc.__doc__)
-        if func.__doc__ is None:
-            func.__doc__ = sourcedoc
-        else:
-            order = [sourcedoc, func.__doc__] if basefirst else [func.__doc__, sourcedoc]
-            func.__doc__ = sep.join(order)
-        return func
-
-    return _decorator
-
-
-def get_calling_function():
-    """Finds the calling function in many decent cases."""
-    fr = sys._getframe(1)   # inspect.stack()[1][0]
-    co = fr.f_code
-    for get in (
-        lambda: fr.f_globals[co.co_name],
-        lambda: getattr(fr.f_locals['self'], co.co_name),
-        lambda: getattr(fr.f_locals['cls'], co.co_name),
-        lambda: fr.f_back.f_locals[co.co_name],  # nested
-        lambda: fr.f_back.f_locals['func'],  # decorators
-        lambda: fr.f_back.f_locals['meth'],
-        lambda: fr.f_back.f_locals['f'],
-    ):
-        try:
-            func = get()
-        except (KeyError, AttributeError):
-            pass
-        else:
-            if func.__code__ == co:
-                return func
-    raise AttributeError('func not found')
-
-
-def composable(decorators):
-    """Decorator that takes a list of decorators to be composed
-
-    useful when list of decorators starts getting large and unruly
-
-    >>> def m3(func):
-    ...     def wrapped(n):
-    ...         return func(n)*3.
-    ...     return wrapped
-
-    >>> def d2(func):
-    ...     def wrapped(n):
-    ...         return func(n)/2.
-    ...     return wrapped
-
-    >>> def p3(n):
-    ...     return n+3.
-
-    >>> @m3
-    ... @d2
-    ... def plusthree(x):
-    ...     return p3(x)
-
-    >>> @composable([d2, m3])
-    ... def cplusthree(x):
-    ...     return p3(x)
-
-    Despite the similar name, composed decorators are not
-    interchangeable with `compose` for standard functions,
-    since decorators return functions, not the func output
-    >>> func = compose(m3, d2, p3)(4)
-    >>> hasattr(func, '__call__')
-    True
-    >>> compose(lambda n: n*3., lambda n: n/2., p3)(4)
-    10.5
-
-    what they do allow is consolidating longer decorator chains
-    >>> plusthree(4)
-    10.5
-    >>> cplusthree(4)
-    10.5
-    """
-
-    def composed(func):
-        if isinstance(decorators, Iterable) and not isinstance(decorators, str):
-            for dec in decorators[::-1]:
-                func = dec(func)
-            return func
-        return decorators(func)
-
-    def wrapped(func):
-        @wraps(func)
-        def f(*a, **kw):
-            return composed(func)(*a, **kw)
-        return f
-
-    return wrapped
 
 
 @contextmanager
