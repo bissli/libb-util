@@ -27,6 +27,18 @@ def ismapping(something):
     return isinstance(something, Mapping)
 
 
+def invert(dct):
+    return {v: k for k, v in list(dct.items())}
+
+
+def mapkeys(func, dct):
+    return {func(key): val for key, val in list(dct.items())}
+
+
+def mapvals(func, dct):
+    return {key: func(val) for key, val in list(dct.items())}
+
+
 def flatten(kv, prefix=None):
     """Flatten list of dictionaries, recursively flattening nested ones
 
