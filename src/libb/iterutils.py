@@ -17,7 +17,9 @@ __all__ = [
     'iscollection',
     'isiterable',
     'partition',
+    'peel',
     'roundrobin',
+    'rpeel',
     'unique',
     'unique_iter',
     ]
@@ -149,6 +151,42 @@ def collapse(*args, base_type=(tuple, list)):
     [{'a': 'foo', 'b': 'bar', 'c': 'baz'}]
     """
     return (e for a in args for e in (collapse(*a) if isinstance(a, base_type) else (a,)))
+
+
+def peel(str_or_iter):
+    """Peel iterator one by one, yield item, aliasor item, item
+
+    >>> list(peel(["a", ("", "b"), "c"]))
+    [('a', 'a'), ('', 'b'), ('c', 'c')]
+    """
+    things = (_ for _ in str_or_iter)
+    while things:
+        try:
+            this = next(things)
+        except StopIteration:
+            return
+        if isinstance(this, (tuple, list)):
+            yield this
+        else:
+            yield this, this
+
+
+def rpeel(str_or_iter):
+    """Peel iterator one by one, yield alias if tuple, else item"
+
+    >>> list(rpeel(["a", ("", "b"), "c"]))
+    ['a', 'b', 'c']
+    """
+    things = (_ for _ in str_or_iter)
+    while things:
+        try:
+            this = next(things)
+        except StopIteration:
+            return
+        if isinstance(this, (tuple, list)):
+            yield this[-1]
+        else:
+            yield this
 
 
 if __name__ == '__main__':
