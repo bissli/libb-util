@@ -456,6 +456,13 @@ class attrdict(dict):
     >>> d.z = 1
     >>> d.z
     1
+    >>> 'x' in d
+    True
+    >>> 'w' in d
+    False
+    >>> d.get('x')
+    10
+    >>> d.get('w')
     >>> tricky = [d, g]
     >>> tricky2 = copy.copy(tricky)
     >>> tricky2[1].x
@@ -577,15 +584,31 @@ class emptydict(attrdict):
     >>> a = emptydict(a=1, b=2)
     >>> a.c == None
     True
+
+    >>> a.b
+    2
+    >>> a['b']
+    2
+    >>> 'c' in a
+    False
+    >>> 'b' in a
+    True
+    >>> a.get('b')
+    2
+    >>> a.get('c')
     """
 
     def __getattr__(self, attrname):
-        if attrname not in self:
-            return None
-        return self.get(attrname, None)
+        try:
+            return attrdict.__getattr__(self, attrname)
+        except AttributeError:
+            return
 
     def __getitem__(self, attrname):
-        return self.__getattr__(attrname)
+        try:
+            return attrdict.__getitem__(self, attrname)
+        except AttributeError:
+            return
 
 
 class bidict(dict):
