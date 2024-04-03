@@ -35,7 +35,7 @@ from libb.rand import *
 from libb.setutils import *
 from libb.streamutils import *
 from libb.syncd import *
-from libb.text import *
+from libb.textutils import *
 from libb.thread import *
 from libb.util import *
 from libb.weblib import *

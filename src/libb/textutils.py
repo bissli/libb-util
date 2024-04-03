@@ -108,6 +108,10 @@ def uncamel(camel):
     return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', uncased).lower()
 
 
+def strip_ascii(s):
+    return s.encode('ascii', errors='ignore').decode()
+
+
 def sanitize_vulgar_string(s):
     """Replaces number and vulgar fractions combos with number and decimal
 
