@@ -5,9 +5,12 @@ import warnings
 from collections import namedtuple
 from typing import List, Optional, Tuple, Type, Union
 
-import libb_date
 import numpy as np
 import pandas as pd
+from libb.module import patch_module
+
+__date = patch_module('date', '__date')
+import date as libb_date
 
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
@@ -1059,6 +1062,9 @@ def to_string(thedate, fmt: str) -> str:
     '1/5/2022'
     """
     return Date.to_string(thedate, fmt)
+
+
+# patch_module('__date', 'date')
 
 
 if __name__ == '__main__':
