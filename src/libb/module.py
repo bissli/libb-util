@@ -135,6 +135,31 @@ def patch_load(module_name: str, funcs: list, releft: str='',
     return module
 
 
+def patch_module(source_name, target_name):
+    """Replace source module with our target module
+
+    Assume we are writing a module named platform (danger!!!) and we
+    want to import the standard platform into that module.
+
+    In platform.py we would include:
+
+    _platform = patch_module('platform', '_platform')
+
+    _platform would now refer to the current module
+
+    Then I can write "import platform" to import the system
+    platform module.
+
+    """
+    __import__(source_name)
+    m = sys.modules.pop(source_name)
+    sys.modules[target_name] = m
+    target_module = __import__(target_name)
+    # move current to end position
+    sys.path = sys.path[1:] + sys.path[:1]
+    return target_module
+
+
 def create_instance(classname, *args, **kwargs):
     cls = get_class(classname)
     return cls(*args, **kwargs)
