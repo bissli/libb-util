@@ -29,6 +29,7 @@ from libb.log import *
 from libb.mathutils import *
 from libb.module import *
 from libb.montecarlo import *
+from libb.optionsutil import *
 from libb.pathutils import *
 from libb.procutils import *
 from libb.rand import *
