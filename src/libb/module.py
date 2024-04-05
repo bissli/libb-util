@@ -165,6 +165,31 @@ def create_instance(classname, *args, **kwargs):
     return cls(*args, **kwargs)
 
 
+def create_mock_module(modname: str, params: dict):
+    """Create mock module with set attribute and return value.
+
+    For testing config settings without creating actual config file.
+
+    Basic example
+    >>> create_mock_module('foomod', {'x': {'foo': 1, 'bar': 2}})
+    >>> import foomod
+    >>> foomod.x
+    {'foo': 1, 'bar': 2}
+
+    unittest Mock example
+    >>> from unittest.mock import Mock
+    >>> mock = Mock(name='foomod.x', return_value='bar')
+    >>> create_mock_module('foomod', {'x': mock})
+    >>> import foomod
+    >>> foomod.x.return_value
+    'bar'
+    """
+    mock_module = ModuleType(modname)
+    sys.modules[modname] = mock_module
+    for attr, value in params.items():
+        setattr(mock_module, attr, value)
+
+
 class VirtualModule:
     def __init__(self, modname, submodules):
         try:
