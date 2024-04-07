@@ -1,10 +1,11 @@
 [tool.poetry]
-name = "libb"
+name = "libb-util"
 version = "0.1.0"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = ["bissli"]
 license = "0BSD"
+packages = [{ include = "libb", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "~3.11"
