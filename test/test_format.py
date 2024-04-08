@@ -1,6 +1,6 @@
 import pytest
 from asserts import assert_equal, assert_raises
-from libb.format import fmt
+from libb import fmt
 
 
 def test_bad_values():

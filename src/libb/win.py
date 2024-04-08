@@ -2,15 +2,15 @@
 
 import logging
 import os
+import platform
 import socket
 from subprocess import PIPE, Popen
 
 import regex as re
-from libb import config
 
 logger = logging.getLogger(__name__)
 
-if config.WIN:
+if 'Win' in platform.system():
     from win32com.client import GetObject
 
 

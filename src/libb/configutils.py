@@ -1,7 +1,71 @@
+"""Config related settings, follows 12factor.net
+"""
+import logging
+import os
 from dataclasses import dataclass, fields
 from functools import partial, wraps
 
-__all__ = ['BaseOptions', 'load_options']
+logger = logging.getLogger(__name__)
+
+__all__ = ['Setting', 'BaseOptions', 'load_options' ]
+
+
+class Setting(dict):
+    """Dict where d['foo'] can also be accessed as d.foo
+    but also automatically creates new sub-attributes of
+    type Setting. This behavior can be locked to turn off
+    later. WARNING: not copy safe
+
+    >>> cfg = Setting()
+    >>> cfg.unlock() # locked after config.py load
+
+    >>> cfg.foo.bar = 1
+    >>> hasattr(cfg.foo, 'bar')
+    True
+    >>> cfg.foo.bar
+    1
+    >>> cfg.lock()
+    >>> cfg.foo.bar = 2
+    Traceback (most recent call last):
+     ...
+    ValueError: This Setting object is locked from editing
+    >>> cfg.foo.baz = 3
+    Traceback (most recent call last):
+     ...
+    ValueError: This Setting object is locked from editing
+    >>> cfg.unlock()
+    >>> cfg.foo.baz = 3
+    >>> cfg.foo.baz
+    3
+    """
+
+    _locked = False
+
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+
+    def __getattr__(self, name):
+        """Create sub-setting fields on the fly"""
+        if name not in self:
+            if self._locked:
+                raise ValueError('This Setting object is locked from editing')
+            self[name] = Setting()
+        return self[name]
+
+    def __setattr__(self, name, val):
+        if self._locked:
+            raise ValueError('This Setting object is locked from editing')
+        if name not in self:
+            self[name] = Setting()
+        self[name] = val
+
+    @staticmethod
+    def lock():
+        Setting._locked = True
+
+    @staticmethod
+    def unlock():
+        Setting._locked = False
 
 
 @dataclass
@@ -24,7 +88,7 @@ def load_options(func=None, *, cls=BaseOptions):
         config: config module that defines options in `Settings` format
         kwargs: additional kw-args to pass to function
 
-    >>> from libb import config, create_mock_module
+    >>> from base import config, create_mock_module
 
     >>> config.Setting.unlock()
     >>> test = config.Setting()

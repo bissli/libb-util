@@ -215,18 +215,18 @@ def create_virtual_module(modname, submodules):
     """Create virtual module with submodule from other module
 
     >>> import libb
-    >>> create_virtual_module('libb', {'new_date': 'libb'})
+    >>> create_virtual_module('libb', {'new_config': 'libb'})
     >>> import libb
-    >>> libb.to_date('2010-01-01')
-    Date(2010, 1, 1)
-    >>> libb.new_date.to_date('2010-01-01')
-    Date(2010, 1, 1)
+    >>> libb.Setting()
+    {}
+    >>> libb.new_config.Setting()
+    {}
 
     >>> import libb
-    >>> create_virtual_module('foo', {'date': 'libb'})
+    >>> create_virtual_module('foo', {'config': 'libb'})
     >>> import foo
-    >>> foo.date.to_date('2010-01-01')
-    Date(2010, 1, 1)
+    >>> foo.config.Setting()
+    {}
 
     """
     VirtualModule(modname, submodules)
@@ -236,7 +236,7 @@ def get_packages_in_module(m: ModuleType) -> Iterable[ModuleInfo]:
     """Useful for pytest conftestloading
     >>> import libb
     >>> _ = get_package_paths_in_module(libb)
-    >>> assert 'libb.module' in _
+    >>> assert 'libb.moduleutils' in _
     """
     return walk_packages(m.__path__, prefix=m.__name__ + '.')  # type: ignore
 
@@ -251,4 +251,4 @@ def get_package_paths_in_module(m: ModuleType) -> Iterable[str]:
 
 
 if __name__ == '__main__':
-    __import__('doctest').testmod()
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)

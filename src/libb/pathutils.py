@@ -51,3 +51,7 @@ def cd(path):
         yield
     finally:
         os.chdir(old_dir)
+
+
+if __name__ == '__main__':
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)

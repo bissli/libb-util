@@ -1,11 +1,10 @@
 import logging
 import os
-import os.path
 import site
 import test.fixtures
 
 import pytest
-from libb.module import get_package_paths_in_module
+from libb import get_package_paths_in_module
 
 logger = logging.getLogger(__name__)
 

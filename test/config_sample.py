@@ -1,7 +1,6 @@
 import sys
 
-from libb import module
-from libb.config import Setting
+from libb import OverrideModuleGetattr, Setting
 
 Setting.unlock()
 
@@ -29,7 +28,7 @@ try:
 except ImportError:
     local_config_sample = None
 
-self = module.OverrideModuleGetattr(sys.modules[__name__], local_config_sample)
+self = OverrideModuleGetattr(sys.modules[__name__], local_config_sample)
 sys.modules[__name__] = self
 
 Setting.lock()

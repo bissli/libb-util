@@ -68,6 +68,27 @@ def make_tmpdir(prefix=None) -> Path:
             logger.error(f'Failed to clean up temp dir {path}')
 
 
+def expandabspath(p: str) -> str:
+    """Expand path to absolute path
+
+    >>> import os
+    >>> os.environ['SPAM'] = 'eggs'
+    >>> assert expandabspath('~/$SPAM') == os.path.expanduser('~/eggs')
+    >>> assert expandabspath('/foo') == '/foo'
+    """
+    a = os.path.abspath
+    u = os.path.expanduser
+    v = os.path.expandvars
+
+    def r(x):
+        try:
+            return os.path.relpath(x)
+        except ValueError:
+            return os.path.abspath(x)
+
+    return a(u(r(v(p))))
+
+
 def get_directory_structure(rootdir):
     """Creates a nested dictionary that represents the folder structure
     of rootdir
