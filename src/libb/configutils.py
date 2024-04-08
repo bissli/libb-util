@@ -96,7 +96,7 @@ def load_options(func=None, *, cls=BaseOptions):
     """Wrapper that builds dataclass options from config file.
 
     Standard interface:
-        options: str | dict | BaseOptions| None:
+        options: str | dict | BaseOptions| None
         config: config module that defines options in `Settings` format
         kwargs: additional kw-args to pass to function
 
@@ -125,9 +125,17 @@ def load_options(func=None, *, cls=BaseOptions):
     >>> testfunc('test.foo.app', test_config)
     (1, 2, 3)
 
+    >>> class Test:
+    ...     @load_options(cls=Options)
+    ...     def __init__(self, options, config, **kw):
+    ...         self.foo = options.foo
+    ...         self.bar = options.bar
+    ...         self.baz = options.baz
+    >>> t = Test('test.foo.app', test_config)
+    >>> t.foo, t.bar, t.baz
+    (1, 2, 3)
     """
-    @wraps(func)
-    def wrapper(options: str | dict | BaseOptions | None = None, config=None, **kw):
+    def _load(options, config=None, **kw):
         if isinstance(options, dict):
             options = cls(**options)
         if isinstance(options, str):
@@ -136,10 +144,21 @@ def load_options(func=None, *, cls=BaseOptions):
             options = cls(**kw)
         for field in fields(cls):
             kw.pop(field.name, None)
-        return func(options, config=None, **kw)
+        return options, config, kw
+    @wraps(func)
+    def func_wrapper(options, config=None, **kw):
+        options, config, kw = _load(options, config, **kw)
+        return func(options, config=config, **kw)
+    @wraps(func)
+    def class_wrapper(self, options, config=None, **kw):
+        options, config, kw = _load(options, config, **kw)
+        return func(self, options, config=config, **kw)
     if func is None:
         return partial(load_options, cls=cls)
-    return wrapper
+    from libb import is_instance_method
+    if is_instance_method(func):
+        return class_wrapper
+    return func_wrapper
 
 
 __dirs = PlatformDirs(appname='libb', roaming=True)

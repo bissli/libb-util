@@ -352,6 +352,10 @@ def extend_instance(obj, cls, left=True):
         obj.__class__ = type(obj.__class__.__name__, (obj.__class__, cls), {})
 
 
+def is_instance_method(func):
+    return len(func.__qualname__.split('.')) > 1
+
+
 def find_decorators(target):
     """https://stackoverflow.com/a/9580006"""
     res = {}
