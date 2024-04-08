@@ -2,12 +2,24 @@
 """
 import logging
 import os
+import tempfile
 from dataclasses import dataclass, fields
 from functools import partial, wraps
+from pathlib import Path
+
+from platformdirs import PlatformDirs
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['Setting', 'BaseOptions', 'load_options' ]
+__all__ = [
+    'Setting',
+    'BaseOptions',
+    'load_options',
+    'get_tempdir',
+    'get_vendordir',
+    'get_outputdir',
+    'get_localdir',
+]
 
 
 class Setting(dict):
@@ -88,14 +100,14 @@ def load_options(func=None, *, cls=BaseOptions):
         config: config module that defines options in `Settings` format
         kwargs: additional kw-args to pass to function
 
-    >>> from base import config, create_mock_module
+    >>> from libb import Setting, create_mock_module
 
-    >>> config.Setting.unlock()
-    >>> test = config.Setting()
+    >>> Setting.unlock()
+    >>> test = Setting()
     >>> test.foo.app.foo = 1
     >>> test.foo.app.bar = 2
     >>> test.foo.app.baz = 3
-    >>> config.Setting.lock()
+    >>> Setting.lock()
 
     >>> create_mock_module('test_config', {'test': test})
     >>> import test_config
@@ -128,6 +140,70 @@ def load_options(func=None, *, cls=BaseOptions):
     if func is None:
         return partial(load_options, cls=cls)
     return wrapper
+
+
+__dirs = PlatformDirs(appname='libb', roaming=True)
+
+
+def iflocked(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        was_locked = False
+        if Setting._locked:
+            was_locked = True
+            Setting.unlock()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            if was_locked:
+                Setting.lock()
+    return wrapper
+
+
+@iflocked
+def get_tempdir() -> Setting:
+    from libb import expandabspath
+    tmpdir = Setting()
+    if os.getenv('CONFIG_TMPDIR_DIR'):
+        tmpdir.dir = expandabspath(os.getenv('CONFIG_TMPDIR_DIR'))
+    else:
+        tmpdir.dir = tempfile.gettempdir()
+    Path(tmpdir.dir).mkdir(parents=True, exist_ok=True)
+    return tmpdir
+
+
+@iflocked
+def get_vendordir() -> Setting:
+    from libb import expandabspath
+    vendor = Setting()
+    if os.getenv('CONFIG_VENDOR_DIR'):
+        vendor.dir = expandabspath(os.getenv('CONFIG_VENDOR_DIR'))
+    else:
+        vendor.dir = tempfile.gettempdir()
+    Path(vendor.dir).mkdir(parents=True, exist_ok=True)
+    return vendor
+
+
+@iflocked
+def get_outputdir() -> Setting:
+    from libb import expandabspath
+    output = Setting()
+    if os.getenv('CONFIG_OUTPUT_DIR'):
+        output.dir = expandabspath(os.getenv('CONFIG_OUTPUT_DIR'))
+    else:
+        output.dir = tempfile.gettempdir()
+    Path(output.dir).mkdir(parents=True, exist_ok=True)
+    return output
+
+
+@iflocked
+def get_localdir() -> Setting:
+    from libb import expandabspath
+    local = Setting()
+    local.dir = Path(expandabspath(list(__dirs.iter_data_dirs())[0]))
+    local.dir = local.dir.as_posix()
+    Path(local.dir).mkdir(parents=True, exist_ok=True)
+    return local
 
 
 if __name__ == '__main__':

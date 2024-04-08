@@ -25,6 +25,7 @@ psutil = "*"
 requests = "*"
 tqdm = "^4.66.2"
 trace-dkey = "0.0.6"
+platformdirs = "^4.2.0"
 # == web
 Flask = { version = "^3.0.2", optional = true }
 "web.py" = { version = "^0.62", optional = true }
