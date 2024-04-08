@@ -8,18 +8,10 @@ try:
     from sqlalchemy import and_, func
     from sqlalchemy.engine import reflection
     from sqlalchemy.ext.compiler import compiles
-    from sqlalchemy.schema import (
-        DropConstraint,
-        DropTable,
-        ForeignKeyConstraint,
-        MetaData,
-        Table,
-    )
-    from sqlalchemy.sql.expression import (
-        ClauseElement,
-        Executable,
-        _literal_as_text,
-    )
+    from sqlalchemy.schema import DropConstraint, DropTable
+    from sqlalchemy.schema import ForeignKeyConstraint, MetaData, Table
+    from sqlalchemy.sql.expression import ClauseElement, Executable
+    from sqlalchemy.sql.expression import _literal_as_text
 except ImportError:
     pass
 

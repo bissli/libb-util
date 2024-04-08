@@ -8,6 +8,7 @@ import unicodedata
 from functools import reduce
 
 import regex as re
+
 from libb.iterutils import collapse
 
 with contextlib.suppress(ImportError):

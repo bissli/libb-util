@@ -22,6 +22,7 @@ from itertools import accumulate
 from urllib.parse import urlsplit, urlunsplit
 
 from dateutil import parser
+
 from libb import collapse, delay, expandabspath, grouper, splitcap
 
 with contextlib.suppress(ImportError):

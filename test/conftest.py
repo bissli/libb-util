@@ -4,6 +4,7 @@ import site
 import test.fixtures
 
 import pytest
+
 from libb import get_package_paths_in_module
 
 logger = logging.getLogger(__name__)

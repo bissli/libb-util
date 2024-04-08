@@ -3,17 +3,20 @@ import itertools
 import json
 import logging
 import operator
-import os  # noqa
 import re
-import sys  # noqa
 from abc import ABCMeta
 from collections.abc import Mapping, MutableMapping
 from contextlib import contextmanager
 from functools import cmp_to_key
 from typing import Dict, List
 
-from libb.iterutils import collapse
 from trace_dkey import trace
+
+from libb.iterutils import collapse
+
+import os  # noqa
+import sys  # noqa
+
 
 logger = logging.getLogger(__name__)
 

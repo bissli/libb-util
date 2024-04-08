@@ -9,6 +9,7 @@ from math import ceil, floor, isnan, log10, sqrt
 
 import numpy as np
 import regex as re
+
 from libb.dictutils import cmp
 from libb.util import suppresswarning
 
