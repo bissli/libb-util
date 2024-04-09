@@ -36,14 +36,14 @@ Flask = { version = "^3.0.2", optional = true }
 Twisted = { version = "^23.8.0", optional = true }
 service-identity = { version = "*", optional = true }
 # == test
-asserts = { version = "^0.12.0", optional = true }
-docker = { version = "^7.0.0", optional = true }
+asserts = { version = "*", optional = true }
+docker = { version = "*", optional = true }
+pytest = { version = "*", optional = true }
+pytest-mock = { version = "*", optional = true }
+pytest-runner = { version = "*", optional = true }
+unittest2 = { version = "*", optional = true }
+WebTest = { version = "*", extras = ["web"], optional = true }
 pdbpp = { git = "https://github.com/pdbpp/pdbpp.git", rev = "master", optional = true }
-pytest = { version = "^8.0.0", optional = true }
-pytest-mock = { version = "^3.12.0", optional = true }
-pytest-runner = { version = "^6.0.1", optional = true }
-unittest2 = { version = "^1.1.0", optional = true }
-WebTest = { version = "^3.0.0", extras = ["web"], optional = true }
 # == deploy
 bump2version = { version = "^1.0.1", optional = true }
 
