@@ -3,6 +3,7 @@
 import logging
 import os
 import tempfile
+from abc import ABCMeta
 from dataclasses import dataclass, fields
 from functools import partial, wraps
 from pathlib import Path
@@ -81,7 +82,7 @@ class Setting(dict):
 
 
 @dataclass
-class ConfigOptions:
+class ConfigOptions(metaclass=ABCMeta):
     """Load from config.py"""
 
     @classmethod
@@ -120,10 +121,14 @@ def load_options(func=None, *, cls=ConfigOptions):
 
     on a function
     >>> @load_options(cls=Options)
-    ... def testfunc(options, config, **kw):
+    ... def testfunc(options=None, config=None, **kw):
     ...     return options.host, options.user, options.pazz
 
     >>> testfunc('test.foo.ftp', test_config)
+    ('foo', 'bar', 'baz')
+
+    as simple kwargs
+    >>> testfunc(host='foo', user='bar', pazz='baz')
     ('foo', 'bar', 'baz')
 
     on a class
@@ -137,7 +142,7 @@ def load_options(func=None, *, cls=ConfigOptions):
     >>> t.host, t.user, t.pazz
     ('foo', 'bar', 'baz')
     """
-    def _load(options, config=None, /, **kw):
+    def _load(options=None, config=None, /, **kw):
         if isinstance(options, dict):
             options = cls(**options)
         if isinstance(options, str):
@@ -148,11 +153,11 @@ def load_options(func=None, *, cls=ConfigOptions):
             kw.pop(field.name, None)
         return options, config, kw
     @wraps(func)
-    def func_wrapper(options, config=None, **kw):
+    def func_wrapper(options=None, config=None, /, **kw):
         options, config, kw = _load(options, config, **kw)
         return func(options, config=config, **kw)
     @wraps(func)
-    def class_wrapper(self, options, config=None, **kw):
+    def class_wrapper(self, options=None, config=None, /, **kw):
         options, config, kw = _load(options, config, **kw)
         return func(self, options, config=config, **kw)
     if func is None:
