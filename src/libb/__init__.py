@@ -14,6 +14,7 @@ from libb.funcutils import *
 from libb.io import *
 from libb.iterutils import *
 from libb.mathutils import *
+from libb.mimetypesutils import *
 from libb.moduleutils import *
 from libb.montecarlo import *
 from libb.pathutils import *

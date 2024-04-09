@@ -26,6 +26,9 @@ requests = "*"
 tqdm = "^4.66.2"
 trace-dkey = "0.0.6"
 platformdirs = "^4.2.0"
+# == mimetypes
+python-magic = { version = ">=0.4.12", optional = true }
+python-magic-bin = { version = ">=0.4.12", markers = "sys_platform == 'win32' or sys_platform =='darwin'", optional = true }
 # == web
 Flask = { version = "^3.0.2", optional = true }
 "web.py" = { version = "^0.62", optional = true }
