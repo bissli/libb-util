@@ -24,6 +24,7 @@ from libb.streamutils import *
 from libb.syncd import *
 from libb.textutils import *
 from libb.thread import *
+from libb.typingutils import *
 from libb.util import *
 from libb.weblib import *
 from libb.win import *
