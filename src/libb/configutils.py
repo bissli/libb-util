@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     'Setting',
-    'BaseOptions',
+    'ConfigOptions',
     'load_options',
     'get_tempdir',
     'get_vendordir',
@@ -81,22 +81,22 @@ class Setting(dict):
 
 
 @dataclass
-class BaseOptions:
-    """Load from config"""
+class ConfigOptions:
+    """Load from config.py"""
 
     @classmethod
-    def from_config(cls, sitename: str, config=None):
+    def from_config(cls, setting: str, config=None):
         this = config
-        for level in sitename.split('.'):
+        for level in setting.split('.'):
             this = getattr(this, level)
         return cls(**this)
 
 
-def load_options(func=None, *, cls=BaseOptions):
+def load_options(func=None, *, cls=ConfigOptions):
     """Wrapper that builds dataclass options from config file.
 
     Standard interface:
-        options: str | dict | BaseOptions| None
+        options: str | dict | ConfigOptions| None
         config: config module that defines options in `Settings` format
         kwargs: additional kw-args to pass to function
 
@@ -104,38 +104,40 @@ def load_options(func=None, *, cls=BaseOptions):
 
     >>> Setting.unlock()
     >>> test = Setting()
-    >>> test.foo.app.foo = 1
-    >>> test.foo.app.bar = 2
-    >>> test.foo.app.baz = 3
+    >>> test.foo.ftp.host = 'foo'
+    >>> test.foo.ftp.user = 'bar'
+    >>> test.foo.ftp.pazz = 'baz'
     >>> Setting.lock()
 
     >>> create_mock_module('test_config', {'test': test})
     >>> import test_config
 
     >>> @dataclass
-    ... class Options(BaseOptions):
-    ...     foo: int = 0
-    ...     bar: int = 0
-    ...     baz: int = 0
+    ... class Options(ConfigOptions):
+    ...     host: str = None
+    ...     user: str = None
+    ...     pazz: str = None
 
+    on a function
     >>> @load_options(cls=Options)
     ... def testfunc(options, config, **kw):
-    ...     return options.foo, options.bar, options.baz
+    ...     return options.host, options.user, options.pazz
 
-    >>> testfunc('test.foo.app', test_config)
-    (1, 2, 3)
+    >>> testfunc('test.foo.ftp', test_config)
+    ('foo', 'bar', 'baz')
 
+    on a class
     >>> class Test:
     ...     @load_options(cls=Options)
     ...     def __init__(self, options, config, **kw):
-    ...         self.foo = options.foo
-    ...         self.bar = options.bar
-    ...         self.baz = options.baz
-    >>> t = Test('test.foo.app', test_config)
-    >>> t.foo, t.bar, t.baz
-    (1, 2, 3)
+    ...         self.host = options.host
+    ...         self.user = options.user
+    ...         self.pazz = options.pazz
+    >>> t = Test('test.foo.ftp', test_config)
+    >>> t.host, t.user, t.pazz
+    ('foo', 'bar', 'baz')
     """
-    def _load(options, config=None, **kw):
+    def _load(options, config=None, /, **kw):
         if isinstance(options, dict):
             options = cls(**options)
         if isinstance(options, str):
