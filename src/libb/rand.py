@@ -4,7 +4,6 @@ import random
 from functools import wraps
 
 import numpy as np
-from typing_extensions import List
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ def rseed(func):
 
 
 @rseed
-def random_choice(choices: List):
+def random_choice(choices: list):
     """Random choice amont list of choices"""
     random.shuffle(choices)
     return choices[0]

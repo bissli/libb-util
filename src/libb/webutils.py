@@ -407,32 +407,8 @@ def xsrf_protected(fn):
 
 
 #
-# simple web.py internationalization
-#
-
-
-def i18n_loadhook():
-    """Hook i18n into lang middleware
-
-    >>> app.add_processor(web.loadhook(i18n_loadhook))  # doctest: +SKIP
-    """
-    web.ctx.lang = web.input(lang=None, _method='GET').lang
-
-
-def custom_gettext(string):
-    """Translate a given string to the language of the application
-    via http://webpy.org/cookbook/i18n_support_in_template_file
-    """
-    translation = web.ctx.lang and load_translations(web.ctx.lang)
-    if translation is None:
-        return str(string)
-    return translation.ugettext(string)
-
-
-#
 # decorators on REST api
 #
-
 VALID_KEY = re.compile('[a-zA-Z0-9_-]{1,255}')
 
 

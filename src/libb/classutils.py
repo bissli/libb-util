@@ -428,20 +428,6 @@ def composable(decorators):
     return wrapped
 
 
-def caller_entity(func):
-    """Helper to get current entity from function"""
-    # general frame args inspect
-    frame = inspect.currentframe()
-    outer_frames = inspect.getouterframes(frame)
-    caller_frame = outer_frames[1][0]
-    args = inspect.getargvalues(caller_frame)
-    # find our entity
-    param = inspect.signature(func).parameters.get('entity')
-    default = param.default if param else NYSE
-    entity = args.locals['kwargs'].get('entity', default)
-    return entity
-
-
 def catch_exception(f):
     @wraps(f)
     def func(*args, **kwargs):
