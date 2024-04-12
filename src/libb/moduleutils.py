@@ -1,50 +1,71 @@
 import inspect
+import re
 import sys
 import types
+from collections.abc import Iterable
 from importlib import util as importlib_util
 from pkgutil import ModuleInfo, walk_packages
 from types import ModuleType
-from typing import Iterable
-
-import regex as re
+from typing import Any
+from collections.abc import Callable
 
 
 class OverrideModuleGetattr:
-    """Class to wrap a Python module and override the __getattr__ method
-    so we can hook into 'config.foo' module-level variable access.
+    """A wrapper class to override the __getattr__ method of a Python module.
 
-    Used for config files. To use in a module:
+    This class allows for the dynamic attribute access of a module, typically
+    used for config.py settings. It can look up attributes in an override
+    module before falling back to the wrapped module's attributes.
 
-      self = OverrideModuleGetattr(sys.modules[__name__], local_config)
-      sys.modules[__name__] = self
+    config.py example:
+        self = OverrideModuleGetattr(sys.modules[__name__], local_config)
+        sys.modules[__name__] = self
 
-    See test case example in test_config.py
+    >>> from libb import Setting
+    >>> create_mock_module('config', {'foo': Setting(bar=1)})
+    >>> original_config = sys.modules['config']
+
+    >>> override_config = ModuleType('override_config')
+    >>> override_config.foo = Setting(bar=2)
+
+    >>> wrapped_config = OverrideModuleGetattr('config', override_config)
+    >>> sys.modules['config'] = wrapped_config # important!
+
+    >>> import config
+    >>> assert config.foo.bar == 2
+
+    >>> sys.modules['config'] = original_config
+    >>> import config
+    >>> assert config.foo.bar == 1
     """
 
-    def __init__(self, wrapped, override):
+    def __init__(self, wrapped: ModuleType, override: ModuleType) -> None:
         self.wrapped = wrapped
         self.override = override
 
     def __getattr__(self, name):
-        """Get the attribute, first looking in the override
-        module and then falling back to the wrapped one.
+        """Get the attribute, first looking in the override module and then
+        falling back to the wrapped one.
         """
         try:
             env = self.override.ENVIRONMENT
         except AttributeError:
-            env = self.wrapped.ENVIRONMENT
+            try:
+                env = self.wrapped.ENVIRONMENT
+            except:
+                pass
 
         if self.override:
             try:
                 return getattr(getattr(self.override, env), name)
-            except (AttributeError, KeyError, ValueError):
+            except:
                 try:
                     return getattr(self.override, name)
-                except (AttributeError, KeyError, ValueError):
+                except:
                     pass
         try:
             return getattr(getattr(self.wrapped, env), name)
-        except (AttributeError, KeyError, ValueError):
+        except:
             return getattr(self.wrapped, name)
 
     def __getitem__(self, name):
@@ -56,7 +77,7 @@ class OverrideModuleGetattr:
         return self.__getattr__(bits[-1])
 
 
-def get_module(modulename):
+def get_module(modulename: str) -> ModuleType:
     """A trick to import a dotted module name. This is becasue if you
     call __import__('a.b.c') it really return module a. But by just
     importing it, you can dig out the childmost module from sys.modules.
@@ -65,7 +86,7 @@ def get_module(modulename):
     return sys.modules[modulename]
 
 
-def get_class(classname):
+def get_class(classname: str) -> type:
     """Get the class by name. If it has a module prefix, import that module
     and get it from there, otherwise assume it is already in globals.
     """
@@ -78,7 +99,7 @@ def get_class(classname):
     return cls
 
 
-def get_subclasses(module, parentcls):
+def get_subclasses(module: str | ModuleType, parentcls: type) -> list[type]:
     """Get all classes defined in module and subclass of parentcls"""
     if isinstance(module, str):
         module = get_module(module)
@@ -93,7 +114,7 @@ def get_subclasses(module, parentcls):
     return subclasses
 
 
-def get_function(funcname, module=None):
+def get_function(funcname: str, module: ModuleType | None = None) -> Callable | None:
     """Get a function - in caller module if no module specified"""
     if not module:
         frame = inspect.stack()[1]
@@ -103,11 +124,13 @@ def get_function(funcname, module=None):
     return None
 
 
-def load_module(name, path):
+def load_module(name: str, path: str) -> ModuleType:
     """Load module from path
 
-    m = load_module('foo', './foo.py')
-    m.bar()
+    >>> import os
+    >>> m = load_module('moduleutils', os.path.abspath(__file__))
+    >>> m.load_module
+    <function load_module at ...>
 
     """
     module_spec = importlib_util.spec_from_file_location(name, path)
@@ -116,8 +139,8 @@ def load_module(name, path):
     return module
 
 
-def patch_load(module_name: str, funcs: list, releft: str='',
-               reright: str='', repl: str='_', module_name_prefix=''):
+def patch_load(module_name: str, funcs: list[str], releft: str = '',
+               reright: str = '', repl: str = '_', module_name_prefix: str = '') -> ModuleType:
     """Patch import module with test_ prefix for specified tables
     executed as
         ```
@@ -135,21 +158,25 @@ def patch_load(module_name: str, funcs: list, releft: str='',
     return module
 
 
-def patch_module(source_name, target_name):
+def patch_module(source_name: str, target_name: str) -> ModuleType:
     """Replace source module with our target module
 
-    Assume we are writing a module named platform (danger!!!) and we
-    want to import the standard platform into that module.
+    Assume we are writing a module named sys (danger!!!) and we
+    want to import the standard sys into that module.
 
-    In platform.py we would include:
+    For reference
+    >>> import sys
+    >>> original_sys = sys.modules['sys']
 
-    _platform = patch_module('platform', '_platform')
+    In code
+    >>> _sys = patch_module('sys', '_sys')
+    >>> 'sys' in sys.modules
+    False
+    >>> '_sys' in sys.modules
+    True
 
-    _platform would now refer to the current module
-
-    Then I can write "import platform" to import the system
-    platform module.
-
+    For reference
+    >>> sys.modules['sys'] = original_sys  # Restore original sys module
     """
     __import__(source_name)
     m = sys.modules.pop(source_name)
@@ -160,12 +187,18 @@ def patch_module(source_name, target_name):
     return target_module
 
 
-def create_instance(classname, *args, **kwargs):
+def create_instance(classname: str, *args: Any, **kwargs: Any) -> Any:
+    """Create an instance of a class by name.
+
+    >>> instance = create_instance('libb.Setting', foo=42)
+    >>> instance.foo
+    42
+    """
     cls = get_class(classname)
     return cls(*args, **kwargs)
 
 
-def create_mock_module(modname: str, params: dict):
+def create_mock_module(modname: str, params: dict[str, Any] | None = None) -> None:
     """Create mock module with set attribute and return value.
 
     For testing config settings without creating actual config file.
@@ -184,6 +217,8 @@ def create_mock_module(modname: str, params: dict):
     >>> foomod.x.return_value
     'bar'
     """
+    if params is None:
+        params = {}
     mock_module = ModuleType(modname)
     sys.modules[modname] = mock_module
     for attr, value in params.items():
@@ -191,7 +226,12 @@ def create_mock_module(modname: str, params: dict):
 
 
 class VirtualModule:
-    def __init__(self, modname, submodules):
+    """A class representing a virtual module that can have submodules sourced
+    from other modules.
+
+    Call from `create_virtual_module`
+    """
+    def __init__(self, modname: str, submodules: dict[str, str]) -> None:
         try:
             self._mod = __import__(modname)
         except:
@@ -202,7 +242,7 @@ class VirtualModule:
         self._submodules = submodules
 
     def __repr__(self):
-        return 'Virtual module for ' + self._modname
+        return f'Virtual module for {self._modname}'
 
     def __getattr__(self, attrname):
         if attrname in self._submodules:
@@ -211,23 +251,31 @@ class VirtualModule:
         return self._mod.__dict__[attrname]
 
 
-def create_virtual_module(modname, submodules):
-    """Create virtual module with submodule from other module
+def create_virtual_module(modname: str, submodules: dict[str, str]) -> None:
+    """Create a virtual module with submodules that are sourced from other
+    modules.
 
-    >>> import libb
-    >>> create_virtual_module('libb', {'new_config': 'libb'})
-    >>> import libb
-    >>> libb.Setting()
-    {}
-    >>> libb.new_config.Setting()
-    {}
+    Args:
+        modname (str): The name of the virtual module to create.
+        submodules (dict): A dictionary mapping submodule names to actual
+                           module names.
 
-    >>> import libb
-    >>> create_virtual_module('foo', {'config': 'libb'})
+    Submodule libb into another module
+    >>> create_virtual_module('foo', {'libb': 'libb'})
     >>> import foo
-    >>> foo.config.Setting()
+    >>> foo.libb.Setting()
     {}
 
+    Create virtual config.py as submodule of foo
+    >>> from libb import Setting
+    >>> create_mock_module('mock_config', {'ENVIRONMENT': 'prod', 'bar': Setting(baz=1)})
+    >>> import mock_config
+    >>> create_virtual_module('foo', {'config': 'mock_config'})
+    >>> import foo
+    >>> foo.config.ENVIRONMENT
+    'prod'
+    >>> foo.config.bar.baz
+    1
     """
     VirtualModule(modname, submodules)
 
@@ -238,16 +286,65 @@ def get_packages_in_module(m: ModuleType) -> Iterable[ModuleInfo]:
     >>> _ = get_package_paths_in_module(libb)
     >>> assert 'libb.moduleutils' in _
     """
-    return walk_packages(m.__path__, prefix=m.__name__ + '.')  # type: ignore
+    return walk_packages(m.__path__, prefix=f'{m.__name__}.')  # type: ignore
 
 
 def get_package_paths_in_module(m: ModuleType) -> Iterable[str]:
-    """Useful for pytest conftestloading
+    """Get a list of package paths within a given module, useful for pytest
+    conftest loading.
 
-    conftest.py:
-    pytest_plugins = [*get_package_paths_in_module(tests.fixtures)]
+    Args:
+        m (ModuleType): The module to inspect for package paths.
+
+    Returns
+        Iterable[str]: An iterable of package paths as strings.
+
+    Example conftest.py:
+        pytest_plugins = [*get_package_paths_in_module(tests.fixtures)]
     """
     return [package.name for package in get_packages_in_module(m)]
+
+
+def import_non_local(name: str, custom_name: str | None = None) -> ModuleType:
+    """Import a module using a custom name to avoid conflicts with local module
+    names.
+
+    This function is useful when you have a module with the same name as a
+    standard library or third-party module and you want to import the non-local
+    one.
+
+    Args:
+        name (str): The original module name.
+        custom_name (str): The custom name to use for the imported module.
+
+    Returns
+        ModuleType: The imported module with the custom name.
+
+    To demonstrate import_non_local, we'll create a mock module named
+    'mock_calendar' and then import it using import_non_local with a
+    custom name 'std_calendar' to differentiate it from the built-in
+    'calendar' module.
+
+    Create a demo mock of calendar (would use actual calendar.py)
+    >>> create_mock_module('mock_calendar')
+    >>> import mock_calendar
+    >>> mock_calendar.isleap = lambda year: year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+
+    Now import mock_calendar in place of calendar
+    >>> calendar = import_non_local('calendar', 'mock_calendar')
+    >>> 'mock_calendar' in sys.modules
+    True
+    >>> calendar.isleap(2020)
+    True
+    """
+    custom_name = custom_name or name
+    spec = importlib_util.find_spec(name, sys.path[1:])
+    if spec is None:
+        raise ModuleNotFoundError(f"No module named '{name}'")
+    module = importlib_util.module_from_spec(spec)
+    sys.modules[custom_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 if __name__ == '__main__':
