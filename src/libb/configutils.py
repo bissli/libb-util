@@ -3,7 +3,7 @@
 import logging
 import os
 import tempfile
-from abc import ABCMeta
+from abc import ABC
 from dataclasses import dataclass, fields
 from functools import partial, wraps
 from pathlib import Path
@@ -82,7 +82,7 @@ class Setting(dict):
 
 
 @dataclass
-class ConfigOptions(metaclass=ABCMeta):
+class ConfigOptions(ABC):
     """Load from config.py"""
 
     @classmethod
@@ -121,10 +121,10 @@ def load_options(func=None, *, cls=ConfigOptions):
 
     on a function
     >>> @load_options(cls=Options)
-    ... def testfunc(options=None, config=None, **kw):
+    ... def testfunc(options=None, config=None, **kwargs):
     ...     return options.host, options.user, options.pazz
 
-    >>> testfunc('test.foo.ftp', test_config)
+    >>> testfunc('test.foo.ftp', config=test_config)
     ('foo', 'bar', 'baz')
 
     as simple kwargs
@@ -134,7 +134,7 @@ def load_options(func=None, *, cls=ConfigOptions):
     on a class
     >>> class Test:
     ...     @load_options(cls=Options)
-    ...     def __init__(self, options, config, **kw):
+    ...     def __init__(self, options, config, **kwargs):
     ...         self.host = options.host
     ...         self.user = options.user
     ...         self.pazz = options.pazz
@@ -142,26 +142,30 @@ def load_options(func=None, *, cls=ConfigOptions):
     >>> t.host, t.user, t.pazz
     ('foo', 'bar', 'baz')
     """
-    def _load(options=None, config=None, /, **kw):
+    def _load(options=None, /, config=None, **kwargs):
         if isinstance(options, dict):
             options = cls(**options)
         if isinstance(options, str):
             options = cls.from_config(options, config=config)
         if options is None:
-            options = cls(**kw)
+            options = cls(**kwargs)
         for field in fields(cls):
-            kw.pop(field.name, None)
-        return options, config, kw
+            kwargs.pop(field.name, None)
+        return options, config, kwargs
+
     @wraps(func)
-    def func_wrapper(options=None, config=None, /, **kw):
-        options, config, kw = _load(options, config, **kw)
-        return func(options, config=config, **kw)
+    def func_wrapper(options=None, /, config=None, **kwargs):
+        options, config, kw = _load(options, config, **kwargs)
+        return func(options, config=config, **kwargs)
+
     @wraps(func)
-    def class_wrapper(self, options=None, config=None, /, **kw):
-        options, config, kw = _load(options, config, **kw)
-        return func(self, options, config=config, **kw)
+    def class_wrapper(self, options=None, /, config=None, **kwargs):
+        options, config, kw = _load(options, config, **kwargs)
+        return func(self, options, config=config, **kwargs)
+
     if func is None:
         return partial(load_options, cls=cls)
+
     from libb import is_instance_method
     if is_instance_method(func):
         return class_wrapper
