@@ -41,14 +41,14 @@ def npfunc(nargs=1):
 
 def _tonp(x):
     """Handle None to NaN conversion"""
-    if isinstance(x, (list, tuple)):
+    if isinstance(x, list | tuple):
         return np.array([np.nan if k is None else k for k in x])
     return x
 
 
 def _totc(x):
     """Replace np.nan with Python None"""
-    if isinstance(x, (np.ndarray, types.GeneratorType)):
+    if isinstance(x, np.ndarray | types.GeneratorType):
         return [k if not isnan(k) else None for k in x]  # keep None
     if isnan(x):
         return None
@@ -128,13 +128,13 @@ def thresh(x, thresh=0.0):
     f, c = floor(x), ceil(x)
     if c - thresh < x:
         return c
-    elif f + thresh > x:
+    if f + thresh > x:
         return f
     return x
 
 
 def isnumeric(x):
-    return np.issubdtype(x, np.integer) or np.issubdtype(x, np.floating) or isinstance(x, (int, float))
+    return np.issubdtype(x, np.integer) or np.issubdtype(x, np.floating) or isinstance(x, int | float)
 
 
 # move out
@@ -160,7 +160,7 @@ def numify(val, to=float):
     """Return float from string"""
     if val is None:
         return val
-    if isinstance(val, (int, float)):
+    if isinstance(val, int | float):
         return to(val)
     if isinstance(val, str):
         val = val.strip()
@@ -409,7 +409,7 @@ def linterp(x0, x1, x, y0, y1):
     >>> linterp(1, 3, 2, 2, 4)
     3.0
     >>> linterp(1, float('inf'), 2, 2, 4)
-    3.0
+    2.0
     """
     return float(np.interp(x, [x0, x1], [y0, y1]))
 
@@ -605,10 +605,9 @@ def convert_to_mixed_numeral(num, force_sign=False):
 
     if m != 0 and p > 0:
         return f'{s}{m} {p}/{d}'
-    elif m != 0:
+    if m != 0:
         return f'{s}{m}'
-    else:
-        return f'{s}{n}/{d}'
+    return f'{s}{n}/{d}'
 
 
 class BBox:
@@ -622,11 +621,9 @@ class BBox:
         self.name = name
 
     def __repr__(self):
-        return (
-            'BBox({0.name}({0.x:.3f},{0.y:.3f}), '
-            '{0.x_min:.3f}:{0.x_max:.3f}, '
-            '{0.y_min:.3f}:{0.y_max:.3f})'.format(self)
-        )
+        return f'BBox({self.name}({self.x:.3f},{self.y:.3f}), '\
+               f'{self.x_min:.3f}:{self.x_max:.3f}, '\
+               f'{self.y_min:.3f}:{self.y_max:.3f})'
 
     @property
     def a(self):
@@ -673,18 +670,20 @@ def overlaps(*boxes):
 def push_apart(*boxes):
     """Push apart bounding boxes until they do not overlap
 
-    >>> a = BBox(1, 1, 4, 4, 'a')
+    From idea for https://stackoverflow.com/a/10739207
+
+    >>> a = BBox(1, 1, 4, 2, 'a')
     >>> a
     BBox(a(1.000,1.000), -1.000:3.000, 0.000:2.000)
-    >>> b = BBox(0, 3, 3, 3, 'b')
+    >>> b = BBox(1, 2, 3, 3, 'b')
     >>> b
     BBox(b(1.000,2.000), -0.500:2.500, 0.500:3.500)
 
     >>> push_apart(a, b)
     >>> a
-    BBox(a(4.05,-2.04), 2.04:6.04, -3.04:-1.04)
+    BBox(a(4.045,-2.045), 2.045:6.045, -3.045:-1.045)
     >>> b
-    BBox(b(0.07,5.23), -1.43:1.57, 3.73:6.73)
+    BBox(b(0.067,5.225), -1.433:1.567, 3.725:6.725)
     """
     tries = 0
     max_tries = 100
