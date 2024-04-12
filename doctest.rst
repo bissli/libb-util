@@ -1,25 +1,27 @@
 .. desc:: Files with doctests to include in the pytest runner
 
 .. doctest::
-   >>> import libb
+   >>> from importlib import util as importlib_util
+   >>> def load_module(name, path):
+   ...     module_spec = importlib_util.spec_from_file_location(name, path)
+   ...     module = importlib_util.module_from_spec(module_spec)
+   ...     module_spec.loader.exec_module(module)
+   ...     return module
    >>> from functools import partial
    >>> import doctest
-   >>> flags = doctest.NORMALIZE_WHITESPACE \
-   ...  | doctest.IGNORE_EXCEPTION_DETAIL \
-   ...  | doctest.ELLIPSIS
-   >>> testmod = partial(doctest.testmod, verbose=False, optionflags=flags)
+   >>> testmod = partial(doctest.testmod, verbose=False, optionflags=4 | 8 | 32)
 
    libb modules
-   >>> _ = testmod(libb.format)
-   >>> _ = testmod(libb.date)
-   >>> _ = testmod(libb.config)
-   >>> _ = testmod(libb.weblib)
-   >>> _ = testmod(libb.mail)
-   >>> _ = testmod(libb.util)
-   >>> _ = testmod(libb.maths)
-   >>> _ = testmod(libb.text)
-   >>> _ = testmod(libb.dir)
-   >>> _ = testmod(libb.module)
-   >>> _ = testmod(libb.cmdline)
-   >>> _ = testmod(libb.path)
-   >>> _ = testmod(libb.io)
+   >>> import libb
+   >>> _ = testmod(libb.formatutils)
+   >>> _ = testmod(libb.moduleutils)
+   >>> _ = testmod(libb.webutils)
+   >>> _ = testmod(libb.funcutils)
+   >>> _ = testmod(libb.mathutils)
+   >>> _ = testmod(libb.pathutils)
+   >>> _ = testmod(libb.dictutils)
+   >>> _ = testmod(libb.setutils)
+   >>> _ = testmod(libb.funcutils)
+   >>> _ = testmod(libb.mimetypesutils)
+   >>> _ = testmod(libb.streamutils)
+   >>> _ = testmod(libb.typingutils)

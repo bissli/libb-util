@@ -43,18 +43,15 @@ def format(value, style):
     /x  - divide the number by 1e3 (k), 1e6 (m), 1e9 (b) first
           (does not append the units like KMB do)
     """
-    # first ensure we have a reasonable value
-    if value != 0 and not value:
+    if isinstance(value, str):
+        value = value.strip()
+    if value is None or value == '':
         return ''
+    if isinstance(value, str) and not value.isdigit():
+        return value
     if not style:
         return value
-    try:
-        val = float(value)
-    except (TypeError, ValueError) as exc:
-        return value
-    except Exception as exc:
-        logger.exception(exc)
-        return value
+    val = float(value)
 
     # verify the style
     m = re.match(r'^\+?(\d)([cpzZkKmMbBsS%#]{0,4})(/[kKmMbB])?$', style)

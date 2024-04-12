@@ -5,9 +5,9 @@ from libb import fmt
 
 
 def test_bad_values():
-    assert_equal('', format(None, ''))
-    assert_equal('', format('', ''))
-    assert_equal('not a number', format('not a number', ''))
+    assert_equal('', fmt(None, ''))
+    assert_equal('', fmt('', ''))
+    assert_equal('not a number', fmt('not a number', ''))
 
 
 def test_bad_formats():
