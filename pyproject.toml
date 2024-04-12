@@ -27,6 +27,8 @@ tqdm = "^4.66.2"
 trace-dkey = "0.0.6"
 platformdirs = "^4.2.0"
 typing-extensions = "*"
+# == pandas
+pandas-downcast = { version = "1.2.4", optional = true }
 # == mimetypes
 python-magic = { version = ">=0.4.12", optional = true }
 python-magic-bin = { version = ">=0.4.12", markers = "sys_platform == 'win32' or sys_platform =='darwin'", optional = true }
