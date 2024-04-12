@@ -1,11 +1,8 @@
 import logging
 import os
 import site
-import test.fixtures
 
 import pytest
-
-from libb import get_package_paths_in_module
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +33,3 @@ def logger(request):
     logger = logging.getLogger(__name__)
     logger.setLevel(numeric_level)
     return logger
-
-
-pytest_plugins = [*get_package_paths_in_module(test.fixtures)]

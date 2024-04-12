@@ -1,4 +1,4 @@
-from libb.config import *
+from libb import Setting
 
 Setting.unlock()
 

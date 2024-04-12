@@ -1,6 +1,6 @@
 import config_sample
 
-from libb.config import Setting
+from libb import Setting
 
 Setting.unlock()
 
