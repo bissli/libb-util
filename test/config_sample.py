@@ -23,10 +23,7 @@ main = Setting()
 main.main = 'Main'
 main.override = 'Main'
 
-try:
-    import local_config_sample
-except ImportError:
-    local_config_sample = None
+import local_config_sample
 
 self = OverrideModuleGetattr(sys.modules[__name__], local_config_sample)
 sys.modules[__name__] = self
