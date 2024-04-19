@@ -1,8 +1,5 @@
-import ast
-import inspect
 import logging
 import sys
-from collections.abc import Iterable
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -352,80 +349,41 @@ def extend_instance(obj, cls, left=True):
         obj.__class__ = type(obj.__class__.__name__, (obj.__class__, cls), {})
 
 
-def is_instance_method(func):
-    return len(func.__qualname__.split('.')) > 1
+def ultimate_type(typeobj: object | type | None):
+    """Resolve ultimate base of object (but not object base)
 
+    >>> import datetime
+    >>> class DateFoo(datetime.date):
+    ...     pass
+    >>> class DateBar(DateFoo):
+    ...    pass
+    >>> d0 = datetime.date(2000, 1, 1)
+    >>> d1 = DateFoo(2000, 1, 1)
+    >>> d2 = DateBar(2000, 1, 1)
+    >>> ultimate_type(d0)
+    <class 'datetime.date'>
+    >>> ultimate_type(d1)
+    <class 'datetime.date'>
+    >>> ultimate_type(d1)
+    <class 'datetime.date'>
+    >>> ultimate_type(d1.__class__)
+    <class 'datetime.date'>
+    >>> ultimate_type(d2.__class__)
+    <class 'datetime.date'>
 
-def find_decorators(target):
-    """https://stackoverflow.com/a/9580006"""
-    res = {}
-
-    def visit_function_def(node):
-        res[node.name] = [ast.dump(e) for e in node.decorator_list]
-
-    V = ast.NodeVisitor()
-    V.visit_FunctionDef = visit_function_def
-    V.visit(compile(inspect.getsource(target), '?', 'exec', ast.PyCF_ONLY_AST))
-    return res
-
-
-def composable(decorators):
-    """Decorator that takes a list of decorators to be composed
-
-    useful when list of decorators starts getting large and unruly
-
-    >>> def m3(func):
-    ...     def wrapped(n):
-    ...         return func(n)*3.
-    ...     return wrapped
-
-    >>> def d2(func):
-    ...     def wrapped(n):
-    ...         return func(n)/2.
-    ...     return wrapped
-
-    >>> def p3(n):
-    ...     return n+3.
-
-    >>> @m3
-    ... @d2
-    ... def plusthree(x):
-    ...     return p3(x)
-
-    >>> @composable([d2, m3])
-    ... def cplusthree(x):
-    ...     return p3(x)
-
-    Despite the similar name, composed decorators are not
-    interchangeable with `compose` for standard functions,
-    since decorators return functions, not the func output
-    >>> func = compose(m3, d2, p3)(4)
-    >>> hasattr(func, '__call__')
-    True
-    >>> compose(lambda n: n*3., lambda n: n/2., p3)(4)
-    10.5
-
-    what they do allow is consolidating longer decorator chains
-    >>> plusthree(4)
-    10.5
-    >>> cplusthree(4)
-    10.5
+    >>> ultimate_type(None)
+    <class 'NoneType'>
     """
-
-    def composed(func):
-        if isinstance(decorators, Iterable) and not isinstance(decorators, str):
-            for dec in decorators[::-1]:
-                func = dec(func)
-            return func
-        return decorators(func)
-
-    def wrapped(func):
-        @wraps(func)
-        def f(*a, **kw):
-            return composed(func)(*a, **kw)
-        return f
-
-    return wrapped
+    if not isinstance(typeobj, type):
+        typeobj = type(typeobj)
+    bases, this = [typeobj], typeobj
+    while True:
+        try:
+            bases.append(this.__bases__[-1])
+            this = bases[-1]
+        except IndexError:
+            break
+    return bases[-2]
 
 
 def catch_exception(f):
