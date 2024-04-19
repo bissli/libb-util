@@ -7,7 +7,12 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['random_choice', 'random_int', 'random_sample']
+__all__ = [
+    'random_choice',
+    'random_int',
+    'random_sample',
+    'random_random',
+]
 
 
 def rseed(func):
@@ -32,6 +37,11 @@ def random_choice(choices: list):
 @rseed
 def random_int(a: int, b: int):
     return random.randint(a, b)
+
+
+@rseed
+def random_random():
+    return random.random()
 
 
 @rseed

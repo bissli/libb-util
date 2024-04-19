@@ -25,3 +25,5 @@
    >>> _ = testmod(libb.mimetypesutils)
    >>> _ = testmod(libb.streamutils)
    >>> _ = testmod(libb.typingutils)
+   >>> _ = testmod(libb.classutils)
+   >>> _ = testmod(libb.matrixutils)
