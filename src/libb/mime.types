@@ -262,6 +262,8 @@ application/vndms-exceladdinmacroenabled12	xlam
 application/vndms-excelsheetbinarymacroenabled12	xlsb
 application/vndms-excelsheetmacroenabled12	xlsm
 application/vndms-exceltemplatemacroenabled12	xltm
+application/vndopenxmlformats-officedocumentspreadsheetmlsheet	xlsx
+application/vndopenxmlformats-officedocumentspreadsheetmltemplate	xltx
 application/vndms-fontobject	eot
 application/vndms-htmlhelp	chm
 application/vndms-ims	ims
@@ -319,8 +321,6 @@ application/vndopenxmlformats-officedocumentpresentationmlpresentation	pptx
 application/vndopenxmlformats-officedocumentpresentationmlslide	sldx
 application/vndopenxmlformats-officedocumentpresentationmlslideshow	ppsx
 application/vndopenxmlformats-officedocumentpresentationmltemplate	potx
-application/vndopenxmlformats-officedocumentspreadsheetmlsheet	xlsx
-application/vndopenxmlformats-officedocumentspreadsheetmltemplate	xltx
 application/vndopenxmlformats-officedocumentwordprocessingmldocument	docx
 application/vndopenxmlformats-officedocumentwordprocessingmltemplate	dotx
 application/vndosgidp	dp
