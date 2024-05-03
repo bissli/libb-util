@@ -29,6 +29,8 @@ platformdirs = "^4.2.0"
 typing-extensions = "*"
 # == pandas
 pandas-downcast = { version = "1.2.4", optional = true }
+pyarrow = { version = "*", optional = true }
+pandas = { version = "*", optional = true }
 # == mimetypes
 python-magic = { version = ">=0.4.12", optional = true }
 python-magic-bin = { version = ">=0.4.12", markers = "sys_platform == 'win32' or sys_platform =='darwin'", optional = true }
@@ -56,6 +58,11 @@ text = [
   "ftfy",
   "rapidfuzz",
   "chardet",
+]
+pandas = [
+  "pyarrow",
+  "pandas",
+  "numpy",
 ]
 web = [
   "Twisted",

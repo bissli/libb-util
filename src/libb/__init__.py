@@ -17,6 +17,7 @@ from libb.mathutils import *
 from libb.mimetypesutils import *
 from libb.moduleutils import *
 from libb.montecarlo import *
+from libb.pandasutils import *
 from libb.pathutils import *
 from libb.procutils import *
 from libb.rand import *
