@@ -12,7 +12,6 @@ import tempfile
 from contextlib import contextmanager
 from functools import reduce
 from pathlib import Path
-from typing import List
 from urllib.parse import unquote, urlparse
 
 import backoff
@@ -64,7 +63,7 @@ def make_tmpdir(prefix=None) -> Path:
                 shutil.rmtree(path, ignore_errors=False)
                 logger.debug(f'Removed {path}')
             remove()
-        except IOError as io:
+        except OSError as io:
             logger.error(f'Failed to clean up temp dir {path}')
 
 
@@ -104,7 +103,7 @@ def get_directory_structure(rootdir):
     return dir
 
 
-def search(rootdir: str, name : str = None, extension: str = None) -> List:
+def search(rootdir: str, name : str = None, extension: str = None) -> list:
     """Search for file name, extension, or both (or neither) in directory
     """
     def match(file, s):
@@ -128,7 +127,7 @@ def safe_move(source, target, hard_remove=False):
             logger.info(f'Removed file at target location: {target}')
     try:
         shutil.move(source, target)
-    except EnvironmentError as err:
+    except OSError as err:
         logger.warning('Target already used; adding rendom string to target loc, trying again.')
         targetname, ext = os.path.splitext(target)
         targetname += bytes(random.getrandbits(128))
@@ -208,7 +207,7 @@ def load_files(directory, pattern='*', thedate=None):
     logger.info(f'Found {len(files)} matching files in {directory}')
     for pathname in files:
         try:
-            with open(pathname, 'r', encoding='locale') as f:
+            with open(pathname, encoding='locale') as f:
                 _file = f.read()
             yield _file
         except:
@@ -231,7 +230,7 @@ def load_files_tmpdir(patterns='*', thedate=None):
     StopIteration
     """
     tmpdir = tempfile.gettempdir()
-    if not isinstance(patterns, (list, tuple)):
+    if not isinstance(patterns, list | tuple):
         patterns = (patterns,)
     gen = []
     for pattern in patterns:
@@ -250,26 +249,27 @@ def dir_to_dict(path):
     return d
 
 
-@contextmanager
-def download_file(url) -> Path:
+@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_time=30)
+def download_file(url, save_path: str | Path = None) -> Path:
     """Better file download from url
     """
-    name = Path(urlparse(unquote(url)).path).name
-    with make_tmpdir() as tmpdir:
-        @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_time=30)
-        def get():
-            with requests.get(url, stream=True) as r:
-                save_path = tmpdir.joinpath(name)
-                total = int(r.headers.get('content-length', 0))
-                chunk = 16*1024*1024
-                with open(save_path, 'wb') as f, tqdm.tqdm(
-                    total=total, desc=name, unit='B', unit_scale=True
-                ) as p:
-                    while buf := r.raw.read(chunk):
-                        f.write(buf)
-                        p.update(len(buf))
-                return Path(save_path)
-        yield get()
+    if not save_path:
+        name = Path(urlparse(unquote(url)).path).name
+        save_path = Path(tempfile.tempdir()) / name
+    else:
+        save_path = Path(save_path)
+        name = save_path.name
+
+    with requests.get(url, stream=True) as r:
+        total = int(r.headers.get('content-length', 0))
+        chunk = 16*1024*1024
+        with save_path.open('wb') as f, tqdm.tqdm(
+            total=total, desc=name, unit='B', unit_scale=True
+        ) as p:
+            while buf := r.raw.read(chunk):
+                f.write(buf)
+                p.update(len(buf))
+        return save_path
 
 
 def splitall(path):
@@ -300,12 +300,11 @@ def splitall(path):
         if parts[0] == path:  # sentinel for absolute paths
             allparts.insert(0, parts[0])
             break
-        elif parts[1] == path:   # sentinel for relative paths
+        if parts[1] == path:   # sentinel for relative paths
             allparts.insert(0, parts[1])
             break
-        else:
-            path = parts[0]
-            allparts.insert(0, parts[1])
+        path = parts[0]
+        allparts.insert(0, parts[1])
     return allparts
 
 
