@@ -3,7 +3,6 @@ import gzip
 import shutil
 import tarfile
 import tempfile
-from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
@@ -18,7 +17,9 @@ __all__ = ['is_null', 'download_tzdata']
 def is_null(x):
     """Simple null/none checker
     """
-    if isinstance(x, Iterable):
+    from libb import isiterable
+
+    if isiterable(x):
         with contextlib.suppress(Exception):
             return np.all(x.isna())
         return bool(x)
