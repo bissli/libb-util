@@ -48,7 +48,7 @@ pytest-mock = { version = "*", optional = true }
 pytest-runner = { version = "*", optional = true }
 unittest2 = { version = "*", optional = true }
 WebTest = { version = "*", extras = ["web"], optional = true }
-pdbpp = { git = "https://github.com/pdbpp/pdbpp.git", optional = true }
+pdbpp = { git = "https://github.com/pdbpp/pdbpp.git", optional = true, rev = "master" }
 # == deploy
 bump2version = { version = "^1.0.1", optional = true }
 
