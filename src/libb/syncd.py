@@ -1,4 +1,14 @@
+import threading
 import time
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
+
+__all__ = [
+    'syncd',
+    'NonBlockingDelay',
+    'delay',
+    'debounce',
+]
 
 
 def syncd(lock):
@@ -70,6 +80,50 @@ def delay(seconds):
     delay.delay(seconds)
     while not delay.timeout():
         continue
+
+
+class Debouncer:
+    """Debounce handler for `debounce`
+    """
+    def __init__(self, func: Callable[..., Any], wait: float):
+        self.func = func
+        self.wait = wait
+        self._timer: threading.Timer | None = None
+        self._lock = threading.Lock()
+
+    def __call__(self, *args, **kwargs) -> None:
+        with self._lock:
+            # if called again cancel current timer and restart
+            if self._timer is not None:
+                self._timer.cancel()
+            self._timer = threading.Timer(self.wait, self.func, args, kwargs)
+            self._timer.start()
+
+
+VoidFunction = TypeVar('VoidFunction', bound=Callable[..., None])
+
+
+def debounce(wait: float):
+    """Wait `interval` seconds before calling `func`, and cancel
+    if called again. When a function is called multiple times with
+    debounce it will only return once if within `wait` window.
+
+    >>> @debounce(1)
+    ... def hi(name):
+    ...     print('hi {}'.format(name))
+
+    >> hi('foo')
+    >> time.sleep(0.5)
+    >> hi('bar')
+    >> time.sleep(0.5)
+    >> hi('baz')
+
+    """
+    def wrapper(func: VoidFunction) -> VoidFunction:
+        if wait <= 0:
+            return func
+        return cast(VoidFunction, Debouncer(func, wait))
+    return wrapper
 
 
 if __name__ == '__main__':
