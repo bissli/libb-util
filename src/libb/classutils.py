@@ -373,6 +373,8 @@ def ultimate_type(typeobj: object | type | None):
 
     >>> ultimate_type(None)
     <class 'NoneType'>
+    >>> ultimate_type(object)
+    <class 'object'>
     """
     if not isinstance(typeobj, type):
         typeobj = type(typeobj)
@@ -383,7 +385,9 @@ def ultimate_type(typeobj: object | type | None):
             this = bases[-1]
         except IndexError:
             break
-    return bases[-2]
+    if len(bases) > 1:
+        return bases[-2]
+    return bases[0]
 
 
 def catch_exception(f):
