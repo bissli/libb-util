@@ -151,8 +151,11 @@ def round_digit_string(s, places=3) -> str:
     return s
 
 
-def parse_number(s: str):
+def parse_number(s: str, force=True):
     """Extract number from string
+
+    Force (true): return None if does does not parse.
+    Force (false): return `s` if does does not parse.
 
     >>> parse_number('1,200m')
     1200
@@ -172,6 +175,8 @@ def parse_number(s: str):
     -100.0
     >>> parse_number('')
     >>> parse_number('foo')
+    >>> parse_number('foo', force=False)
+    'foo'
     """
     if not s:
         return
@@ -180,8 +185,10 @@ def parse_number(s: str):
     if s.endswith('.)'):
         s = s[:-2]+'.0)'
     num = ''.join(re.findall(r'[\(-\d\.\)]+', s))
-    if not num:
+    if not num and force:
         return
+    if not num:
+        return s
     if neg := re.match(r'^\((.*)\)$', num):
         num = '-'+neg.group(1)
     i = f = None
@@ -189,6 +196,8 @@ def parse_number(s: str):
         i = int(num)
     with contextlib.suppress(Exception):
         f = float(num)
+    if not force and (i is None and f is None):
+        return s
     if i == f:
         return i
     return f
