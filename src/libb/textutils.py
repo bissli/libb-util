@@ -133,12 +133,14 @@ def sanitize_vulgar_string(s):
     return s
 
 
-def round_digit_string(s, places=3) -> str:
+def round_digit_string(s, places=None) -> str:
     """Clean string comprised of digits
 
-    >>> round_digit_string('7283.1234')
+    >>> round_digit_string('7283.1234', 3)
     '7283.123'
-    >>> round_digit_string('7283')
+    >>> round_digit_string('7283.1234', None)
+    '7283.1234'
+    >>> round_digit_string('7283', 3)
     '7283'
 
     """
@@ -146,7 +148,12 @@ def round_digit_string(s, places=3) -> str:
     with contextlib.suppress(ValueError):
         f = float(s)
         i = int(f)
-        s = i if f == i else round(f, places)
+        if f == i:
+            s = i
+        elif places:
+            s = round(f, places)
+        else:
+            s = f
         return str(s)
     return s
 
