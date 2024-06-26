@@ -5,8 +5,6 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-import numpy as np
-
 with contextlib.suppress(Exception):
     import pandas as pd
     import pyarrow as pa
@@ -15,27 +13,20 @@ __all__ = ['is_null', 'download_tzdata']
 
 
 def is_null(x):
-    """Simple null/none checker
-    """
-    from libb import isiterable
+    """Simple null/none checker (pandas required)
 
-    if isiterable(x):
-        with contextlib.suppress(Exception):
-            return np.all(x.isna())
-        return bool(x)
+    >>> import datetime
+    >>> import numpy as np
+    >>> assert is_null(None)
+    >>> assert not is_null(0)
+    >>> assert is_null(np.NaN)
+    >>> assert not is_null(datetime.date(2000, 1, 1))
+
+    """
     with contextlib.suppress(Exception):
-        if isinstance(x, pd._libs.missing.NAType):
-            return True
-    with contextlib.suppress(TypeError):
         if isinstance(x, pa.lib.NullScalar):
             return True
-    with contextlib.suppress(TypeError):
-        if np.isnat(x):
-            return True
-    with contextlib.suppress(TypeError):
-        if np.isnan(x):
-            return True
-    return x is None
+    return pd.isnull(x)
 
 
 def download_tzdata():
