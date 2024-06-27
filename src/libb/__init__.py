@@ -23,7 +23,7 @@ from libb.procutils import *
 from libb.rand import *
 from libb.setutils import *
 from libb.streamutils import *
-from libb.syncd import *
+from libb.syncdutils import *
 from libb.textutils import *
 from libb.thread import *
 from libb.typingutils import *
