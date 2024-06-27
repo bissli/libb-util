@@ -1,6 +1,6 @@
 import itertools
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 import more_itertools as _more_itertools
 
@@ -16,6 +16,7 @@ __all__ = [
     'infinite_iterator',
     'iscollection',
     'isiterable',
+    'issequence',
     'partition',
     'peel',
     'roundrobin',
@@ -38,10 +39,47 @@ def isiterable(obj):
 
     >>> isiterable([])
     True
+    >>> isiterable(tuple())
+    True
+
     >>> isiterable(object())
     False
+    >>> isiterable('foo')
+    False
+
+    # note these are iterable
+    >>> import pandas as pd
+    >>> isiterable(pd.DataFrame([['foo', 1]], columns=['key', 'val']))
+    True
+    >>> import numpy as np
+    >>> isiterable(np.array([1,2,3]))
+    True
     """
     return isinstance(obj, Iterable) and not isinstance(obj, str)
+
+
+def issequence(obj):
+    """Check for sequence type
+
+    >>> issequence([])
+    True
+    >>> issequence(tuple())
+    True
+
+    >>> issequence('foo')
+    False
+    >>> issequence(object())
+    False
+
+    # note these are not sequences
+    >>> import pandas as pd
+    >>> issequence(pd.DataFrame([['foo', 1]], columns=['key', 'val']))
+    False
+    >>> import numpy as np
+    >>> issequence(np.array([1,2,3]))
+    False
+    """
+    return isinstance(obj, Sequence) and not isinstance(obj, str)
 
 
 def iscollection(obj):
@@ -165,7 +203,7 @@ def peel(str_or_iter):
             this = next(things)
         except StopIteration:
             return
-        if isinstance(this, (tuple, list)):
+        if isinstance(this, tuple | list):
             yield this
         else:
             yield this, this
@@ -183,7 +221,7 @@ def rpeel(str_or_iter):
             this = next(things)
         except StopIteration:
             return
-        if isinstance(this, (tuple, list)):
+        if isinstance(this, tuple | list):
             yield this[-1]
         else:
             yield this
