@@ -130,10 +130,8 @@ def debounce(wait: float):
     return wrapper
 
 
-def wait_until(hour, minute=0, second=0, tz=datetime.UTC):
+def wait_until(hour, minute=0, second=0, tz=datetime.UTC, time_unit='milliseconds') -> int:
     """Hour/minute `until` which to sleep, ex hour=17 means sleep utill 5PM
-
-    Result in milliseconds
 
     >>> from unittest.mock import patch
 
@@ -152,11 +150,12 @@ def wait_until(hour, minute=0, second=0, tz=datetime.UTC):
     ...     f"{wait_until(16, 15, 0)/3600/1000:.1f} hours"
     '23.0 hours'
     """
+    assert time_unit in {'seconds', 'milliseconds'}
     this = datetime.datetime.now(tz=tz)
     then = datetime.datetime(this.year, this.month, this.day, hour, minute, second, tzinfo=tz)
     if this >= then:
         then += timedelta(days=1)
-    return math.ceil((then - this).seconds) * 1000
+    return math.ceil((then - this).seconds) * (1000 if time_unit == 'milliseconds' else 1)
 
 
 if __name__ == '__main__':
