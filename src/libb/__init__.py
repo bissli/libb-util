@@ -11,6 +11,7 @@ from libb.dir import *
 from libb.exception import *
 from libb.formatutils import *
 from libb.funcutils import *
+from libb.heaputils import *
 from libb.io import *
 from libb.iterutils import *
 from libb.mathutils import *
