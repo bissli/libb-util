@@ -27,6 +27,7 @@ tqdm = "^4.66.2"
 trace-dkey = "0.0.6"
 platformdirs = "^4.2.0"
 typing-extensions = "*"
+pendulum = "*"
 # == pandas
 pandas-downcast = { version = "1.2.4", optional = true }
 pyarrow = { version = "*", optional = true }
