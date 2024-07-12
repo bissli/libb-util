@@ -13,6 +13,9 @@
 
    libb modules
    >>> import libb
+   >>> _ = testmod(libb.collections._set)
+   >>> _ = testmod(libb.collections._dict)
+   >>> _ = testmod(libb.collections._heap)
    >>> _ = testmod(libb.formatutils)
    >>> _ = testmod(libb.moduleutils)
    >>> _ = testmod(libb.webutils)
@@ -20,7 +23,6 @@
    >>> _ = testmod(libb.mathutils)
    >>> _ = testmod(libb.pathutils)
    >>> _ = testmod(libb.dictutils)
-   >>> _ = testmod(libb.setutils)
    >>> _ = testmod(libb.funcutils)
    >>> _ = testmod(libb.mimetypesutils)
    >>> _ = testmod(libb.streamutils)

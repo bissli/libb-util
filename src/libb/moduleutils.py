@@ -2,12 +2,11 @@ import inspect
 import re
 import sys
 import types
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from importlib import util as importlib_util
 from pkgutil import ModuleInfo, walk_packages
 from types import ModuleType
 from typing import Any
-from collections.abc import Callable
 
 
 class OverrideModuleGetattr:

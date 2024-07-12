@@ -317,7 +317,7 @@ def strtobool(val):
             return True
         if val in {'', 'n', 'no', 'f', 'false', 'off', '0'}:
             return False
-    raise ValueError('invalid truth value %r' % (val,))
+    raise ValueError(f'invalid truth value {val!r}')
 
 
 def fuzzy_search(search_term, items, case_sensitive=False):

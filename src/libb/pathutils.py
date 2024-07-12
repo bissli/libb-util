@@ -3,7 +3,11 @@ import os
 import sys
 from contextlib import contextmanager
 
-__all = ['add_to_sys_path', 'cd', 'get_module_dir']
+__all = [
+    'add_to_sys_path',
+    'cd',
+    'get_module_dir',
+]
 
 
 def get_module_dir(module=None):

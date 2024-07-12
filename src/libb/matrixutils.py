@@ -52,7 +52,7 @@ def trace(A):
     >>> print((trace(A)))
     138
     """
-    return sum([A[i][i] for i in range(len(A))])
+    return sum(A[i][i] for i in range(len(A)))
 
 
 def diag(A):
@@ -78,7 +78,7 @@ def diag(A):
     for i in range(m):
         for j in range(n):
             if i != j:
-                A[i][j] = Decimal('0')
+                A[i][j] = Decimal(0)
     return A
 
 
@@ -91,9 +91,9 @@ def matident(m, n=None):
     """
     if n is None:
         n = m
-    B = [[Decimal('0')] * n for i in range(m)]
+    B = [[Decimal(0)] * n for i in range(m)]
     for i in range(m):
-        B[i][i] = Decimal('1')
+        B[i][i] = Decimal(1)
     return B
 
 
@@ -159,7 +159,7 @@ def matunitize(X, inplace=False):
     V = [x[:] for x in X] if not inplace else X
     nrow, ncol = matdim(X)
     for j in range(ncol):
-        recipnorm = sum([X[j][j] ** Decimal('2') for j in range(ncol)])
+        recipnorm = sum(X[j][j] ** Decimal(2) for j in range(ncol))
         for i in range(nrow):
             V[i][j] *= recipnorm
     return V
@@ -238,7 +238,7 @@ def matprod(A, B):
     C = matzero(m, q)
     for i in range(m):
         for j in range(q):
-            t = sum([A[i][k] * B[k][j] for k in range(p)])
+            t = sum(A[i][k] * B[k][j] for k in range(p))
             C[i][j] = t
     return C
 
@@ -249,7 +249,7 @@ def matxtx(X):
     """
     m = len(X)
     n = len(X[0])
-    M = [[Decimal('0')] * n for i in range(n)]
+    M = [[Decimal(0)] * n for i in range(n)]
     for i in range(n):
         for j in range(i, n):
             dot = 0.0
@@ -269,7 +269,7 @@ def gjinv(AA, inplace=False):
 
     # Divide the ith row by A[i][i]
     for i in range(n):
-        m = Decimal('1') / A[i][i]
+        m = Decimal(1) / A[i][i]
         for j in range(i, n):
             A[i][j] *= m
         for j in range(n):
@@ -305,13 +305,13 @@ def gramm(X, inplace=False):
 
     for j in range(k):
         for i in range(j):  # D = <Vi, Vj>
-            D = sum([V[p][i] * V[p][j] for p in range(n)])
+            D = sum(V[p][i] * V[p][j] for p in range(n))
             for p in range(n):  # Vj = Vj - <Vi,Vj> Vi/< Vi,Vi >
                 V[p][j] -= D * V[p][i]
 
         # normalize column V[j]
-        sum_of_sq = sum([(V[p][j]) ** Decimal('2') for p in range(n)])
-        invnorm = Decimal('1') / sum_of_sq.sqrt()
+        sum_of_sq = sum((V[p][j]) ** Decimal(2) for p in range(n))
+        invnorm = Decimal(1) / sum_of_sq.sqrt()
         for p in range(n):
             V[p][j] *= invnorm
 
@@ -344,7 +344,7 @@ def bsub(r, z):
     """back-substitute "R b = z", where r is triangular"""
     m, n = matdim(r)
     p, q = matdim(z)
-    b = [[Decimal('0')] * n]
+    b = [[Decimal(0)] * n]
     pp, qq = matdim(b)
     for j in range(n - 1, -1, -1):
         zz = z[0][j] - sum(r[j][k] * b[0][k] for k in range(j + 1, n))
@@ -356,7 +356,7 @@ def linreg(y, x):
     """Linear regression in pure python"""
     # prepend x with 1
     for xx in x:
-        xx.insert(0, Decimal('1'))
+        xx.insert(0, Decimal(1))
 
     # QR decomposition
     q, r = qr(x)
@@ -372,6 +372,4 @@ def linreg(y, x):
 
 
 if __name__ == '__main__':
-    import doctest
-
-    doctest.testmod()
+    __import__('doctest').testmod(optionflags=4 | 8 | 32)

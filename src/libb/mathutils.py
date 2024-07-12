@@ -27,15 +27,12 @@ def npfunc(nargs=1):
     """Convert input args into numpy input format, then convert result back to
     standard Python
     """
-
     def wrapper(fn):
         @wraps(fn)
         def wrapped_fn(*args, **kwargs):
             arr, args = [_tonp(args[i]) for i in range(nargs)], [args[i] for i in range(nargs, len(args))]
-            return _totc(fn(*arr + args, **kwargs))
-
+            return _topy(fn(*arr + args, **kwargs))
         return wrapped_fn
-
     return wrapper
 
 
@@ -46,13 +43,21 @@ def _tonp(x):
     return x
 
 
-def _totc(x):
+def _nptonumber(x):
+    if isinstance(x, np.floating):
+        return float(x)
+    if isinstance(x, np.integer):
+        return int(x)
+    return x
+
+
+def _topy(x):
     """Replace np.nan with Python None"""
     if isinstance(x, np.ndarray | types.GeneratorType):
-        return [k if not isnan(k) else None for k in x]  # keep None
+        return [_nptonumber(k) if not isnan(k) else None for k in x]  # keep None
     if isnan(x):
         return None
-    return x
+    return _nptonumber(x)
 
 
 @suppresswarning
@@ -584,7 +589,7 @@ def convert_to_mixed_numeral(num, force_sign=False):
 
     m = _MIXED_NUMBER_FORMAT.match(str(num))
     if m is None:
-        logger.error('Invalid inputs for mixed number: %r' % num)
+        logger.error(f'Invalid inputs for mixed number: {num!r}')
         return
 
     m = m.groupdict()

@@ -38,6 +38,7 @@ parts
 *.tmp*
 #*#
 
+poetry.toml
 poetry.lock
 .envrc
 TODO.*
