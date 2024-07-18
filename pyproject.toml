@@ -8,7 +8,7 @@ license = "0BSD"
 packages = [{ include = "libb", from = "src" }]
 
 [tool.poetry.dependencies]
-python = "~3.11"
+python = "^3.9"
 
 numpy = "*"
 backoff = "*"
