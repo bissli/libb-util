@@ -4,6 +4,7 @@ import logging
 import sys
 from collections.abc import Iterable
 from functools import reduce, wraps
+from time import time
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ __all__ = [
     'copydoc',
     'get_calling_function',
     'repeat',
+    'timing',
     ]
 
 
@@ -234,6 +236,17 @@ def repeat(x_times=2):
             return result
         return wrapped_fn
     return wrapper
+
+
+def timing(func):
+    @wraps(func)
+    def wrap(*args, **kw):
+        ts = time()
+        result = func(*args, **kw)
+        te = time()
+        logger.debug(f'func:{func.__name__!r} args:[{args!r}, {kw!r}] took: {te-ts:2.4f} sec')
+        return result
+    return wrap
 
 
 if __name__ == '__main__':
