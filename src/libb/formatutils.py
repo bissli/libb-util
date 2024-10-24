@@ -317,7 +317,7 @@ def splitcap(s, delim=None):
         bits = s.split(delim)
     else:  # camelcase
         bits = re.sub(r'([a-z])([A-Z])', r'\1 \2', s).split(' ')
-    return ' '.join([capwords(s) for s in bits])
+    return ' '.join([capitalize(s) for s in bits])
 
 
 class Percent(float):
