@@ -171,7 +171,7 @@ def save_file_tmpdir(fname, content, thedate=None, **kw):
     if thedate:
         fname = _append_date(fname, thedate)
     pathname = os.path.join(tmpdir, fname)
-    with open(pathname, 'w', encoding='locale') as f:
+    with open(pathname, 'w', encoding='utf-8', errors='ignore') as f:
         f.write(content)
         logger.info(f'Tmp saved {pathname} {fname}')
 
@@ -207,7 +207,7 @@ def load_files(directory, pattern='*', thedate=None):
     logger.info(f'Found {len(files)} matching files in {directory}')
     for pathname in files:
         try:
-            with open(pathname, encoding='locale') as f:
+            with open(pathname, encoding='utf-8', errors='ignore') as f:
                 _file = f.read()
             yield _file
         except:
@@ -273,7 +273,7 @@ def download_file(url, save_path: str | Path = None) -> Path:
 
 
 def splitall(path):
-    r"""Split path into all its componenets
+    r"""Split path into all its components
 
     >>> splitall('a/b/c')
     ['a', 'b', 'c']
@@ -291,21 +291,52 @@ def splitall(path):
     ['C:\\', 'a', '']
     >>> splitall('C:\\a\\b')
     ['C:\\', 'a', 'b']
-    >>> splitall('a\\\b')
+    >>> splitall('a\\\\b')
     ['a', 'b']
     """
-    allparts = []
-    while True:
-        parts = os.path.split(path)
-        if parts[0] == path:  # sentinel for absolute paths
-            allparts.insert(0, parts[0])
-            break
-        if parts[1] == path:   # sentinel for relative paths
-            allparts.insert(0, parts[1])
-            break
-        path = parts[0]
-        allparts.insert(0, parts[1])
-    return allparts
+    if not isinstance(path, str):
+        raise TypeError('Path must be a string')
+    if not path:
+        return []
+
+    # Handle a possible Windows drive
+    drive = ''
+    if len(path) >= 2 and path[1] == ':':
+        if len(path) == 2:
+            # e.g. "C:"
+            return [path]
+        drive, path = path[:2], path[2:]
+        if not path.strip('\\/'):
+            # e.g. "C:\" with nothing else
+            return [drive + '\\']
+
+    # Convert backslashes to forward slashes for splitting
+    path = path.replace('\\', '/')
+    path = re.sub(r'/+', '/', path)  # Remove consecutive slashes
+
+    # If the entire path is just "/", return ["/"]
+    if path == '/':
+        return ['/']
+
+    # Check if it's absolute (leading slash)
+    is_absolute = path.startswith('/')
+
+    # Remove leading/trailing slashes for split, then add back empty parts if needed
+    core = path.strip('/')
+    parts = core.split('/') if core else []
+    if path.endswith('/'):
+        parts.append('')
+
+    # If it's a drive path, reattach drive
+    if drive:
+        return [drive + '\\'] + parts
+
+    # If it was absolute (Unix style), prepend "/"
+    if is_absolute:
+        return ['/'] + parts
+
+    # Otherwise, it's just relative parts
+    return parts
 
 
 def resplit(path, *args):
