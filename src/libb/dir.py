@@ -1,7 +1,6 @@
 """os.walk and even scandir are miserably slow over network connections in Python 2.
 Once you migrate to Python 3, move off glob match to full regex match.
 """
-import errno
 import glob
 import itertools
 import logging
@@ -23,13 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST:
-            pass
-        else:
-            raise
+    os.makedirs(path, exist_ok=True)
 
 
 @contextmanager
@@ -75,17 +68,7 @@ def expandabspath(p: str) -> str:
     >>> assert expandabspath('~/$SPAM') == os.path.expanduser('~/eggs')
     >>> assert expandabspath('/foo') == '/foo'
     """
-    a = os.path.abspath
-    u = os.path.expanduser
-    v = os.path.expandvars
-
-    def r(x):
-        try:
-            return os.path.relpath(x)
-        except ValueError:
-            return os.path.abspath(x)
-
-    return a(u(r(v(p))))
+    return os.path.abspath(os.path.expanduser(os.path.expandvars(p)))
 
 
 def get_directory_structure(rootdir):
@@ -130,7 +113,7 @@ def safe_move(source, target, hard_remove=False):
     except OSError as err:
         logger.warning('Target already used; adding rendom string to target loc, trying again.')
         targetname, ext = os.path.splitext(target)
-        targetname += bytes(random.getrandbits(128))
+        targetname += f'_{random.getrandbits(64):016x}'
         target = targetname + ext
         shutil.move(source, target)
         logger.warning(f'Succeeded moving to new target: {target}')
@@ -259,8 +242,10 @@ def download_file(url, save_path: str | Path = None) -> Path:
     else:
         save_path = Path(save_path)
         name = save_path.name
+        save_path.parent.mkdir(parents=True, exist_ok=True)
 
     with requests.get(url, stream=True) as r:
+        r.raise_for_status()
         total = int(r.headers.get('content-length', 0))
         chunk = 16*1024*1024
         with save_path.open('wb') as f, tqdm.tqdm(
@@ -346,7 +331,7 @@ def resplit(path, *args):
 
     TODO: tests pass on Windows, not on nix, better way? Not safe to use!
     """
-    return re.split(r'{}'.format('|'.join(args)), path)
+    return re.split('|'.join(re.escape(a) for a in args), path)
 
 
 if __name__ == '__main__':
