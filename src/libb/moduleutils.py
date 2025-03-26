@@ -279,29 +279,35 @@ def create_virtual_module(modname: str, submodules: dict[str, str]) -> None:
     VirtualModule(modname, submodules)
 
 
-def get_packages_in_module(m: ModuleType) -> Iterable[ModuleInfo]:
-    """Useful for pytest conftestloading
+def get_packages_in_module(*m: ModuleType) -> Iterable[ModuleInfo]:
+    """Useful for pytest conftestloading. Works with one or more modules.
+
     >>> import libb
     >>> _ = get_package_paths_in_module(libb)
     >>> assert 'libb.moduleutils' in _
     """
-    return walk_packages(m.__path__, prefix=f'{m.__name__}.')  # type: ignore
+    result = []
+    for module in m:
+        result.extend(walk_packages(module.__path__, prefix=f'{module.__name__}.'))  # type: ignore
+    return result
 
 
-def get_package_paths_in_module(m: ModuleType) -> Iterable[str]:
-    """Get a list of package paths within a given module, useful for pytest
+def get_package_paths_in_module(*m: ModuleType) -> Iterable[str]:
+    """Get a list of package paths within the given modules, useful for pytest
     conftest loading.
 
     Args:
-        m (ModuleType): The module to inspect for package paths.
+        *m (ModuleType): One or more modules to inspect for package paths.
 
     Returns
         Iterable[str]: An iterable of package paths as strings.
 
     Example conftest.py:
         pytest_plugins = [*get_package_paths_in_module(tests.fixtures)]
+        # Or multiple modules:
+        pytest_plugins = [*get_package_paths_in_module(tests.fixtures, tests.plugins)]
     """
-    return [package.name for package in get_packages_in_module(m)]
+    return [package.name for package in get_packages_in_module(*m)]
 
 
 def import_non_local(name: str, custom_name: str | None = None) -> ModuleType:
