@@ -615,6 +615,21 @@ def convert_to_mixed_numeral(num, force_sign=False):
     return f'{s}{n}/{d}'
 
 
+def round_to_nearest(value: float, base) -> float:
+    """Simple function to round to nearest base
+
+    >>> round_to_nearest(12, 25)
+    0
+    >>> round_to_nearest(26, 25)
+    25
+
+    """
+    assert base >= 1, 'This function is for base >= 1'
+    if not value:
+        return value
+    return round(value / base) * base
+
+
 class BBox:
     """Bounding box for use with `overlaps` and `push_apart` functions"""
 
