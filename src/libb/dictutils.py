@@ -1,12 +1,13 @@
+import copy
 import inspect
 import itertools
-import json
 import logging
 import operator
 import re
 from collections.abc import Mapping
 from contextlib import contextmanager
 from functools import cmp_to_key
+from typing import Any
 
 from trace_dkey import trace
 
@@ -374,10 +375,27 @@ def add_branch(tree, vector, value):
     return tree
 
 
-def merge_dict(old, new, inplace=True):
-    """Key for key merge of two dictionaries
+# Define a type for dictionaries that can contain nested dictionaries
+DictType = dict[str, Any]
 
-    non-inplace modify
+
+def merge_dict(old: DictType, new: DictType, inplace: bool = True) -> DictType | None:
+    """Recursively merge two dictionaries, including nested dictionaries and iterables.
+
+    This function performs a deep merge of `new` into `old`, handling nested
+    dictionaries, iterables (like lists and tuples), and type mismatches gracefully.
+
+    Parameters
+        old: The dictionary to merge into (will be modified if inplace=True)
+        new: The dictionary to merge from (remains unchanged)
+        inplace: If True, modifies old in place; if False, returns a new merged dict
+
+    Returns
+        If inplace=False, returns the merged dictionary. Otherwise, returns None.
+
+    Examples
+
+    Basic nested merge:
     >>> l1 = {'a': {'b': 1, 'c': 2}, 'b': 2}
     >>> l2 = {'a': {'a': 9}, 'c': 3}
     >>> merge_dict(l1, l2, inplace=False)
@@ -387,17 +405,16 @@ def merge_dict(old, new, inplace=True):
     >>> l2=={'a': {'a': 9}, 'c': 3}
     True
 
-    multilevel merging
+    Multilevel merging:
     >>> xx = {'a': {'b': 1, 'c': 2}, 'b': 2}
     >>> nice = {'a': {'a': 9}, 'c': 3}
-
     >>> merge_dict(xx, nice)
     >>> 'a' in xx['a']
     True
     >>> 'c' in xx
     True
 
-    warning, it will overwrite stuff
+    Values get overwritten:
     >>> warn = {'a': {'c': 9}, 'b': 3}
     >>> merge_dict(xx, warn)
     >>> xx['a']['c']
@@ -405,32 +422,60 @@ def merge_dict(old, new, inplace=True):
     >>> xx['b']
     3
 
-    tries to be smart with iterables, but does *not* force types
+    Merges iterables, preserving types when possible:
     >>> l1 = {'a': {'c': [5, 2]}, 'b': 1}
     >>> l2 = {'a': {'c': [1, 2]}, 'b': 3}
-    >>> l3 = {'a': {'c': (1, 2,)}, 'b': 3}
     >>> merge_dict(l1, l2)
     >>> len(l1['a']['c'])
     4
     >>> l1['b']
     3
+
+    Handles type mismatches by converting to lists:
+    >>> l1 = {'a': {'c': [5, 2]}, 'b': 1}
+    >>> l3 = {'a': {'c': (1, 2,)}, 'b': 3}
     >>> merge_dict(l1, l3)
-    Traceback (most recent call last):
-        ...
-    TypeError: can only concatenate list (not "tuple") to list
+    >>> len(l1['a']['c'])
+    4
+    >>> isinstance(l1['a']['c'], list)
+    True
+
+    Handles None values:
+    >>> l1 = {'a': {'c': None}, 'b': 1}
+    >>> l2 = {'a': {'c': [1, 2]}, 'b': 3}
+    >>> merge_dict(l1, l2)
+    >>> l1['a']['c']
+    [1, 2]
     """
     from libb.iterutils import isiterable
+
     if not inplace:
-        # thread-safe solution
-        old = json.loads(json.dumps(old))
+        old = copy.deepcopy(old)
+
     for key, new_val in new.items():
         old_val = old.get(key)
+
+        # Case 1: Both values are dictionaries - recursively merge
         if ismapping(old_val) and ismapping(new_val):
             merge_dict(old_val, new_val, inplace=True)
-        elif isiterable(old_val) and isiterable(new_val):
-            old[key] = old_val + new_val
-        else:
+            continue
+
+        # Case 2: Target value is None - use source value directly
+        if old_val is None:
             old[key] = new_val
+            continue
+
+        # Case 3: Both values are iterables (excluding strings) - combine them
+        if isiterable(old_val) and isiterable(new_val) and not isinstance(new_val, str):
+            try:
+                old[key] = old_val + new_val
+            except (TypeError, ValueError):
+                old[key] = list(old_val) + list(new_val)
+            continue
+
+        # Case 4: Default case - overwrite target value
+        old[key] = new_val
+
     if not inplace:
         return old
 
