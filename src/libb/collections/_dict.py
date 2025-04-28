@@ -3,7 +3,12 @@ from collections.abc import Mapping, MutableMapping
 
 
 class attrdict(dict):
-    """The vanilla attrdict everyone has in their utils
+    """A dictionary subclass that allows attribute-style access.
+
+    This is a dictionary that allows access to its keys as attributes
+    (using dot notation) in addition to standard dictionary access methods.
+
+    Examples
 
     >>> import copy
     >>> d = attrdict(x=10, y='foo')
@@ -42,6 +47,7 @@ class attrdict(dict):
     >>> tricky[1].x
     12
 
+    Access methods:
     Handles obj.get('attr'), obj['attr'], and obj.attr
     >>> class A(attrdict):
     ...     @property
@@ -102,19 +108,25 @@ class attrdict(dict):
 
 
 class lazydict(attrdict):
-    """Attrdict where functions get stored as lazy calculations
+    """A dictionary where function values are lazily evaluated.
+
+    Functions stored as values are called with the dictionary as argument
+    when the key is accessed, making them behave like computed properties.
+
+    Examples
 
     >>> a = lazydict(a=1, b=2, c=lambda x: x.a+x.b)
     >>> a.c
     3
     >>> a.a = 99
-    >>> a.c
+    >>> a.c  # Recalculated with new value
     101
     >>> a.z = 1
     >>> a.z
     1
 
-    make sure we dont share descriptors, could cause awful bugs
+    Ensure we don't share descriptors between instancess
+
     >>> z = lazydict(a=2, y=4, f=lambda x: x.a*x.y)
     >>> z.b
     Traceback (most recent call last):
@@ -127,12 +139,15 @@ class lazydict(attrdict):
     >>> z.f
     8
 
-    a's attrs should be unaffected
+    Verify instance isolation
+
     >>> a.f
     Traceback (most recent call last):
         ...
     AttributeError: f
     """
+
+    __slots__ = ()
 
     def __getattr__(self, attrname):
         if attrname not in self:
@@ -144,12 +159,16 @@ class lazydict(attrdict):
 
 
 class emptydict(attrdict):
-    """Attrdict where non-existing fields return None silently
+    """A dictionary that returns None for non-existing keys without raising exceptions.
+
+    Similar to attrdict but returns None instead of raising KeyError or AttributeError
+    when accessing non-existing keys.
+
+    Examples
 
     >>> a = emptydict(a=1, b=2)
     >>> a.c == None
     True
-
     >>> a.b
     2
     >>> a['b']
@@ -162,6 +181,8 @@ class emptydict(attrdict):
     2
     >>> a.get('c')
     """
+
+    __slots__ = ()
 
     def __getattr__(self, attrname):
         try:
@@ -177,7 +198,12 @@ class emptydict(attrdict):
 
 
 class bidict(dict):
-    """Bidirectional dictionary that allows multiple keys with same value
+    """Bidirectional dictionary that allows multiple keys with the same value.
+
+    Maintains an inverse mapping from values to lists of keys that enables
+    bidirectional lookup.
+
+    Examples
 
     >>> bd = bidict({'a': 1, 'b': 2})
     >>> bd
@@ -185,14 +211,16 @@ class bidict(dict):
     >>> bd.inverse
     {1: ['a'], 2: ['b']}
 
-    two keys can have the same value (= 1)
+    Multiple keys can have the same value
+
     >>> bd['c'] = 1
     >>> bd
     {'a': 1, 'b': 2, 'c': 1}
     >>> bd.inverse
     {1: ['a', 'c'], 2: ['b']}
 
-    remove a key
+    Removing keys updates inverse mapping
+
     >>> del bd['c']
     >>> bd
     {'a': 1, 'b': 2}
@@ -204,13 +232,16 @@ class bidict(dict):
     >>> bd.inverse
     {2: ['b']}
 
-    set key to new value
+    Changing values updates inverse mapping
+
     >>> bd['b'] = 3
     >>> bd
     {'b': 3}
     >>> bd.inverse
     {2: [], 3: ['b']}
     """
+
+    __slots__ = ('inverse',)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -232,9 +263,14 @@ class bidict(dict):
 
 
 class MutableDict(dict):
-    """Extends dictionary to include insert_before and insert_after methods.
-    Since python3.7 dictionaries keep insert order.
+    """An ordered dictionary with additional insertion methods.
+
+    Extends the standard dictionary with methods to insert items before
+    or after existing keys. Relies on Python 3.7+ dictionary implementation
+    which preserves insertion order.
     """
+
+    __slots__ = ()
 
     def insert_before(self, key, new_key, val):
         """Insert new_key:value into dict before key"""
@@ -266,26 +302,32 @@ class MutableDict(dict):
 
 
 class CaseInsensitiveDict(MutableMapping):
-    """A case-insensitive ``dict``-like object.
-    Implements all methods and operations of
-    ``MutableMapping`` as well as dict's ``copy``. Also
-    provides ``lower_items``.
+    """A case-insensitive dictionary-like object.
+
+    Implements all methods and operations of ``MutableMapping`` as well as
+    dict's ``copy``. Also provides ``lower_items``.
+
     All keys are expected to be strings. The structure remembers the
-    case of the last key to be set, and ``iter(instance)``,
-    ``keys()``, ``items()``, ``iterkeys()``, and ``iteritems()``
-    will contain case-sensitive keys. However, querying and contains
-    testing is case insensitive::
+    case of the last key to be set, and ``iter(instance)``, ``keys()``,
+    ``items()`` will contain case-sensitive keys. However, querying and
+    contains testing is case insensitive:
+
         cid = CaseInsensitiveDict()
         cid['Accept'] = 'application/json'
         cid['aCCEPT'] == 'application/json'  # True
         list(cid) == ['Accept']  # True
+
     For example, ``headers['content-encoding']`` will return the
     value of a ``'Content-Encoding'`` response header, regardless
     of how the header name was originally stored.
-    If the constructor, ``.update``, or equality comparison
-    operations are given keys that have equal ``.lower()``s, the
-    behavior is undefined.
+
+    Note:
+        If the constructor, ``.update``, or equality comparison
+        operations are given keys that have equal ``.lower()``s, the
+        behavior is undefined.
     """
+
+    __slots__ = ('_store',)
 
     def __init__(self, data=None, **kwargs):
         self._store = {}
