@@ -3,6 +3,8 @@ import logging
 import math
 import re
 
+from titlecase import titlecase as _titlecase
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -16,6 +18,7 @@ __all__ = [
     'format_timedelta',
     'format_timeinterval',
     'splitcap',
+    'titlecase'
     ]
 
 
@@ -318,6 +321,11 @@ def splitcap(s, delim=None):
     else:  # camelcase
         bits = re.sub(r'([a-z])([A-Z])', r'\1 \2', s).split(' ')
     return ' '.join([capitalize(s) for s in bits])
+
+
+def titlecase(s):
+    """Wrapper around python-titlecase"""
+    return _titlecase(s)
 
 
 class Percent(float):
