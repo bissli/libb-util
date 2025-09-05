@@ -3,7 +3,7 @@ import math
 import threading
 import time
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import timedelta, timezone
 from typing import Any, TypeVar, cast
 
 __all__ = [
@@ -130,23 +130,23 @@ def debounce(wait: float):
     return wrapper
 
 
-def wait_until(hour, minute=0, second=0, tz=datetime.UTC, time_unit='milliseconds') -> int:
+def wait_until(hour, minute=0, second=0, tz=timezone.utc, time_unit='milliseconds') -> int:
     """Hour/minute `until` which to sleep, ex hour=17 means sleep utill 5PM
 
     >>> from unittest.mock import patch
 
     >>> with patch(f'{__name__}.datetime', wraps=datetime) as mock:
-    ...     mock.datetime.now.return_value = datetime.datetime(2000, 5, 1, 17, 30, 0, 0, tzinfo=datetime.UTC)
+    ...     mock.datetime.now.return_value = datetime.datetime(2000, 5, 1, 17, 30, 0, 0, tzinfo=timezone.utc)
     ...     f"{wait_until(12, 0, 0)/3600/1000:.1f} hours"
     '18.5 hours'
 
     >>> with patch(f'{__name__}.datetime', wraps=datetime) as mock:
-    ...     mock.datetime.now.return_value = datetime.datetime(2000, 7, 1, 17, 15, 0, 0, tzinfo=datetime.UTC)
+    ...     mock.datetime.now.return_value = datetime.datetime(2000, 7, 1, 17, 15, 0, 0, tzinfo=timezone.utc)
     ...     f"{wait_until(17, 45, 0)/3600/1000:.1f} hours"
     '0.5 hours'
 
     >>> with patch(f'{__name__}.datetime', wraps=datetime) as mock:
-    ...     mock.datetime.now.return_value = datetime.datetime(2000, 11, 1, 17, 15, 0, 0, tzinfo=datetime.UTC)
+    ...     mock.datetime.now.return_value = datetime.datetime(2000, 11, 1, 17, 15, 0, 0, tzinfo=timezone.utc)
     ...     f"{wait_until(16, 15, 0)/3600/1000:.1f} hours"
     '23.0 hours'
     """
