@@ -4,9 +4,11 @@ import logging
 import os
 import tempfile
 from abc import ABC
+from contextlib import contextmanager
 from dataclasses import dataclass, fields
 from functools import partial, wraps
 from pathlib import Path
+from typing import Any
 
 from platformdirs import PlatformDirs
 
@@ -16,6 +18,8 @@ __all__ = [
     'Setting',
     'ConfigOptions',
     'load_options',
+    'configure_environment',
+    'patch_library_config',
     'get_tempdir',
     'get_vendordir',
     'get_outputdir',
@@ -234,6 +238,103 @@ def get_localdir() -> Setting:
     local.dir = local.dir.as_posix()
     Path(local.dir).mkdir(parents=True, exist_ok=True)
     return local
+
+
+@contextmanager
+def setting_unlocked(setting: Setting):
+    """Context manager to safely modify a setting with unlock/lock protection.
+
+    Parameters
+        setting: The Setting object to unlock/lock
+    """
+    setting.unlock()
+    try:
+        yield
+    finally:
+        setting.lock()
+
+
+def configure_environment(module, **config_overrides: Any) -> None:
+    """Configure environment settings at runtime.
+
+    Dynamically sets configuration values on Setting objects in the provided module.
+    Keys should follow the pattern 'setting_attribute' or 'setting_nested_attribute'.
+
+    Parameters
+        module: The module containing Setting objects to configure
+        **config_overrides: Configuration values to set with keys as dotted paths
+
+    Returns
+        None
+    """
+    for key, value in config_overrides.items():
+        parts = key.split('_')
+
+        setting_obj = None
+        attr_parts = []
+
+        for i in range(1, len(parts) + 1):
+            setting_name = '_'.join(parts[:i])
+            if hasattr(module, setting_name):
+                setting_obj = getattr(module, setting_name)
+                attr_parts = parts[i:]
+                break
+
+        logger.debug(f'Processing config key: {key} -> setting_obj found: {setting_obj is not None}')
+
+        if not setting_obj:
+            logger.debug(f'No setting object found for key: {key}')
+            continue
+
+        if not isinstance(setting_obj, Setting):
+            logger.debug(f'Found object for key {key} is not a Setting instance')
+            continue
+
+        if not attr_parts:
+            logger.debug(f'Key {key} matches setting name exactly, cannot set value')
+            continue
+
+        with setting_unlocked(setting_obj):
+            target = setting_obj
+            for part in attr_parts[:-1]:
+                target = getattr(target, part)
+                logger.debug(f'Navigated to attribute: {part}')
+
+            logger.debug(f'Setting {key} = {value} on target object')
+            setattr(target, attr_parts[-1], value)
+
+
+def patch_library_config(library_name: str, config_name:str = 'config', **config_overrides: Any) -> None:
+    """Patch a library's config module directly in sys.modules.
+
+    Finds and patches the library's config module before the library imports it.
+    Works regardless of import order by patching the config module directly.
+
+    Parameters
+        library_name: Name of the library whose config should be patched
+        **config_overrides: Configuration values to set with keys as dotted paths
+
+    Returns
+        None
+    """
+    import sys
+
+    config_module_name = f'{library_name}.{config_name}'
+    logger.debug(f'Attempting to patch config for library: {library_name}')
+
+    if config_module_name in sys.modules:
+        logger.debug(f'Config module {config_module_name} already in sys.modules')
+        config_module = sys.modules[config_module_name]
+        configure_environment(config_module, **config_overrides)
+    else:
+        logger.debug(f'Importing config module {config_module_name} for patching')
+        try:
+            config_module = __import__(config_module_name, fromlist=[''])
+            configure_environment(config_module, **config_overrides)
+            logger.debug(f'Successfully patched {config_module_name}')
+        except ImportError as e:
+            logger.debug(f'Failed to import {config_module_name}: {e}')
+            raise ImportError(f'Could not import config module {config_module_name}') from e
 
 
 if __name__ == '__main__':
