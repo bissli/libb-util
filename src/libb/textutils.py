@@ -275,8 +275,14 @@ def smart_base64(encoded_words):
 
     >>> smart_base64('=?UTF-8?B?U0xBQiAxIOKFnDogIDEwOSAtIMK9IHYgNzYuMjU=?=')
     'SLAB 1.375: 109 - 0.5 v 76.25'
+
+    >>> smart_base64('This is plain text')
+    'This is plain text'
     """
     re_encoded = r'=\?{1}(.+)\?{1}([B|Q])\?{1}(.+)\?{1}='
+
+    if not re.search(re_encoded, encoded_words):
+        return encoded_words
 
     def decode(charset, encoding, encoded_text):
         if encoding == 'B':
