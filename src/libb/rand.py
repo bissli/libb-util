@@ -1,9 +1,12 @@
+import contextlib
 import logging
 import os
 import random
 from functools import wraps
 
-import numpy as np
+with contextlib.suppress(ImportError, ModuleNotFoundError):
+    import numpy as np
+
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +48,6 @@ def random_random():
 
 
 @rseed
-def random_sample(arr: np.array, size: int = 1) -> np.array:
+def random_sample(arr: 'np.array', size: int = 1) -> 'np.array':
     """Random sample size N element from numpy array"""
     return arr[np.random.choice(len(arr), size=size, replace=False)]

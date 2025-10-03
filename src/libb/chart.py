@@ -3,11 +3,10 @@ import logging
 import math
 from io import BytesIO
 
-import numpy as np
-
-with contextlib.suppress(ImportError):
+with contextlib.suppress(ImportError, ModuleNotFoundError):
     import matplotlib.pyplot as plt
     import matplotlib.ticker as mtick
+    import numpy as np
     from matplotlib import dates as mpl_dates
 
 logger = logging.getLogger(__name__)

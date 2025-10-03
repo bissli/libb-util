@@ -4,9 +4,17 @@ Imported like pandas and wraps all pandas contents:
     from libb import pd
     df = pd.DataFrame()
 """
-import pandas as pd
-import pdcast as pdc
-from pandas import *
+import contextlib
+import gc
+import os
+
+with contextlib.suppress(ImportError, ModuleNotFoundError):
+    import numexpr as ne
+    import numpy as np
+    import pandas as pd
+    import pdcast as pdc
+    from pandas import *
+    from rapidfuzz import fuzz, process
 
 
 def downcast(df: pd.DataFrame, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):

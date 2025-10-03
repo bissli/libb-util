@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import operator
 import types
@@ -7,13 +8,14 @@ from fractions import Fraction
 from functools import reduce, wraps
 from math import ceil, floor, isnan, log10, sqrt
 
-import numpy as np
+with contextlib.suppress(ImportError, ModuleNotFoundError):
+    import numpy as np
+    np.set_printoptions(linewidth=np.inf)
+
 import regex as re
 
 from libb.dictutils import cmp
 from libb.util import suppresswarning
-
-np.set_printoptions(linewidth=np.inf)
 
 logger = logging.getLogger(__name__)
 
@@ -720,7 +722,7 @@ def push_apart(*boxes):
             raise AssertionError('Exceeded 100 tries to push apart')
 
 
-def numpy_smooth(x: np.array, window_len=11, window='hanning'):
+def numpy_smooth(x: 'np.ndarray', window_len=11, window='hanning'):
     """Smooth the data using a window with requested size.
 
     https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
