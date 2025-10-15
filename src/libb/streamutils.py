@@ -3,7 +3,7 @@ import sys
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['stream_is_tty', 'stdout_is_tty']
+__all__ = ['is_tty', 'stream_is_tty']
 
 
 def stream_is_tty(somestream):
@@ -12,4 +12,8 @@ def stream_is_tty(somestream):
     return isatty and isatty()
 
 
-stdout_is_tty = lambda: stream_is_tty(sys.stdout)
+
+def is_tty():
+    """Check if the script is running in an interactive terminal.
+    """
+    return sys.stdin.isatty() and sys.stdout.isatty()
