@@ -2,8 +2,6 @@
 
 This module provides utility functions for pandas DataFrames and Series,
 including null checking, type downcasting, fuzzy merging, and timezone data.
-
-Also re-exports all pandas exports via `from pandas import *` for convenience.
 """
 import contextlib
 import gc
@@ -15,13 +13,34 @@ import tempfile
 from pathlib import Path
 
 with contextlib.suppress(Exception):
-    import numexpr as ne
-    import numpy as np
-    import pandas as pd
-    import pdcast as pdc
-    import pyarrow as pa
-    from pandas import *
-    from rapidfuzz import fuzz, process
+    from numexpr import evaluate
+
+with contextlib.suppress(Exception):
+    from numpy import amax, tile, where
+
+with contextlib.suppress(Exception):
+    from numpy import linspace, nan, random, uint8  # noqa
+
+with contextlib.suppress(Exception):
+    from pandas import DataFrame, isnull
+
+with contextlib.suppress(Exception):
+    from pandas import concat, read_csv  # noqa
+
+with contextlib.suppress(Exception):
+    from pdcast import downcast as pdc_downcast
+
+with contextlib.suppress(Exception):
+    import pdcast
+
+with contextlib.suppress(Exception):
+    from pyarrow.lib import NullScalar
+
+with contextlib.suppress(Exception):
+    from rapidfuzz.fuzz import partial_ratio  # noqa
+
+with contextlib.suppress(Exception):
+    from rapidfuzz.process import cdist
 
 __all__ = ['is_null', 'download_tzdata', 'downcast', 'fuzzymerge']
 
@@ -33,14 +52,14 @@ def is_null(x):
     >>> import numpy as np
     >>> assert is_null(None)
     >>> assert not is_null(0)
-    >>> assert is_null(np.NaN)
+    >>> assert is_null(np.nan)
     >>> assert not is_null(datetime.date(2000, 1, 1))
 
     """
     with contextlib.suppress(Exception):
-        if isinstance(x, pa.lib.NullScalar):
+        if isinstance(x, NullScalar):
             return True
-    return pd.isnull(x)
+    return isnull(x)
 
 
 def download_tzdata():
@@ -71,7 +90,7 @@ def download_tzdata():
         fout.write(zonegz.read().decode())
 
 
-def downcast(df: 'pd.DataFrame', rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
+def downcast(df: DataFrame, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
     """Downcast pandas DataFrame to minimum viable type for each column,
     ensuring that resulting values are within tolerance of original values.
 
@@ -81,13 +100,12 @@ def downcast(df: 'pd.DataFrame', rtol=1e-05, atol=1e-08, numpy_dtypes_only=False
     ATOL: Default absolute tolerance for numpy inexact numeric comparison
     See: https://numpy.org/doc/stable/reference/generated/numpy.allclose.html
 
-    >>> import numpy as np
     >>> data = {
-    ... "integers": np.linspace(1, 100, 100),
-    ... "floats": np.linspace(1, 1000, 100).round(2),
-    ... "booleans": np.random.choice([1, 0], 100),
-    ... "categories": np.random.choice(["foo", "bar", "baz"], 100)}
-    >>> df = pd.DataFrame(data)
+    ... "integers": linspace(1, 100, 100),
+    ... "floats": linspace(1, 1000, 100).round(2),
+    ... "booleans": random.choice([1, 0], 100),
+    ... "categories": random.choice(["foo", "bar", "baz"], 100)}
+    >>> df = DataFrame(data)
     >>> downcast(df, rtol=1e-10, atol=1e-10).info()
     <class 'pandas.core.frame.DataFrame'>
     ...
@@ -99,12 +117,12 @@ def downcast(df: 'pd.DataFrame', rtol=1e-05, atol=1e-08, numpy_dtypes_only=False
     dtypes: bool(1), category(1), float32(1), uint8(1)
     memory usage: 964.0 bytes
     """
-    pdc.options.RTOL = rtol
-    pdc.options.ATOL = atol
-    return pdc.downcast(df, numpy_dtypes_only=numpy_dtypes_only)
+    pdcast.options.RTOL = rtol
+    pdcast.options.ATOL = atol
+    return pdc_downcast(df, numpy_dtypes_only=numpy_dtypes_only)
 
 
-def fuzzymerge(df1, df2, right_on, left_on, usedtype='np.uint8', scorer='fuzz.WRatio',
+def fuzzymerge(df1, df2, right_on, left_on, usedtype='uint8', scorer='WRatio',
                concat_value=True, **kwargs):
     """Merge two DataFrames using fuzzy matching on specified columns.
 
@@ -129,16 +147,15 @@ def fuzzymerge(df1, df2, right_on, left_on, usedtype='np.uint8', scorer='fuzz.WR
     Returns
     DataFrame: A merged DataFrame with rows that matched based on the specified fuzzy criteria.
 
-    >>> from rapidfuzz import fuzz
-    >>> df1 = pd.read_csv(
+    >>> df1 = read_csv(
     ...     "https://raw.githubusercontent.com/pandas-dev/pandas/main/doc/data/titanic.csv"
     ... )
     >>> df2 = df1.copy()
-    >>> df2 = pd.concat([df2 for x in range(3)], ignore_index=True)
-    >>> df2.Name = (df2.Name + np.random.uniform(1, 2000, len(df2)).astype("U"))
-    >>> df1 = pd.concat([df1 for x in range(3)], ignore_index=True)
-    >>> df1.Name = (df1.Name + np.random.uniform(1, 2000, len(df1)).astype("U"))
-    >>> df3 = fuzzymerge(df1, df2, right_on='Name', left_on='Name', usedtype=np.uint8, scorer=fuzz.partial_ratio,
+    >>> df2 = concat([df2 for x in range(3)], ignore_index=True)
+    >>> df2.Name = (df2.Name + random.uniform(1, 2000, len(df2)).astype("U"))
+    >>> df1 = concat([df1 for x in range(3)], ignore_index=True)
+    >>> df1.Name = (df1.Name + random.uniform(1, 2000, len(df1)).astype("U"))
+    >>> df3 = fuzzymerge(df1, df2, right_on='Name', left_on='Name', usedtype=uint8, scorer=partial_ratio,
     ...                         concat_value=True)
     >>> print(df3)
     """
@@ -150,20 +167,20 @@ def fuzzymerge(df1, df2, right_on, left_on, usedtype='np.uint8', scorer='fuzz.WR
 
     a = df1[right_on].__array__().astype('U')
     b = df2[left_on].__array__().astype('U')
-    allcom = process.cdist(
+    allcom = cdist(
         a,
         b,
         scorer=scorer,
         dtype=usedtype,
         workers=g if (g := os.cpu_count() - 1) > 1 else 1,
     )
-    max_values = np.amax(allcom, axis=1)
-    df1index, df2index = np.where(
-        ne.evaluate(
+    max_values = amax(allcom, axis=1)
+    df1index, df2index = where(
+        evaluate(
             'a==b',
             global_dict={},
             local_dict={'a': allcom,
-                        'b': np.tile(max_values.reshape((-1, 1)), (1, allcom.shape[1]))},
+                        'b': tile(max_values.reshape((-1, 1)), (1, allcom.shape[1]))},
         ))
 
     concatvalue = allcom[df1index, df2index].copy()
