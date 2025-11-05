@@ -10,6 +10,16 @@ import regex as re
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'run_command',
+    'psexec_session',
+    'file_share_session',
+    'mount_admin_share',
+    'mount_file_share',
+    'parse_wmic_output',
+    'exit_cmd',
+]
+
 if 'Win' in platform.system():
     from win32com.client import GetObject
 

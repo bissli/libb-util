@@ -1,5 +1,28 @@
 from decimal import Decimal, localcontext
 
+__all__ = [
+    'printmat',
+    'dot',
+    'matrix',
+    'trace',
+    'diag',
+    'matident',
+    'matzero',
+    'matdim',
+    'matrandom',
+    'matunitize',
+    'matadd',
+    'matsub',
+    'transpose',
+    'matprod',
+    'matxtx',
+    'gjinv',
+    'gramm',
+    'qr',
+    'bsub',
+    'linreg',
+]
+
 
 def printmat(X, prec=4, fmt='%8.4f'):
     """Print out the matrix using Decimal localcontext and strf

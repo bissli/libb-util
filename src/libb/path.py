@@ -3,10 +3,11 @@ import os
 import sys
 from contextlib import contextmanager
 
-__all = [
+__all__ = [
     'add_to_sys_path',
     'cd',
     'get_module_dir',
+    'scriptname',
 ]
 
 
@@ -55,6 +56,24 @@ def cd(path):
         yield
     finally:
         os.chdir(old_dir)
+
+
+def scriptname(task=None):
+    """Return name of script being run, without the file extension
+
+    >>> scriptname(__file__)
+    'path'
+    >>> scriptname() in sys.argv[0]
+    True
+    >>> scriptname()==sys.argv[0]
+    False
+    """
+    task = task or sys.argv[0]
+    if task:
+        app, _ = os.path.splitext(os.path.basename(task))
+    else:
+        app = ''
+    return app
 
 
 if __name__ == '__main__':

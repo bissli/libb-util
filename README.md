@@ -8,111 +8,173 @@ Contents
 
 ## Overview
 
-This repository contains a collection of utility modules designed to enhance
-productivity and simplify common programming tasks in Python. Below is a summary
-of each module and its primary functionalities.
+A comprehensive collection of utility functions and classes designed to enhance productivity and simplify common programming tasks in Python. The library follows a **transparent API design** where all utilities are imported from the top-level `libb` package, making the internal module organization an implementation detail.
 
-## Modules
+## Design Philosophy
 
-### `io.py`
-Provides functions for rendering CSV data, working with zipped CSV files, and
-converting iterables to streams.
+- **Transparent API**: Always import from top-level `libb`, never from submodules
+- **Graceful Dependencies**: Optional dependencies wrapped in `contextlib.suppress` for clean imports
+- **Short, Singular Names**: Modules use concise names (e.g., `func` not `funcutils`)
+- **Comprehensive `__all__` Exports**: All modules explicitly define their public API
 
-### `dir.py`
-Contains utilities for directory and file manipulation, including functions to
-create temporary directories and manage file shares.
+```python
+# ✅ CORRECT: Import from top-level libb
+from libb import Setting, compose, downcast, expandabspath
 
-### `chart.py`
-Facilitates the creation of charts and plots, particularly for time series data.
+# ❌ WRONG: Never import from submodules
+from libb.config import Setting  # Don't do this!
+```
 
-### `streamutils.py`
-Offers tools for working with streams, including asynchronous execution and
-threading utilities.
+## Module Organization
 
-### `win.py`
-Windows-specific utilities for running commands, managing sessions, and parsing
-WMIC output.
+### Core Utilities (10 modules)
 
-### `dictutils.py`
-Functions for working with dictionaries, such as inversion, mapping, and
-flattening nested structures.
+#### `config.py`
+Configuration management with the `Setting` class - a nested dictionary with dot notation access, lock/unlock mechanism, and environment-based configuration loading.
 
-### `funcutils.py`
-Decorators and higher-order functions to compose functions, repeat execution,
-and handle exceptions.
+#### `classes.py`
+Class utilities including singleton enforcement, memoization, lazy properties, metaclass resolution, and dynamic instance extension. [Full documentation](docs/classutils.md)
 
-### `configutils.py`
-Provides a `Setting` class for configuration management and functions to load
-configuration options.
+#### `func.py`
+Function decorators and composition utilities: compose, decompose, repeat, delay, suppresswarning, MultiMethod dispatch.
 
-### `classutils.py`
-Helpers for class operations, such as singleton enforcement, lazy properties,
-and dynamic inheritance. [Full documentation](docs/classutils.md)
+#### `iter.py`
+Iterator utilities extending itertools: chunking, partitioning, windowing, flattening, grouping, and sequence operations.
 
-### `textutils.py`
-Text processing functions for fixing encoding issues, fuzzy searching, and
-boolean string conversion.
+#### `text.py`
+Text processing: encoding fixes, camelCase conversion, fuzzy search, number parsing, truncation, base64 encoding, strtobool.
 
-### `setutils.py`
-Utilities for working with sets, including ordered sets with unique elements.
+#### `format.py`
+String formatting utilities for numbers, currency, time intervals, phone numbers, capitalization, and custom number formats.
 
-### `util.py`
-General programming utilities, including timeout management and list
-manipulation functions.
+#### `path.py`
+Path operations: add to sys.path, get module directory, context manager for directory changes, script name extraction.
 
-### `webutils.py`
-Web programming utilities for handling CORS, authentication, and formatting
-responses.
+#### `dicts.py`
+Dictionary utilities: inversion, key/value mapping, flattening, nested access, multikey sorting, comparison, tree operations.
 
-### `mathutils.py`
-Mathematical utilities for statistical calculations, variance, and covariance.
+#### `typing.py`
+Type definitions for file-like objects, IO streams, and common data types used across the library.
 
-### `iterutils.py`
-Itertools extensions for chunking, partitioning, and creating infinite
-iterators.
+#### `module.py`
+Module management: dynamic importing, module patching, class instantiation, virtual modules, package discovery.
 
-### `mimetypesutils.py`
-MIME type utilities for guessing file extensions and types.
+### Collection Classes (3 modules)
 
-### `moduleutils.py`
-Module management utilities for importing and patching modules dynamically.
+#### `attrdict.py`
+Six dictionary classes with special behaviors:
+- `attrdict`: Attribute-style access (dot notation)
+- `lazydict`: Lazy evaluation of function values
+- `emptydict`: Returns None for missing keys
+- `bidict`: Bidirectional dictionary with inverse mapping
+- `MutableDict`: Ordered dict with insert_before/insert_after
+- `CaseInsensitiveDict`: Case-insensitive key access
 
-### `montecarlo.py`
-Monte Carlo simulation utilities for financial and mathematical modeling.
+#### `orderedset.py`
+`OrderedSet`: Set that preserves insertion order with unique elements.
 
-### `syncd.py`
-Synchronization utilities for managing concurrent operations.
+#### `heap.py`
+`ComparableHeap`: Heap queue with custom comparator key function.
 
-### `thread.py`
-Threading utilities to simplify running functions in separate threads.
+### I/O & System (5 modules)
 
-### `typingutils.py`
-Type definitions for file-like objects and other common data types.
+#### `iolib.py`
+I/O operations: CSV rendering, zipped CSV handling, iterable-to-stream conversion, JSON byteification, print suppression.
 
-### `rand.py`
-Random number generation utilities with seeding and sampling functions.
+#### `stream.py`
+Stream utilities: YAML/JSON conversion, binary/text handling, checksum calculation, stream decorators.
 
-### `exception.py`
-Exception handling utilities to print and manage exceptions.
+#### `proc.py`
+Process utilities: finding processes by name/port, killing processes, process management.
 
-### `pd.py`
-Pandas DataFrame utilities for downcasting and merging with fuzzy matching.
+#### `signals.py`
+Signal handling: DelayedKeyboardInterrupt context manager, signal translation map.
 
-### `future.py`
-Future pattern implementation for asynchronous execution of functions.
+#### `mime.py`
+MIME type utilities for guessing file extensions and content types.
 
-### `procutils.py`
-Process utilities for managing system processes and executing shell commands.
+### Specialized Utilities (15 modules)
+
+#### `webapp.py`
+Web utilities: CORS (Flask/web.py), XSRF protection, authentication decorators, URL building, breadcrumb generation, HTML escaping, JSON encoders with ISO date support.
+
+#### `stats.py`
+Mathematical/statistical functions: average, variance, standard deviation, covariance, beta, combinatorics (choose), number parsing, threshold operations.
+
+#### `matrix.py`
+Matrix operations: dot product, transpose, matrix multiplication, Gauss-Jordan inversion, QR decomposition, linear regression.
+
+#### `sync.py`
+Synchronization primitives: timeout decorator/context manager for thread/async operations.
+
+#### `crypto.py`
+Cryptography and encoding: base64 file encoding, hashing utilities.
+
+#### `geo.py`
+Geographic utilities: Mercator projection coordinate transformations (merc_x, merc_y).
+
+#### `chart.py`
+Plotting utilities for creating charts, particularly time series visualizations.
+
+#### `montecarlo.py`
+Monte Carlo simulation: random number generation, normal distributions, correlation matrices, Cholesky decomposition.
+
+#### `dir.py`
+Directory operations: recursive creation, temporary directories, file searching, safe moving, directory structure inspection, file downloading.
+
+#### `exception.py`
+Exception handling: print exceptions with traceback control, try_else wrapper for default values on failure.
+
+#### `future.py`
+Future pattern implementation for running functions asynchronously in separate threads.
+
+#### `pandasutils.py`
+Pandas utilities: interval-based operations, multi-column table display, downcast (memory optimization), fuzzymerge (fuzzy string matching for joins). Re-exports all pandas functionality.
+
+#### `rand.py`
+Random number generation with enhanced seeding, sampling, and distribution functions.
+
+#### `thread.py`
+Threading utilities: asyncd decorator, threaded decorator for background execution.
+
+### Platform-Specific (1 module)
+
+#### `win.py`
+Windows utilities: command execution, psexec sessions, file share mounting, WMIC output parsing.
+
+### Deprecated (1 module)
+
+#### `util.py` ⚠️ **DEPRECATED**
+This catch-all module has been broken up into specialized modules. All functions moved to appropriate locations. Import from top-level `libb` instead.
 
 ## Installation
 
-To install the utilities, clone the repository and install the required
-dependencies:
+The library uses Poetry for dependency management. Install with optional extras as needed:
 
 ```bash
+# Clone the repository
 git clone https://github.com/your-repo/libb.git
 cd libb
-pip install -r requirements.txt
+
+# Install with Poetry (basic installation)
+poetry install
+
+# Install with specific extras
+poetry install -E test      # Testing dependencies
+poetry install -E pandas    # Pandas utilities
+poetry install -E text      # Text processing (chardet, ftfy, rapidfuzz)
+poetry install -E web       # Web utilities (Flask, web.py)
+poetry install -E math      # Mathematical/plotting (numpy, matplotlib)
+
+# Install all extras
+poetry install --all-extras
+```
+
+Or install with pip:
+
+```bash
+pip install -e .
+pip install -e ".[test,pandas,text,web,math]"  # with extras
 ```
 
 Environemntal Variables
@@ -154,15 +216,59 @@ GPG:
 
 ## Usage
 
-Import the desired utility module in your Python script and use the provided
-functions:
+Import utilities directly from the top-level `libb` package:
 
 ```python
-from libb import util
+from libb import Setting, compose, attrdict, timeout, fuzzy_search
 
-# Use a utility function
-result = util.some_utility_function(args)
+# Configuration management
+config = Setting()
+config.database.host = 'localhost'
+config.lock()
+
+# Function composition
+add_one = lambda x: x + 1
+multiply_two = lambda x: x * 2
+add_then_multiply = compose(multiply_two, add_one)
+result = add_then_multiply(5)  # (5 + 1) * 2 = 12
+
+# Attribute dictionaries
+d = attrdict(x=10, y=20)
+print(d.x)  # 10
+d.z = 30
+
+# Timeout decorator
+@timeout(5)  # 5 second timeout
+def slow_function():
+    # ... long running operation
+    pass
+
+# Fuzzy string matching
+items = [("Apple Inc", "AAPL"), ("Microsoft Corp", "MSFT")]
+results = fuzzy_search("apple", items)
 ```
+
+For more examples, see module-specific documentation and doctests.
+
+## Key Features
+
+- **36 specialized modules** covering configuration, I/O, text processing, data structures, web utilities, and more
+- **Transparent API** - all utilities accessible from top-level import
+- **Graceful dependency handling** - optional dependencies don't break imports
+- **Comprehensive test coverage** - 31+ tests with doctests in all modules
+- **Type hints** - modern Python type annotations throughout
+- **Well documented** - extensive docstrings and examples
+
+## Recent Refactoring
+
+The library underwent a comprehensive refactoring in 2024-2025:
+
+1. **Phase 1**: Renamed 18 modules to short, singular names (e.g., `funcutils.py` → `func.py`)
+2. **Phase 2**: Broke up 400+ line `util.py` catch-all into specialized modules, created `crypto.py` and `geo.py`
+3. **Phase 3**: Flattened `collections/` directory, renamed files after primary classes (e.g., `collections/dict.py` → `attrdict.py`)
+4. **Cleanup**: Fixed critical bugs, added missing `__all__` exports to 17 modules
+
+See `REFACTORING_COMPLETE.md` for full details.
 
 ## Contributing
 

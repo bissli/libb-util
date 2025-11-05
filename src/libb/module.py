@@ -8,6 +8,24 @@ from pkgutil import ModuleInfo, walk_packages
 from types import ModuleType
 from typing import Any
 
+__all__ = [
+    'OverrideModuleGetattr',
+    'get_module',
+    'get_class',
+    'get_subclasses',
+    'get_function',
+    'load_module',
+    'patch_load',
+    'patch_module',
+    'create_instance',
+    'create_mock_module',
+    'VirtualModule',
+    'create_virtual_module',
+    'get_packages_in_module',
+    'get_package_paths_in_module',
+    'import_non_local',
+]
+
 
 class OverrideModuleGetattr:
     """A wrapper class to override the __getattr__ method of a Python module.
@@ -127,9 +145,11 @@ def load_module(name: str, path: str) -> ModuleType:
     """Load module from path
 
     >>> import os
-    >>> m = load_module('moduleutils', os.path.abspath(__file__))
-    >>> m.load_module
-    <function load_module at ...>
+    >>> m = load_module('module', os.path.abspath(__file__))
+    >>> type(m.load_module).__name__
+    'function'
+    >>> m.load_module.__name__
+    'load_module'
 
     """
     module_spec = importlib_util.spec_from_file_location(name, path)
@@ -284,7 +304,7 @@ def get_packages_in_module(*m: ModuleType) -> Iterable[ModuleInfo]:
 
     >>> import libb
     >>> _ = get_package_paths_in_module(libb)
-    >>> assert 'libb.moduleutils' in _
+    >>> assert 'libb.module' in _
     """
     result = []
     for module in m:

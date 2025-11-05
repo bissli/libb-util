@@ -14,6 +14,7 @@ __all__ = [
     'commafy',
     'fmt',
     'format',
+    'format_phone',
     'format_secondsdelta',
     'format_timedelta',
     'format_timeinterval',
@@ -303,26 +304,6 @@ def capitalize(s):
     return KNOWN.get(s.lower(), capwords(s))
 
 
-def splitcap(s, delim=None):
-    """Split and capitalize string by delimiter (or camelcase)
-
-    >>> splitcap("foo_bar")
-    'Foo Bar'
-    >>> splitcap("fooBar")
-    'Foo Bar'
-    """
-    if not delim:
-        if '_' in s:
-            delim = '_'
-        elif ' ' in s:
-            delim = ' '
-    if delim:
-        bits = s.split(delim)
-    else:  # camelcase
-        bits = re.sub(r'([a-z])([A-Z])', r'\1 \2', s).split(' ')
-    return ' '.join([capitalize(s) for s in bits])
-
-
 def titlecase(s):
     """Wrapper around python-titlecase"""
     return _titlecase(s)
@@ -336,6 +317,20 @@ class Percent(float):
         p = float.__new__(cls, val)
         p.pct = True
         return p
+
+
+def format_phone(phone):
+    """Reformat phone numbers for display
+
+    >>> format_phone('6877995559')
+    '687-799-5559'
+    """
+    pstr = str(phone)
+    parr = [pstr[-10:-7], pstr[-7:-4], pstr[-4:]]
+    if len(pstr) > 10:
+        parr.insert(0, pstr[:-10])
+    formatted_phone = '-'.join(parr)
+    return formatted_phone
 
 
 if __name__ == '__main__':

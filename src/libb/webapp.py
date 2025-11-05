@@ -18,7 +18,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from functools import update_wrapper, wraps
-from itertools import accumulate
+from itertools import accumulate, starmap
 from urllib.parse import urlsplit, urlunsplit
 
 from dateutil import parser
@@ -33,6 +33,50 @@ with contextlib.suppress(ImportError):
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'get_or_create',
+    'paged',
+    'rsleep',
+    'rand_retry',
+    'cors_webpy',
+    'cors_flask',
+    'authd',
+    'xsrf_token',
+    'xsrf_protected',
+    'valid_api_key',
+    'requires_api_key',
+    'make_url',
+    'prefix_urls',
+    'url_path_join',
+    'first_of_each',
+    'safe_join',
+    'local_or_static_join',
+    'inject_file',
+    'inject_image',
+    'build_breadcrumb',
+    'breadcrumbify',
+    'appmenu',
+    'scale',
+    'render_field',
+    'login_protected',
+    'userid_or_admin',
+    'manager_or_admin',
+    'logerror',
+    'validip6addr',
+    'validipaddr',
+    'validipport',
+    'validip',
+    'validaddr',
+    'urlquote',
+    'httpdate',
+    'parsehttpdate',
+    'htmlquote',
+    'htmlunquote',
+    'websafe',
+    'JSONEncoderISODate',
+    'JSONDecoderISODate',
+    'ProfileMiddleware',
+]
 
 # convenient placeholders for cookielib.Cookie
 # allows us to quickly make Cookie(name='', value='', **COOKIE_DEFAULTS)
@@ -124,7 +168,6 @@ def rand_retry(x_times=10, exception=Exception):
     def wrapper(fn):
         @wraps(fn)
         def wrapped_fn(*args, **kwargs):
-            logger.debug('Starting wrapped function')
             tries = 0
             while tries <= x_times:
                 try:
@@ -579,7 +622,7 @@ def local_or_static_join(static, somepath):
 
 def inject_file(x):
     """Little wrapper for injecting css, js, etc, for html email templates"""
-    with open(x, 'r', encoding='locale') as f:
+    with open(x, encoding='locale') as f:
         return f.read()
 
 
@@ -598,7 +641,7 @@ def build_breadcrumb(ctx):
     paths[0], names[0] = ctx.realhome, 'Home'
     paths = accumulate(paths)
     pathsnames = list(zip(paths, names))
-    links = ['<a href="%s/">%s</a>' % _ for _ in pathsnames]
+    links = list(starmap('<a href="{}/">{}</a>'.format, pathsnames))
     to_render = ' >> '.join(links)
     return to_render
 
@@ -658,9 +701,9 @@ def scale(color, pct):
 
     if len(color) == 4:
         r, g, b = color[1], color[2], color[3]
-        r = r + r
-        g = g + g
-        b = b + b
+        r += r
+        g += g
+        b += b
     else:
         r, g, b = color[1:3], color[3:5], color[5:]
     r = int(r, 16)
@@ -764,7 +807,7 @@ class JSONEncoderISODate(json.JSONEncoder):
     """
 
     def default(self, obj):
-        if isinstance(obj, (datetime.date, datetime.datetime)):
+        if isinstance(obj, datetime.date | datetime.datetime):
             return obj.isoformat()
         return super().default(obj)
 
@@ -851,11 +894,11 @@ class ProfileMiddleware:
         self.sort = sort
         self.count = count
 
-    def __call__(self, env, resp):
+    def __call__(self, environ, start_response):
         stime = time.time()
         pr = cProfile.Profile()
         pr.enable()
-        result = pr.runcall(self.func, env, resp)
+        result = pr.runcall(self.func, environ, start_response)
         pr.disable()
         etime = time.time() - stime
         self.log.info(f'Run finished in {etime} seconds')
@@ -922,7 +965,7 @@ def validip6addr(address):
     """
     try:
         socket.inet_pton(socket.AF_INET6, address)
-    except (socket.error, AttributeError, ValueError):
+    except (OSError, AttributeError, ValueError):
         return False
 
     return True

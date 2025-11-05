@@ -1,6 +1,10 @@
 import copy
 from threading import Condition, Thread
 
+__all__ = [
+    'Future',
+]
+
 
 class Future:
     """== Easy Threading

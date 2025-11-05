@@ -1,5 +1,9 @@
 import heapq
 
+__all__ = [
+    'ComparableHeap',
+]
+
 
 class ComparableHeap:
     """Wraps heapq to add a keyed comparator. Sourced from

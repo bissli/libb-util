@@ -11,9 +11,28 @@ from typing import Any
 
 from trace_dkey import trace
 
-from libb.iterutils import collapse
+from libb.iter import collapse
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    'ismapping',
+    'invert',
+    'mapkeys',
+    'mapvals',
+    'flatten',
+    'unnest',
+    'replacekey',
+    'replaceattr',
+    'cmp',
+    'multikeysort',
+    'map',
+    'get_attrs',
+    'trace_key',
+    'trace_value',
+    'add_branch',
+    'merge_dict',
+]
 
 
 def ismapping(something):
@@ -447,7 +466,7 @@ def merge_dict(old: DictType, new: DictType, inplace: bool = True) -> DictType |
     >>> l1['a']['c']
     [1, 2]
     """
-    from libb.iterutils import isiterable
+    from libb.iter import isiterable
 
     if not inplace:
         old = copy.deepcopy(old)

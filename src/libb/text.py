@@ -1,5 +1,6 @@
 import base64
 import contextlib
+import difflib
 import logging
 import quopri
 import random
@@ -9,7 +10,7 @@ from functools import reduce
 
 import regex as re
 
-from libb.iterutils import collapse
+from libb.iter import collapse
 
 with contextlib.suppress(ImportError):
     import chardet
@@ -23,6 +24,23 @@ with contextlib.suppress(ImportError):
     from rapidfuzz.process import extract
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    'random_string',
+    'fix_text',
+    'underscore_to_camelcase',
+    'uncamel',
+    'strip_ascii',
+    'sanitize_vulgar_string',
+    'round_digit_string',
+    'parse_number',
+    'truncate',
+    'rotate',
+    'smart_base64',
+    'strtobool',
+    'fuzzy_search',
+    'is_numeric',
+]
 
 #
 # useful constants for writing unicode-based context-free grammars
@@ -358,6 +376,26 @@ def fuzzy_search(search_term, items, case_sensitive=False):
             ][-1]
             max_score = float(max(max_score, _jaro, _fuzz / 100.0))
         yield _items, max_score
+
+
+def is_numeric(txt):
+    """Call something a number if we can force it into a float
+    WARNING: complex types cannot be converted to float
+
+    >>> is_numeric('a')
+    False
+    >>> is_numeric(1e4)
+    True
+    >>> is_numeric('1E2')
+    True
+    >>> is_numeric(complex(-1,0))
+    False
+    """
+    try:
+        float(txt)
+        return True
+    except (ValueError, TypeError):
+        return False
 
 
 if __name__ == '__main__':

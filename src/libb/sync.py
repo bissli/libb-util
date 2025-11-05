@@ -1,5 +1,6 @@
 import datetime
 import math
+import signal
 import threading
 import time
 from collections.abc import Callable
@@ -12,6 +13,7 @@ __all__ = [
     'delay',
     'debounce',
     'wait_until',
+    'timeout',
 ]
 
 
@@ -156,6 +158,37 @@ def wait_until(hour, minute=0, second=0, tz=timezone.utc, time_unit='millisecond
     if this >= then:
         then += timedelta(days=1)
     return math.ceil((then - this).seconds) * (1000 if time_unit == 'milliseconds' else 1)
+
+
+class timeout:
+    """with statement to manage timeouts for potential hanging code
+    http://stackoverflow.com/a/22348885/424380
+
+    >>> import time
+    >>> with timeout(1):
+    ...     time.sleep(2)
+    ...     print("foo")
+    Traceback (most recent call last):
+        ...
+    OSError: Timeout!!
+    >>> with timeout(1):
+    ...     print("foo")
+    foo
+    """
+
+    def __init__(self, seconds=100, error_message='Timeout!!'):
+        self.seconds = seconds
+        self.error_message = error_message
+
+    def handle_timeout(self, signum, frame):
+        raise OSError(self.error_message)
+
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
+
+    def __exit__(self, type, value, traceback):
+        signal.alarm(0)
 
 
 if __name__ == '__main__':

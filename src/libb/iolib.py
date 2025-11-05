@@ -2,11 +2,25 @@ import csv
 import io
 import json
 import logging
+import os
+import sys
 from collections.abc import Iterable
+from contextlib import contextmanager
 from functools import wraps
 from zipfile import ZipFile, ZipInfo
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    'render_csv',
+    'CsvZip',
+    'iterable_to_stream',
+    'stream',
+    'json_load_byteified',
+    'json_loads_byteified',
+    'suppress_print',
+    'wrap_suppress_print',
+]
 
 
 def render_csv(rows, dialect=csv.excel):
@@ -141,6 +155,27 @@ def _byteify(data, ignore_dicts=False):
             _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True) for key, value in list(data.items())
         }
     return data
+
+
+@contextmanager
+def suppress_print():
+    """Suppress `print` in case someone decided to include print statements"""
+    try:
+        _original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+        yield
+    finally:
+        sys.stdout.close()
+        sys.stdout = _original_stdout
+
+
+def wrap_suppress_print(func):
+    """Decorator for `suppress_print`"""
+    @wraps(func)
+    def wrapped(*a, **kw):
+        with suppress_print():
+            return func(*a, **kw)
+    return wrapped
 
 
 if __name__ == '__main__':

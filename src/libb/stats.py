@@ -14,11 +14,55 @@ with contextlib.suppress(ImportError, ModuleNotFoundError):
 
 import regex as re
 
-from libb.dictutils import cmp
-from libb.util import suppresswarning
+from libb.dicts import cmp
+from libb.func import suppresswarning
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'npfunc',
+    'avg',
+    'pct_change',
+    'diff',
+    'thresh',
+    'isnumeric',
+    'digits',
+    'numify',
+    'parse',
+    'nearest',
+    'covarp',
+    'covars',
+    'varp',
+    'vars',
+    'stddevp',
+    'stddevs',
+    'beta',
+    'correl',
+    'rsq',
+    'rtns',
+    'logrtns',
+    'weighted_average',
+    'linear_regression',
+    'distance_from_line',
+    'linterp',
+    'np_divide',
+    'safe_add',
+    'safe_diff',
+    'safe_divide',
+    'safe_mult',
+    'safe_round',
+    'safe_cmp',
+    'safe_min',
+    'safe_max',
+    'convert_mixed_numeral_to_fraction',
+    'convert_to_mixed_numeral',
+    'round_to_nearest',
+    'BBox',
+    'overlaps',
+    'push_apart',
+    'numpy_smooth',
+    'choose',
+]
 
 #
 # Numpy decorators
@@ -513,12 +557,12 @@ def _safe_min_max(agg, it=None, *args, **kwargs):
     assert agg in {min, max}
     if isinstance(it, Iterable) and not args:
         it = [v for v in it if v is not None]
-        if not len(it):
+        if not it:
             return None
     if args:
         it = list(args) + [it]
         it = [v for v in it if v is not None]
-        if not len(it):
+        if not it:
             return None
     elif it:
         it = it if isinstance(it, Iterable) else [it]
@@ -770,6 +814,15 @@ def numpy_smooth(x: 'np.ndarray', window_len=11, window='hanning'):
         w = eval('np.' + window + '(window_len)')
     y = np.convolve(w / w.sum(), s, mode='same')
     return y[window_len:-window_len + 1]
+
+
+def choose(n, k):
+    """Simple implementation of n choose k (combinatorics)
+
+    >>> choose(10, 3)
+    120
+    """
+    return int(round(reduce(operator.mul, (float(n - i) / (i + 1) for i in range(k)), 1)))
 
 
 if __name__ == '__main__':

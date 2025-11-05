@@ -2,6 +2,7 @@ import ast
 import inspect
 import logging
 import sys
+import warnings
 from collections.abc import Iterable
 from functools import reduce, wraps
 from time import time
@@ -17,6 +18,9 @@ __all__ = [
     'get_calling_function',
     'repeat',
     'timing',
+    'suppresswarning',
+    'MultiMethod',
+    'multimethod',
     ]
 
 
@@ -247,6 +251,55 @@ def timing(func):
         logger.debug(f'func:{func.__name__!r} args:[{args!r}, {kw!r}] took: {te-ts:2.4f} sec')
         return result
     return wrap
+
+
+def suppresswarning(func):
+    """Suppressing warnings"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            return func(*args, **kwargs)
+    return wrapper
+
+
+registry = {}
+
+
+class MultiMethod:
+    """Multimethod that supports args no kwargs (by design ...)
+    via bdfl http://www.artima.com/weblogs/viewpost.jsp?thread=101605
+
+    @multimethod(int, int)
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.typemap = {}
+
+    def __call__(self, *args):
+        types = tuple(arg.__class__ for arg in args)
+        function = self.typemap.get(types)
+        if function is None:
+            raise TypeError('no match')
+        return function(*args)
+
+    def register(self, types, function):
+        if types in self.typemap:
+            raise TypeError('duplicate registration')
+        self.typemap[types] = function
+
+
+def multimethod(*types):
+    def register(function):
+        name = function.__name__
+        mm = registry.get(name)
+        if mm is None:
+            mm = registry[name] = MultiMethod(name)
+        mm.register(types, function)
+        return mm
+
+    return register
 
 
 if __name__ == '__main__':

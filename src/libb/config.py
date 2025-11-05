@@ -20,6 +20,7 @@ __all__ = [
     'load_options',
     'configure_environment',
     'patch_library_config',
+    'setting_unlocked',
     'get_tempdir',
     'get_vendordir',
     'get_outputdir',
