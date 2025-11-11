@@ -208,20 +208,76 @@ def digits(n):
 
 # move out
 def numify(val, to=float):
-    """Return float from string"""
+    """Convert value to numeric type, handling common formatting.
+
+    Handles:
+    - None values (returns None)
+    - Already numeric (int/float)
+    - String formatting: whitespace, commas, parentheses (negative), percentages
+    - Invalid values (returns None)
+
+    Returns
+        Converted value of type 'to', or None if conversion fails
+    """
+    # Handle None input
     if val is None:
-        return val
-    if isinstance(val, int | float):
+        return None
+
+    # Handle already-numeric values
+    if isinstance(val, int):
         return to(val)
+    if isinstance(val, float):
+        return to(val)
+
+    # Handle string values
     if isinstance(val, str):
+        # Remove leading/trailing whitespace
         val = val.strip()
+
+        # Empty string after stripping
         if not val:
             return None
-        val = val.replace(',', '')
+
+        # Check for parentheses notation (negative numbers in accounting format)
+        is_negative = False
         if val.startswith('(') and val.endswith(')'):
-            val = val.replace('(', '').replace(')', '')
-            return -1.0 * to(val)
-    return to(val)
+            val = val[1:-1].strip()
+            if not val:
+                return None
+            is_negative = True
+
+        # Remove thousand separators (commas)
+        val = val.replace(',', '')
+
+        # Handle percentage notation
+        if val.endswith('%'):
+            val = val[:-1].strip()
+            if not val:
+                return None
+
+        # Apply negative sign if found parentheses earlier
+        if is_negative:
+            val = f'-{val}'
+
+        # Try to convert to target type
+        try:
+            return to(val)
+        except ValueError:
+            # String contains non-numeric characters
+            return None
+        except OverflowError:
+            # Number too large for target type
+            return None
+
+    # Handle other types (try conversion anyway)
+    try:
+        return to(val)
+    except ValueError:
+        return None
+    except TypeError:
+        return None
+    except OverflowError:
+        return None
 
 
 # move out
