@@ -95,21 +95,44 @@ def delay(seconds: float) -> None:
 
 
 class Debouncer:
-    """Debounce handler for `debounce`
-    """
+    """Debounce handler for `debounce`"""
+
     def __init__(self, func: Callable[..., Any], wait: float):
         self.func = func
         self.wait = wait
         self._timer: threading.Timer | None = None
         self._lock = threading.Lock()
+        self._last_args = None
+        self._last_kwargs = None
 
     def __call__(self, *args, **kwargs) -> None:
         with self._lock:
-            # if called again cancel current timer and restart
+            self._last_args = args
+            self._last_kwargs = kwargs
             if self._timer is not None:
                 self._timer.cancel()
             self._timer = threading.Timer(self.wait, self.func, args, kwargs)
             self._timer.start()
+
+    def flush(self) -> None:
+        """Execute pending call immediately if one exists."""
+        with self._lock:
+            if self._timer is not None:
+                self._timer.cancel()
+                self._timer = None
+                if self._last_args is not None:
+                    self.func(*self._last_args, **self._last_kwargs)
+                    self._last_args = None
+                    self._last_kwargs = None
+
+    def cancel(self) -> None:
+        """Cancel any pending call without executing."""
+        with self._lock:
+            if self._timer is not None:
+                self._timer.cancel()
+                self._timer = None
+            self._last_args = None
+            self._last_kwargs = None
 
 
 VoidFunction = TypeVar('VoidFunction', bound=Callable[..., None])
