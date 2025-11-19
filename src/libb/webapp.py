@@ -23,7 +23,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from dateutil import parser
 
-from libb import collapse, delay, expandabspath, grouper, splitcap
+from libb import collapse, expandabspath, grouper, splitcap
 
 with contextlib.suppress(ImportError):
     import web
@@ -159,7 +159,7 @@ def paged(order_by_df, per_page_df):
 def rsleep(always=0, rand_extra=8):
     seconds = max(always + (random.randrange(0, max(rand_extra, 1) * 1000) * 0.001), 0)
     logger.debug(f'Sleeping {seconds:0.2f} seconds ...')
-    delay(seconds)
+    time.sleep(seconds)
 
 
 def rand_retry(x_times=10, exception=Exception):
@@ -458,7 +458,8 @@ VALID_KEY = re.compile('[a-zA-Z0-9_-]{1,255}')
 def valid_api_key(key):
     """Check if key is suitable hash, if matches a validated user"""
     if VALID_KEY.match(key) is not None:
-        return User.get_active_key(key)
+        # TODO: Implement User model with get_active_key method
+        return False
     return False
 
 

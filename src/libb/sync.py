@@ -3,6 +3,7 @@ import math
 import signal
 import threading
 import time
+import warnings
 from collections.abc import Callable
 from datetime import timedelta, timezone
 from typing import Any, TypeVar, cast
@@ -63,28 +64,33 @@ class NonBlockingDelay:
     """Non blocking delay class"""
 
     def __init__(self):
-        self._timestamp = 0
-        self._delay = 0
-
-    def _seconds(self):
-        return int(time.time())
+        self._timestamp = 0.0
+        self._delay = 0.0
 
     def timeout(self):
         """Check if time is up"""
-        return (self._seconds() - self._timestamp) > self._delay
+        return (time.monotonic() - self._timestamp) > self._delay
 
-    def delay(self, delay):
+    def delay(self, delay: float) -> None:
         """Non blocking delay in seconds"""
-        self._timestamp = self._seconds()
+        self._timestamp = time.monotonic()
         self._delay = delay
 
 
-def delay(seconds):
-    """Delay non-blocking for N seconds
+def delay(seconds: float) -> None:
+    """Delay non-blocking for N seconds (busy-wait).
+
+    .. deprecated::
+        Use time.sleep() for efficient blocking delays. This function is kept for backward compatibility.
     """
-    delay = NonBlockingDelay()
-    delay.delay(seconds)
-    while not delay.timeout():
+    warnings.warn(
+        'delay() is deprecated, use time.sleep() instead',
+        DeprecationWarning,
+        stacklevel=2
+    )
+    d = NonBlockingDelay()
+    d.delay(seconds)
+    while not d.timeout():
         continue
 
 

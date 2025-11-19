@@ -263,3 +263,5 @@ def test_execute_exception_in_response():
             assert response.result == i * 2
 
 
+if __name__ == '__main__':
+    __import__('pytest').main([__file__])
