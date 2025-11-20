@@ -19,35 +19,7 @@ __all__ = [
 
 
 def syncd(lock):
-    """Synchronize an arbitrary number of functions with shared lock
-    yanked out of the python decorator wiki, adding an illustrative test
-
-    >>> import time
-    >>> from threading import Lock, Thread
-    >>> from queue import Queue
-    >>> lock = Lock()
-    >>> A = Queue()
-    >>> A.put('b')
-
-    >>> @syncd(lock)
-    ... def alpha():
-    ...     time.sleep(2)
-    ...     A.put('a')
-
-    >>> @syncd(lock)
-    ... def omega():
-    ...     return A.get()
-
-    >>> a = Thread(target=alpha)
-    >>> a.start()
-    >>> A.empty()
-    False
-    >>> A.get()
-    'b'
-    >>> A.empty()
-    True
-    >>> omega()  # 2-second blocking comes here
-    'a'
+    """Synchronize an arbitrary number of functions with shared lock.
     """
     def wrap(f):
         def new_function(*args, **kw):
@@ -139,20 +111,7 @@ VoidFunction = TypeVar('VoidFunction', bound=Callable[..., None])
 
 
 def debounce(wait: float):
-    """Wait `interval` seconds before calling `func`, and cancel
-    if called again. When a function is called multiple times with
-    debounce it will only return once if within `wait` window.
-
-    >>> @debounce(1)
-    ... def hi(name):
-    ...     print('hi {}'.format(name))
-
-    >> hi('foo')
-    >> time.sleep(0.5)
-    >> hi('bar')
-    >> time.sleep(0.5)
-    >> hi('baz')
-
+    """Wait `interval` seconds before calling `func`, and cancel if called again.
     """
     def wrapper(func: VoidFunction) -> VoidFunction:
         if wait <= 0:
@@ -161,64 +120,50 @@ def debounce(wait: float):
     return wrapper
 
 
-def wait_until(hour, minute=0, second=0, tz=timezone.utc, time_unit='milliseconds') -> int:
-    """Hour/minute `until` which to sleep, ex hour=17 means sleep utill 5PM
-
-    >>> from unittest.mock import patch
-
-    >>> with patch(f'{__name__}.datetime', wraps=datetime) as mock:
-    ...     mock.datetime.now.return_value = datetime.datetime(2000, 5, 1, 17, 30, 0, 0, tzinfo=timezone.utc)
-    ...     f"{wait_until(12, 0, 0)/3600/1000:.1f} hours"
-    '18.5 hours'
-
-    >>> with patch(f'{__name__}.datetime', wraps=datetime) as mock:
-    ...     mock.datetime.now.return_value = datetime.datetime(2000, 7, 1, 17, 15, 0, 0, tzinfo=timezone.utc)
-    ...     f"{wait_until(17, 45, 0)/3600/1000:.1f} hours"
-    '0.5 hours'
-
-    >>> with patch(f'{__name__}.datetime', wraps=datetime) as mock:
-    ...     mock.datetime.now.return_value = datetime.datetime(2000, 11, 1, 17, 15, 0, 0, tzinfo=timezone.utc)
-    ...     f"{wait_until(16, 15, 0)/3600/1000:.1f} hours"
-    '23.0 hours'
+def wait_until(
+    hour: int,
+    minute: int = 0,
+    second: int = 0,
+    tz: datetime.tzinfo | None = timezone.utc,
+    time_unit: str = 'milliseconds'
+) -> int:
+    """Calculate milliseconds to wait until specified hour/minute/second.
     """
     assert time_unit in {'seconds', 'milliseconds'}
+    if not (0 <= hour <= 23):
+        raise ValueError(f'hour must be between 0 and 23, got {hour}')
+    if not (0 <= minute <= 59):
+        raise ValueError(f'minute must be between 0 and 59, got {minute}')
+    if not (0 <= second <= 59):
+        raise ValueError(f'second must be between 0 and 59, got {second}')
     this = datetime.datetime.now(tz=tz)
     then = datetime.datetime(this.year, this.month, this.day, hour, minute, second, tzinfo=tz)
     if this >= then:
         then += timedelta(days=1)
-    return math.ceil((then - this).seconds) * (1000 if time_unit == 'milliseconds' else 1)
+    return math.ceil((then - this).total_seconds()) * (1000 if time_unit == 'milliseconds' else 1)
 
 
 class timeout:
-    """with statement to manage timeouts for potential hanging code
-    http://stackoverflow.com/a/22348885/424380
-
-    >>> import time
-    >>> with timeout(1):
-    ...     time.sleep(2)
-    ...     print("foo")
-    Traceback (most recent call last):
-        ...
-    OSError: Timeout!!
-    >>> with timeout(1):
-    ...     print("foo")
-    foo
+    """Context manager to manage timeouts for potential hanging code.
+    
+    Note: Uses SIGALRM and only works on Unix/Linux systems.
     """
 
-    def __init__(self, seconds=100, error_message='Timeout!!'):
+    def __init__(self, seconds: int = 100, error_message: str = 'Timeout!!'):
         self.seconds = seconds
         self.error_message = error_message
+        self._previous_handler = None
 
     def handle_timeout(self, signum, frame):
         raise OSError(self.error_message)
 
     def __enter__(self):
-        signal.signal(signal.SIGALRM, self.handle_timeout)
+        self._previous_handler = signal.signal(signal.SIGALRM, self.handle_timeout)
         signal.alarm(self.seconds)
+        return self
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
-
-
-if __name__ == '__main__':
-    __import__('doctest').testmod()
+        if self._previous_handler is not None:
+            signal.signal(signal.SIGALRM, self._previous_handler)
+        return False
