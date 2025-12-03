@@ -2,6 +2,7 @@
 
 import base64
 import logging
+import pathlib
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ def base64file(fil):
     Note: This function reads the entire file into memory.
     Use with caution on large files.
     """
-    return base64.encodestring(open(fil, 'rb').read())
+    return base64.encodebytes(pathlib.Path(fil).read_bytes())
 
 
 def kryptophy(blah):

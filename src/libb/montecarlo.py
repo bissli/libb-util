@@ -44,7 +44,7 @@ def normalVec(n, generator):
 
 class Random:
     class BuiltinGenerator:
-        def seed(index):
+        def seed(self):
             pass
 
         seed = _Callable(seed)
@@ -58,12 +58,12 @@ class Random:
         base = {'lo': 300773 & 0x7FFF, 'hi': 300773 >> 15}
         cur = None
 
-        def seed(index):
+        def seed(self):
             Random.ExpGenerator.cur = {'lo': 1, 'hi': 0}
             mask = 1
             mult = {'lo': Random.ExpGenerator.base['lo'], 'hi': Random.ExpGenerator.base['hi']}
             for i in range(30):
-                if index & mask:
+                if self & mask:
                     Random.ExpGenerator.cur = _mul(Random.ExpGenerator.cur, mult)
                 mult = _mul(mult, mult)
                 mask <<= 1
@@ -89,14 +89,22 @@ def halton(n, b):
     while n0 > 0.0:
         n1 = int(n0 / b)
         r = n0 - n1 * b
-        H = H + f * r
-        f = f / b
+        H += f * r
+        f /= b
         n0 = n1
     return H
 
 
 class mat:
+    """Matrix operations as static methods."""
+
+    @staticmethod
     def zero(rows, cols):
+        """Create a zero matrix with given dimensions.
+
+        >>> mat.zero(2, 3)
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+        """
         M = []
         for i in range(rows):
             M.insert(i, [])
@@ -104,43 +112,53 @@ class mat:
                 M[i].insert(j, 0.0)
         return M
 
-    zero = _Callable(zero)
-
+    @staticmethod
     def mulVec(M, v):
+        """Multiply matrix M by vector v.
+
+        >>> mat.mulVec([[1, 2], [3, 4]], [1, 1])
+        [3.0, 7.0]
+        """
         r = []
         for i in range(len(M)):
-            sum = 0.0
+            total = 0.0
             for j in range(len(v)):
-                sum += M[i][j] * v[j]
-            r.insert(i, sum)
+                total += M[i][j] * v[j]
+            r.insert(i, total)
         return r
 
-    mulVec = _Callable(mulVec)
-
+    @staticmethod
     def mul(M, N):
+        """Multiply matrix M by matrix N.
+
+        >>> mat.mul([[1, 2], [3, 4]], [[5, 6], [7, 8]])
+        [[19, 22], [43, 50]]
+        """
         R = []
         for i in range(len(M)):
             if len(M[i]) != len(N):
                 raise Exception('bad matricies')
             R.insert(i, [])
             for j in range(len(N[0])):
-                sum = 0
+                total = 0
                 for k in range(len(N)):
-                    sum += M[i][k] * N[k][j]
-                R[i].insert(j, sum)
+                    total += M[i][k] * N[k][j]
+                R[i].insert(j, total)
         return R
 
-    mul = _Callable(mul)
-
+    @staticmethod
     def trans(M):
+        """Transpose matrix M.
+
+        >>> mat.trans([[1, 2, 3], [4, 5, 6]])
+        [[1, 4], [2, 5], [3, 6]]
+        """
         R = []
         for i in range(len(M[0])):
             R.insert(i, [])
             for j in range(len(M)):
                 R[i].insert(j, M[j][i])
         return R
-
-    trans = _Callable(trans)
 
 
 def randomCorrelation(n, prng):
@@ -150,7 +168,7 @@ def randomCorrelation(n, prng):
     for i in range(n):
         T.insert(i, [])
         for j in range(n):
-            T[i].insert(j, Random.normal(prng))
+            T[i].insert(j, normal(prng))
 
     # Normalize the columns
     for j in range(n):
@@ -166,6 +184,12 @@ def randomCorrelation(n, prng):
 
 
 def choleskyTrans(A):
+    """Cholesky decomposition returning lower triangular matrix L.
+
+    >>> L = choleskyTrans([[4.0, 2.0], [2.0, 2.0]])
+    >>> abs(L[0][0] - 2.0) < 0.001
+    True
+    """
     n = len(A)
 
     L = mat.zero(n, n)
@@ -182,4 +206,9 @@ def choleskyTrans(A):
 
 
 def cholesky(A):
+    """Cholesky decomposition returning upper triangular matrix."""
     return mat.trans(choleskyTrans(A))
+
+
+if __name__ == '__main__':
+    __import__('doctest').testmod()

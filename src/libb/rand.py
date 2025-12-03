@@ -32,7 +32,8 @@ def rseed(func):
 
 @rseed
 def random_choice(choices: list):
-    """Random choice amont list of choices"""
+    """Random choice among list of choices"""
+    choices = list(choices)  # copy to avoid mutating input
     random.shuffle(choices)
     return choices[0]
 

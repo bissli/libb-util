@@ -38,6 +38,8 @@ class NiceScale:
 
     def nice_num(self, lst, rround):
         self.lst = lst
+        if self.lst <= 0:
+            return 1
         exponent = math.floor(math.log10(self.lst))
         fraction = self.lst / math.pow(10, exponent)
         if rround:
@@ -103,7 +105,7 @@ def numpy_timeseries_plot(title, dates, series=None, labels=None, formats=None):
         mask = np.isfinite(ts)
         color = next(colors)
         try:
-            ax.plot(dates, ts[mask], color=color)
+            ax.plot(dates[mask], ts[mask], color=color)
         except Exception as exc:
             logger.warning(exc)
             continue

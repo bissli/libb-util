@@ -12,20 +12,29 @@ __all__ = [
     'kill_proc',
     ]
 
+
 def process_by_name(name):
-    proc = [p for p in psutil.process_iter() if p.name()==name]
-    for p in proc:
-        for c in p.connections():
-            if c.status == 'LISTEN':
-                yield p
+    for p in psutil.process_iter():
+        try:
+            if p.name() != name:
+                continue
+            for c in p.connections():
+                if c.status == 'LISTEN':
+                    yield p
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
 
 
 def process_by_name_and_port(name, port):
-    proc = [p for p in psutil.process_iter() if p.name() == name]
-    for p in proc:
-        for c in p.connections():
-            if c.status == 'LISTEN' and c.laddr.port == port:
-                return p
+    for p in psutil.process_iter():
+        try:
+            if p.name() != name:
+                continue
+            for c in p.connections():
+                if c.status == 'LISTEN' and c.laddr.port == port:
+                    return p
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
 
 
 def kill_proc(name=None, version=None, dry_run=False, use_terminate=False):

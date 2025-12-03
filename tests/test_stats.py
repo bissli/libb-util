@@ -258,8 +258,8 @@ class TestSafeArithmetic:
         assert safe_mult(2, None, 4) is None
 
     def test_safe_round(self):
-        assert safe_round(math.pi, places=2) == math.pi
-        assert safe_round(math.pi, places=4) == math.pi
+        assert safe_round(math.pi, places=2) == 3.14
+        assert safe_round(math.pi, places=4) == 3.1416
         assert safe_round(None) is None
 
 

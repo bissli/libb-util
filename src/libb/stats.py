@@ -573,7 +573,7 @@ def safe_mult(*args):
 def safe_round(arg, places=2):
     if arg is None:
         return None
-    return round(float(arg), 2)
+    return round(float(arg), places)
 
 
 def safe_cmp(op, a, b):

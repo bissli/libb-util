@@ -263,10 +263,21 @@ def coalesce(*args):
 
 
 def getitem(sequence, index, default=None):
-    """Safe sequence indexing with default value"""
-    if index < len(sequence):
+    """Safe sequence indexing with default value
+
+    >>> getitem([1, 2, 3], 1)
+    2
+    >>> getitem([1, 2, 3], 10) is None
+    True
+    >>> getitem([1, 2, 3], -1)
+    3
+    >>> getitem([1, 2, 3], -100) is None
+    True
+    """
+    try:
         return sequence[index]
-    return default
+    except IndexError:
+        return default
 
 
 def backfill(values):
@@ -382,7 +393,7 @@ def align_iterdict(iterdict_a, iterdict_b, **kw):
                 break
             logger.debug(f'Advanced B to {this_b.get(attr_b)}')
         if abs(diff(this_a.get(attr_a), this_b.get(attr_b))) <= tolerance:
-            logger.debug('Aligned iters to A {} B {}'.format(this_a.get(attr_a), this_b.get(attr_b)))
+            logger.debug(f'Aligned iters to A {this_a.get(attr_a)} B {this_b.get(attr_b)}')
             yield this_a, this_b
             try:
                 this_a, this_b = next(gen_a), next(gen_b)

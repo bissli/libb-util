@@ -1,6 +1,6 @@
 import logging
-from collections.abc import MutableSet, Iterable, Iterator
-from typing import Any, Union
+from collections.abc import Iterable, Iterator, MutableSet
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ class OrderedSet(MutableSet):
             return f'{self.__class__.__name__}()'
         return f'{self.__class__.__name__}({list(self)!r})'
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check equality with another set or OrderedSet.
 
         For OrderedSet comparison, both content and order must match.

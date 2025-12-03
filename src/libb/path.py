@@ -1,5 +1,6 @@
 import inspect
 import os
+import pathlib
 import sys
 from contextlib import contextmanager
 
@@ -21,7 +22,7 @@ def get_module_dir(module=None):
         # get caller's module
         frame = inspect.stack()[1]
         module = inspect.getmodule(frame[0])
-    return os.path.split(os.path.abspath(module.__file__))[0]
+    return os.path.split(pathlib.Path(module.__file__).resolve())[0]
 
 
 def add_to_sys_path(path=None, relative_path=None):
@@ -36,7 +37,7 @@ def add_to_sys_path(path=None, relative_path=None):
     if not path:
         frame = inspect.stack()[1]
         module = inspect.getmodule(frame[0])
-        path = os.path.split(os.path.abspath(module.__file__))[0]
+        path = os.path.split(pathlib.Path(module.__file__).resolve())[0]
     if relative_path:
         path = os.path.join(path, relative_path)
     sys.path.insert(0, path)
@@ -50,7 +51,7 @@ def cd(path):
       with cd("/some/folder"):
         run_command("some_command")
     """
-    old_dir = os.getcwd()
+    old_dir = pathlib.Path.cwd()
     os.chdir(path)
     try:
         yield
@@ -70,7 +71,7 @@ def scriptname(task=None):
     """
     task = task or sys.argv[0]
     if task:
-        app, _ = os.path.splitext(os.path.basename(task))
+        app, _ = os.path.splitext(pathlib.Path(task).name)
     else:
         app = ''
     return app

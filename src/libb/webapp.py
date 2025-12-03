@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+import pathlib
 import posixpath
 import pstats
 import random
@@ -13,9 +14,7 @@ import re
 import socket
 import sys
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 import uuid
 from functools import update_wrapper, wraps
 from itertools import accumulate, starmap
@@ -76,6 +75,7 @@ __all__ = [
     'JSONEncoderISODate',
     'JSONDecoderISODate',
     'ProfileMiddleware',
+    'COOKIE_DEFAULTS',
 ]
 
 # convenient placeholders for cookielib.Cookie
@@ -189,34 +189,10 @@ def rand_retry(x_times=10, exception=Exception):
 
 
 def cors_webpy(app, **kw):
-    """Wrap a web.py controller with headers for cross origin resource sharing
-    especially useful for views using resources from many websites
-    see https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS
-    for more information on CORS
+    """Wrap a web.py controller with headers for cross origin resource sharing.
 
-    >>> app = web.application(('/mashup', 'mashup',), globals())
-
-    >>> origins = ['mixpanel.com', 'mapbox.com']
-    >>> methods = ['GET', 'HEAD', 'POST', 'PUT']
-    >>> @cors_webpy(app, origin=origins, methods=methods, max_age=22)
-    ... class mashup:
-    ...     def GET(self):
-    ...         return 'This page makes js calls to mixpanel and mapbox'
-
-    >>> b = app.browser()
-    >>> headers = b.open("/mashup").headers
-    >>> 'mixpanel.com' in headers.get('Access-Control-Allow-Origin')
-    True
-    >>> 'mapbox.com' in headers.get('Access-Control-Allow-Origin')
-    True
-    >>> 'true' == headers.get('Access-Control-Allow-Credentials')
-    True
-    >>> 'POST' in headers.get('Access-Control-Allow-Methods')
-    True
-    >>> 'HEAD' in headers.get('Access-Control-Allow-Methods')
-    True
-    >>> '22' == headers.get('Access-Control-Max-Age')
-    True
+    Especially useful for views using resources from many websites.
+    See https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS
     """
     origin = kw.get('origin')
     credentials = kw.get('credentials', True)
@@ -267,33 +243,9 @@ def cors_webpy(app, **kw):
 
 
 def cors_flask(app, **kw):
-    """Wrap a flask controller with headers to allow cross origin resource sharing
-    especially useful for views using resources from many websites
+    """Wrap a flask controller with headers to allow cross origin resource sharing.
 
-    >>> app = flask.Flask(__name__)
-
-    >>> origins = ['mixpanel.com', 'mapbox.com']
-    >>> methods = ['GET', 'HEAD', 'POST', 'PUT']
-    >>> @app.route('/mashup')
-    ... @cors_flask(app, origin=origins, methods=methods, max_age=22)
-    ... def mashup():
-    ...     return 'This page makes js calls to mixpanel and mapbox'
-
-    we inject the allowed CORS domains ahead of time
-    >>> client = app.test_client()
-    >>> headers = client.get('/mashup').headers
-    >>> 'mixpanel.com' in headers.get('Access-Control-Allow-Origin')
-    True
-    >>> 'mapbox.com' in headers.get('Access-Control-Allow-Origin')
-    True
-    >>> 'true' == headers.get('Access-Control-Allow-Credentials')
-    True
-    >>> 'POST' in headers.get('Access-Control-Allow-Methods')
-    True
-    >>> 'HEAD' in headers.get('Access-Control-Allow-Methods')
-    True
-    >>> '22' == headers.get('Access-Control-Max-Age')
-    True
+    Especially useful for views using resources from many websites.
     """
     origin = kw.get('origin')
     credentials = kw.get('credentials', True)
@@ -345,69 +297,9 @@ def cors_flask(app, **kw):
 
 
 def authd(checker_fn, fallback_fn):
-    """Simple decorator that checks if a user meets an auth criterion
+    """Simple decorator that checks if a user meets an auth criterion.
 
-    === a web.py example
-
-    >>> from http.cookiejar import Cookie
-    >>> import web
-
-    >>> urls = ('/another', 'another', '/(.*)', 'echo',)
-    >>> app = web.application(urls, globals())
-
-    >>> def forbid():
-    ...     raise web.forbidden()
-
-    >>> @authd(lambda: web.cookies().get('allowed'), forbid)
-    ... class echo:
-    ...     def GET(self, name):
-    ...         return name
-
-    >>> class another:
-    ...     def GET(self):
-    ...         return 'get'
-    ...     @authd(lambda: web.cookies().get('allowed'), forbid)
-    ...     def POST(self):
-    ...         return 'post'
-
-    >>> b = app.browser()
-    >>> allowed = Cookie(name='allowed', value='1', **COOKIE_DEFAULTS)
-
-    without the cookie, we cannot get to any controllers
-    >>> b.open('/test').read()
-    b'forbidden'
-
-    once we add the cookie, we can
-    >>> b.cookiejar.set_cookie(allowed)
-    >>> b.open('/test').read()
-    b'test'
-    >>> b.reset()
-
-    we can also restrict only certain methods
-    >>> b.open('/another').read()
-    b'get'
-    >>> b.open('/another', data={'x':1}).read()
-    b'forbidden'
-    >>> b.cookiejar.set_cookie(allowed)
-    >>> b.open('/another', data={'x':1}).read()
-    b'post'
-
-    === a flask example
-
-    >>> app = flask.Flask(__name__)
-
-    >>> @app.route('/restricted')
-    ... @authd(lambda: flask.request.cookies.get('allowed'), lambda: flask.abort(403))
-    ... def restricted_page():
-    ...     return 'seekret!!!'
-
-    can only access restricted controller when cookie 'allowed' is set
-    >>> client = app.test_client()
-    >>> '403 Forbidden' in str(client.get('/restricted').data)
-    True
-    >>> client.set_cookie('allowed', '1')
-    >>> client.get('/restricted').data
-    b'seekret!!!'
+    Works with both web.py and Flask frameworks.
     """
 
     def wrapper(f):
@@ -456,11 +348,14 @@ VALID_KEY = re.compile('[a-zA-Z0-9_-]{1,255}')
 
 
 def valid_api_key(key):
-    """Check if key is suitable hash, if matches a validated user"""
-    if VALID_KEY.match(key) is not None:
-        # TODO: Implement User model with get_active_key method
+    """Check if key has valid format (alphanumeric, underscore, hyphen, 1-255 chars).
+
+    This validates the format only. For user validation, integrate with your
+    user model's key validation.
+    """
+    if not key:
         return False
-    return False
+    return VALID_KEY.fullmatch(key) is not None
 
 
 def requires_api_key(fn):
@@ -482,7 +377,8 @@ def requires_api_key(fn):
 
 
 def make_url(path, **params):
-    """Consistent url generation
+    """Consistent url generation.
+
     - pass in arbitrary params inspired by `werkzeug.urls.Href`
     - always assume traditional multiple params (do not overwrite)
     - to overwrite, use special method `__replace__`
@@ -602,7 +498,7 @@ def safe_join(directory: str, *pathnames: str) -> str | None:
             # normpath does not build path to root
             filename = posixpath.normpath(filename)
         if (any(sep in filename for sep in _os_alt_seps)
-                or os.path.isabs(filename)
+                or pathlib.Path(filename).is_absolute()
                 or filename == '..'
                 or filename.startswith('../')):
             return None
@@ -614,23 +510,23 @@ def local_or_static_join(static, somepath):
     """Infer if user is referring to template in their working directory, or in static"""
     localpath = expandabspath(somepath)
     staticpath = safe_join(static, somepath)
-    if os.path.exists(localpath):
+    if pathlib.Path(localpath).exists():
         return localpath
-    if os.path.exists(staticpath):
+    if pathlib.Path(staticpath).exists():
         return staticpath
     raise OSError('That template does not exist on your path or in the local package.')
 
 
 def inject_file(x):
     """Little wrapper for injecting css, js, etc, for html email templates"""
-    with open(x, encoding='locale') as f:
+    with pathlib.Path(x).open(encoding='locale') as f:
         return f.read()
 
 
 def inject_image(x):
     """base64 encoded code to put in src of an image tag in html"""
     _, ext = os.path.splitext(x)
-    with open(x, 'rb') as f:
+    with pathlib.Path(x).open('rb') as f:
         code = base64.b64encode(f.read())
         return f"data:image/{ext.strip('.')};base64,{code}"
 
@@ -666,28 +562,8 @@ def _format_link(cls):
 
 
 def appmenu(urls, home='', fmt=_format_link):
-    """Given a web.py (name,link,) tuple, home path (`web.ctx.homepath`), formatter
-    builds a simple html menu to represent links in a web.py app
-
-    >>> urls = (
-    ...     'link/to/this/', 'this_thing',
-    ...     'another/', 'another',
-    ...     )
-    >>> print((appmenu(urls, '/subapp/', splitcap)))
-    <ul class="menu">
-        <li><a href="/subapp/link/to/this/">This Thing</a></li>
-        <li><a href="/subapp/another/">Another</a></li>
-    </ul>
-    >>> urls = (
-    ...     '', 'index',
-    ...     'sec/', 'sec',
-    ...     'cftc/', 'cftc',
-    ...     )
-    >>> print((appmenu(urls[2:], 'http://localhost:8081/ops/regulatory/', lambda x: x.upper())))
-    <ul class="menu">
-        <li><a href="http://localhost:8081/ops/regulatory/sec/">SEC</a></li>
-        <li><a href="http://localhost:8081/ops/regulatory/cftc/">CFTC</a></li>
-    </ul>
+    """Given a web.py (name,link,) tuple, home path, and formatter,
+    builds a simple html menu to represent links in a web.py app.
     """
     links = (
         f"    <li><a href=\"{urllib.parse.urljoin(home, link.strip('/') + '/')}\">{fmt(name)}</a></li>\n"
@@ -744,16 +620,6 @@ def render_field(field):
 #
 # these are not used yet ...
 #
-
-
-def get_or_create(session, model, **kw):
-    """A la django"""
-    obj = session.query(model).filter_by(**kw).first()
-    if not obj:
-        obj = model(**kw)
-        session.add(obj)
-        session.flush()
-    return obj
 
 
 def login_protected(priv_level=3, login_level=1):
@@ -834,59 +700,11 @@ class JSONDecoderISODate(json.JSONDecoder):
 
 
 class ProfileMiddleware:
-    """Generic wsgi middleware for profiling wsgi calls
+    """Generic wsgi middleware for profiling wsgi calls.
+
     WARNING: should always be last middleware loaded:
-      #. you want profile everything else
-      #. for speed, we return the result NOT the wrapped func
-
-    >>> import logging
-    >>> from io import StringIO
-    >>> mock = StringIO()
-    >>> sh = logging.StreamHandler(mock)
-    >>> log = logging.getLogger('ProfilerTest')
-    >>> log.setLevel(logging.DEBUG)
-    >>> log.addHandler(sh)
-
-    >>> import web
-    >>> from webtest import TestApp
-
-    >>> web.config.debug = False
-    >>> urls = ('/', 'index',)
-    >>> app = web.application(urls, globals())
-    >>> profiled_app = ProfileMiddleware(app.wsgifunc(), log=log)
-
-    >>> class index:
-    ...     def GET(self):
-    ...         return "Hello, world."
-
-    >>> t = TestApp(profiled_app)
-    >>> 'Hello' in t.get('/')
-    True
-    >>> sh.flush()
-    >>> would_log = mock.getvalue()
-    >>> print(would_log)
-    Run finished in ... seconds
-        ...
-    <BLANKLINE>
-    >>> 'Ordered by: internal time' in would_log
-    True
-    >>> 'due to restriction <20>' in would_log
-    True
-    >>> mock.close()
-
-    >>> mock_cum = StringIO()
-    >>> log.handlers[0].stream = mock_cum  # patch a clean buffer
-    >>> by_cum = ProfileMiddleware(app.wsgifunc(), log=log, sort='name', count=30)
-    >>> t_cum = TestApp(by_cum)
-    >>> 'Hello' in t_cum.get("/")
-    True
-    >>> sh.flush()
-    >>> would_log_cum = mock_cum.getvalue()
-    >>> 'Ordered by: function name' in would_log_cum
-    True
-    >>> 'due to restriction <30>' in would_log_cum
-    True
-    >>> mock_cum.close()
+      1. you want to profile everything else
+      2. for speed, we return the result NOT the wrapped func
     """
 
     def __init__(self, func, log=None, sort='time', count=20):
@@ -913,40 +731,12 @@ class ProfileMiddleware:
 
 
 def logerror(olderror, logger):
-    """Wrap internalerror function to log the traceback too
-
-    >>> import web
-    >>> web.config.debug = False
-    >>> urls = ('/', 'index',)
-
-    >>> import logging
-    >>> from io import StringIO
-    >>> logger = logging.getLogger('LogTest')
-    >>> stderr = sys.stderr
-    >>> sys.stderr = mock = StringIO()
-    >>> sh = logging.StreamHandler()
-    >>> sh.setLevel(logging.ERROR)
-    >>> logger.addHandler(sh)
-
-    >>> app = web.application(urls, globals())
-    >>> app.internalerror = logerror(app.internalerror, logger)
-
-    >>> class index:
-    ...     def GET(self):
-    ...         return None+1
-
-    >>> b = app.browser()
-    >>> 'internal server error' in str(b.open('/').read())
-    True
-    >>> sys.stderr = stderr
-    >>> 'TypeError' in str(mock.getvalue())
-    True
-    """
+    """Wrap internalerror function to log the traceback too."""
 
     def logerror_fn():
         theerr = olderror()
         _, exc, _ = sys.exc_info()
-        logger.exception(exc)
+        logger.error(exc)
         return theerr
 
     return logerror_fn

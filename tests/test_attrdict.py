@@ -227,9 +227,9 @@ class TestCaseInsensitiveDict:
 
     def test_case_insensitive_eq_non_mapping(self):
         cid = CaseInsensitiveDict({'a': 1})
-        # Equality with non-mapping returns NotImplemented
-        assert cid == [('a', 1)] == NotImplemented
-        assert cid == 'not a mapping' == NotImplemented
+        # Equality with non-mapping returns False (NotImplemented handled by Python)
+        assert (cid == [('a', 1)]) is False
+        assert (cid == 'not a mapping') is False
 
     def test_case_insensitive_repr(self):
         cid = CaseInsensitiveDict({'a': 1, 'B': 2})

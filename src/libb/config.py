@@ -161,12 +161,12 @@ def load_options(func=None, *, cls=ConfigOptions):
     @wraps(func)
     def func_wrapper(options=None, /, config=None, **kwargs):
         options, config, kw = _load(options, config, **kwargs)
-        return func(options, config=config, **kwargs)
+        return func(options, config=config, **kw)
 
     @wraps(func)
     def class_wrapper(self, options=None, /, config=None, **kwargs):
         options, config, kw = _load(options, config, **kwargs)
-        return func(self, options, config=config, **kwargs)
+        return func(self, options, config=config, **kw)
 
     if func is None:
         return partial(load_options, cls=cls)

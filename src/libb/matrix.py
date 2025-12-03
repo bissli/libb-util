@@ -78,7 +78,7 @@ def trace(A):
     return sum(A[i][i] for i in range(len(A)))
 
 
-def diag(A):
+def diag(A, inplace=False):
     """Just diagonal elements of A as a matrix
 
     >>> A = [[Decimal("12"), Decimal("-51")],
@@ -98,11 +98,12 @@ def diag(A):
     m, n = matdim(A)
     if m != n:
         raise AssertionError('Can only get diagonal of a square matrix')
+    D = [row[:] for row in A] if not inplace else A
     for i in range(m):
         for j in range(n):
             if i != j:
-                A[i][j] = Decimal(0)
-    return A
+                D[i][j] = Decimal(0)
+    return D
 
 
 def matident(m, n=None):
@@ -171,9 +172,7 @@ def matrandom(nrow, ncol=None):
     from libb import random_random
     if ncol is None:
         ncol = nrow
-    R = []
-    for i in range(nrow):
-        R.append([Decimal(str(random_random())) for j in range(ncol)])
+    R = [[Decimal(str(random_random())) for j in range(ncol)] for i in range(nrow)]
     return R
 
 
@@ -182,9 +181,11 @@ def matunitize(X, inplace=False):
     V = [x[:] for x in X] if not inplace else X
     nrow, ncol = matdim(X)
     for j in range(ncol):
-        recipnorm = sum(X[j][j] ** Decimal(2) for j in range(ncol))
-        for i in range(nrow):
-            V[i][j] *= recipnorm
+        sum_of_sq = sum(X[i][j] ** Decimal(2) for i in range(nrow))
+        if sum_of_sq:
+            invnorm = Decimal(1) / sum_of_sq.sqrt()
+            for i in range(nrow):
+                V[i][j] *= invnorm
     return V
 
 
@@ -377,9 +378,8 @@ def bsub(r, z):
 
 def linreg(y, x):
     """Linear regression in pure python"""
-    # prepend x with 1
-    for xx in x:
-        xx.insert(0, Decimal(1))
+    # prepend x with 1 (make a copy to avoid modifying input)
+    x = [[Decimal(1)] + row[:] for row in x]
 
     # QR decomposition
     q, r = qr(x)

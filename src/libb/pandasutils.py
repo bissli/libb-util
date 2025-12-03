@@ -87,9 +87,7 @@ def download_tzdata():
         'https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/windowsZones.xml',
         temppath / 'windowsZones.xml',
     )
-    with zoneB.open('rb') as fin, (base / 'windowsZones.xml').open('w') as fout:
-        zonegz = gzip.GzipFile(fileobj=fin)
-        fout.write(zonegz.read().decode())
+    shutil.copy(zoneB, base / 'windowsZones.xml')
 
 
 def downcast(df: DataFrame, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
@@ -149,17 +147,16 @@ def fuzzymerge(df1, df2, right_on, left_on, usedtype='uint8', scorer='WRatio',
     Returns
     DataFrame: A merged DataFrame with rows that matched based on the specified fuzzy criteria.
 
-    >>> df1 = read_csv(
+    >>> df1 = read_csv(  # doctest: +SKIP
     ...     "https://raw.githubusercontent.com/pandas-dev/pandas/main/doc/data/titanic.csv"
     ... )
-    >>> df2 = df1.copy()
-    >>> df2 = concat([df2 for x in range(3)], ignore_index=True)
-    >>> df2.Name = (df2.Name + random.uniform(1, 2000, len(df2)).astype("U"))
-    >>> df1 = concat([df1 for x in range(3)], ignore_index=True)
-    >>> df1.Name = (df1.Name + random.uniform(1, 2000, len(df1)).astype("U"))
-    >>> df3 = fuzzymerge(df1, df2, right_on='Name', left_on='Name', usedtype=uint8, scorer=partial_ratio,
+    >>> df2 = df1.copy()  # doctest: +SKIP
+    >>> df2 = concat([df2 for x in range(3)], ignore_index=True)  # doctest: +SKIP
+    >>> df2.Name = (df2.Name + random.uniform(1, 2000, len(df2)).astype("U"))  # doctest: +SKIP
+    >>> df1 = concat([df1 for x in range(3)], ignore_index=True)  # doctest: +SKIP
+    >>> df1.Name = (df1.Name + random.uniform(1, 2000, len(df1)).astype("U"))  # doctest: +SKIP
+    >>> df3 = fuzzymerge(df1, df2, right_on='Name', left_on='Name', usedtype=uint8, scorer=partial_ratio,  # doctest: +SKIP
     ...                         concat_value=True)
-    >>> print(df3)
     """
     # Handle string type annotations
     if isinstance(usedtype, str):

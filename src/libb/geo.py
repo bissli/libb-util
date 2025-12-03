@@ -41,10 +41,8 @@ def merc_y(lat, r_major=6378137.0, r_minor=6356752.3142):
     >>> "{:0.3f}".format(merc_y(73.9857))
     '12468646.871'
     """
-    if lat > 89.5:
-        lat = 89.5
-    if lat < -89.5:
-        lat = -89.5
+    lat = min(lat, 89.5)
+    lat = max(lat, -89.5)
     eccent = math.sqrt(1 - (r_minor / r_major) ** 2)
     phi = math.radians(lat)
     sinphi = math.sin(phi)

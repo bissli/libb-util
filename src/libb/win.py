@@ -7,6 +7,7 @@ import socket
 from subprocess import PIPE, Popen
 
 import regex as re
+import pathlib
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def run_command(cmd, workingdir=None, raise_on_error=True, hidearg=None):
 
     logger.info(f"Running: {' '.join(hide(cmd))}")
     if workingdir:
-        curdir = os.getcwd()
+        curdir = pathlib.Path.cwd()
         os.chdir(workingdir)
 
     try:
@@ -51,7 +52,7 @@ def run_command(cmd, workingdir=None, raise_on_error=True, hidearg=None):
                 msg += f' in {workingdir}'
             logger.error(msg)
             raise Exception(err)
-        elif err:
+        if err:
             logger.info(err)
         return out + err
     finally:
@@ -114,7 +115,7 @@ def mount_admin_share(host, password, unmount=False):
     user = os.environ['USERNAME'].lower()
     hostip = socket.gethostbyname(host)
     if not unmount:
-        run_command(['net', 'use', r'\\' + hostip + r'\admin$', r'/user:TENOR\%s' % user, password], hidearg=password)
+        run_command(['net', 'use', r'\\' + hostip + r'\admin$', rf'/user:TENOR\{user}', password], hidearg=password)
     else:
         run_command(['net', 'use', r'\\' + hostip + r'\admin$', '/del'])
 
@@ -125,7 +126,7 @@ def mount_file_share(host, password, drive, share, unmount=False):
     hostip = socket.gethostbyname(host)
     if not unmount:
         run_command(
-            ['net', 'use', drive, r'\\' + hostip + '\\' + share, r'/user:TENOR\%s' % user, password], hidearg=password
+            ['net', 'use', drive, r'\\' + hostip + '\\' + share, rf'/user:TENOR\{user}', password], hidearg=password
         )
     else:
         run_command(['net', 'use', drive, '/del'])
@@ -162,7 +163,7 @@ def exit_cmd():
     WMI = GetObject('winmgmts:')
     processes = WMI.InstancesOf('Win32_Process')
     for p in WMI.ExecQuery('select * from Win32_Process where Name="cmd.exe"'):
-        logger.debug('Killing PID:', p.Properties_('ProcessId').Value)
+        logger.debug(f'Killing PID: {p.Properties_("ProcessId").Value}')
         os.system('taskkill /pid ' + str(p.Properties_('ProcessId').Value))
 
 

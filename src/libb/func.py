@@ -174,12 +174,12 @@ def copydoc(fromfunc, sep='\n', basefirst=True):
     """
 
     def _disable_doctest(docstr):
-        docstr_disabled = ''
+        lines = []
         for line in docstr.splitlines():
-            docstr_disabled += line
             if '>>>' in line:
-                docstr_disabled += ' # doctest: +DISABLE'
-        return docstr_disabled
+                line += ' # doctest: +DISABLE'
+            lines.append(line)
+        return '\n'.join(lines)
 
     def _decorator(func):
         sourcedoc = _disable_doctest(fromfunc.__doc__)
