@@ -193,10 +193,7 @@ class RateLimitedExecutor:
     def shutdown(self, wait: bool = True, cancel_futures: bool = False) -> None:
         """Shutdown the executor.
         """
-        try:
-            self._executor.shutdown(wait=wait, cancel_futures=cancel_futures)
-        except TypeError:
-            self._executor.shutdown(wait=wait)
+        self._executor.shutdown(wait=wait, cancel_futures=cancel_futures)
 
     def __enter__(self) -> Self:
         return self

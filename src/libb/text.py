@@ -1,6 +1,5 @@
 import base64
 import contextlib
-import difflib
 import logging
 import quopri
 import random
@@ -140,9 +139,9 @@ def sanitize_vulgar_string(s):
     sanitize = re.compile(rf"(\d*)\s*({'|'.join(VULGAR_FRACTION)})")
 
     def _sum(val, el, lookup=VULGAR_FRACTION.get):
-        if frac := lookup(el):
-            return str(float(val) + frac) if val else ' ' + str(frac)
-        return str(float(val) + float(el))
+        # lookup always succeeds since regex only matches VULGAR_FRACTION keys
+        frac = lookup(el)
+        return str(float(val) + frac) if val else ' ' + str(frac)
 
     for f in sanitize.finditer(s):
         m, it = f.group(), f.groups()
