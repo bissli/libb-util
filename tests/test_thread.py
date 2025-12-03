@@ -1,9 +1,11 @@
 import logging
 import time
+from concurrent.futures import Future
 
 import pytest
 
-from libb.thread import RateLimitedExecutor, TaskRequest
+from libb.thread import RateLimitedExecutor, TaskRequest, asyncd
+from libb.thread import call_with_future, threaded
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +263,74 @@ def test_execute_exception_in_response():
         else:
             assert response.success
             assert response.result == i * 2
+
+
+def test_asyncd_decorator():
+    """Verify asyncd decorator runs sync function in async context."""
+    import asyncio
+
+    @asyncd
+    def sync_func(x, y=1):
+        time.sleep(0.01)
+        return x + y
+
+    async def run_test():
+        result = await sync_func(5, y=10)
+        return result
+
+    result = asyncio.run(run_test())
+    assert result == 15
+
+
+def test_call_with_future_success():
+    """Verify call_with_future sets result on success."""
+    future = Future()
+
+    def fn(x):
+        return x * 2
+
+    call_with_future(fn, future, (5,), {})
+    assert future.result() == 10
+
+
+def test_call_with_future_exception():
+    """Verify call_with_future sets exception on failure."""
+    future = Future()
+
+    def fn(x):
+        raise ValueError(f'Error: {x}')
+
+    call_with_future(fn, future, (5,), {})
+    with pytest.raises(ValueError, match='Error: 5'):
+        future.result()
+
+
+def test_threaded_decorator():
+    """Verify threaded decorator runs function in separate thread."""
+
+    @threaded
+    def slow_func(x):
+        time.sleep(0.01)
+        return x * 3
+
+    future = slow_func(7)
+    assert isinstance(future, Future)
+    result = future.result(timeout=1.0)
+    assert result == 21
+
+
+def test_execute_with_progress_bar(capsys):
+    """Verify execute with show_progress=True works."""
+    def process(x):
+        return x * 2
+
+    with RateLimitedExecutor(max_workers=5, max_per_second=50, show_progress=True) as executor:
+        responses = executor.execute_items(process, list(range(5)), desc='Test')
+
+    assert len(responses) == 5
+    assert all(r.success for r in responses)
+    # Capture output to suppress tqdm progress bar in test output
+    _ = capsys.readouterr()
 
 
 if __name__ == '__main__':

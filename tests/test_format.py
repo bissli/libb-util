@@ -1,7 +1,10 @@
+import datetime
+
 import pytest
 from asserts import assert_equal, assert_raises
 
-from libb import fmt
+from libb import Percent, capitalize, capwords, commafy, fmt, format_phone
+from libb import format_timeinterval, splitcap, titlecase
 
 
 def test_bad_values():
@@ -120,15 +123,124 @@ def test_divisors():
 
 
 def test_timeinterval():
-    pass
+    import datetime
+
+    from libb import format_timeinterval
+    start = datetime.datetime(2000, 1, 1, 12, 0, 0)
+    end = datetime.datetime(2000, 1, 1, 12, 0, 30)
+    result = format_timeinterval(start, end)
+    assert result == '30 sec'
 
 
 def test_secondsdelta():
-    pass
+    from libb import format_secondsdelta
+    assert format_secondsdelta(30) == '30 sec'
+    assert format_secondsdelta(90) == '1.5 min'
+    assert format_secondsdelta(3600) == '60 min'
+    assert format_secondsdelta(7200) == '2 hrs'
 
 
 def test_timedelta():
-    pass
+    from libb import format_timedelta
+    assert format_timedelta(datetime.timedelta(seconds=30)) == '30 sec'
+    assert format_timedelta(datetime.timedelta(seconds=90)) == '1.5 min'
+    assert format_timedelta(datetime.timedelta(hours=2)) == '2 hrs'
+    assert format_timedelta(datetime.timedelta(days=3)) == '3 days'
+    assert format_timedelta(datetime.timedelta(days=14)) == '2 wks'
+    assert format_timedelta(datetime.timedelta(days=60)) == '2 mos'
+    assert format_timedelta(datetime.timedelta(days=730)) == '2 yrs'
+    assert format_timedelta(datetime.timedelta(microseconds=5000)) == '5 msec'
+
+
+def test_no_style_returns_value():
+    # Line 57 - value returned when no style provided
+    assert fmt(1234.56, '') == 1234.56
+    assert fmt(1234.56, None) == 1234.56
+
+
+def test_timeinterval_no_end():
+    # Line 156 - format_timeinterval with no end uses datetime.now()
+    start = datetime.datetime.now() - datetime.timedelta(seconds=30)
+    result = format_timeinterval(start)
+    assert 'sec' in result
+
+
+def test_commafy_edge_cases():
+    # Lines 214, 217-218
+    assert commafy(None) is None
+    assert commafy(-1234) == '-1,234'
+    assert commafy(-1234567.89) == '-1,234,567.89'
+
+
+def test_splitcap():
+    # Lines 244-253
+    assert splitcap('foo_bar') == 'Foo Bar'
+    assert splitcap('fooBar') == 'Foo Bar'
+    assert splitcap('foo bar') == 'Foo Bar'
+    assert splitcap('foo_bar_baz', '_') == 'Foo Bar Baz'
+
+
+def test_capwords():
+    # Lines 267-273
+    assert capwords('f.o.o') == 'F.O.O'
+    assert capwords('bar') == 'Bar'
+    assert capwords('foo bar') == 'Foo Bar'
+    # Acronyms stay uppercase
+    assert capwords('FOO BAR') == 'FOO BAR'
+
+
+def test_capitalize():
+    # Lines 286-304
+    assert capitalize('goo') == 'Goo'
+    assert capitalize('mv') == 'MV'
+    assert capitalize('pct') == '%'
+    assert capitalize('mtd') == 'MTD'
+    assert capitalize('qtd') == 'QTD'
+    assert capitalize('ytd') == 'YTD'
+    assert capitalize('pnl') == 'P&L'
+    assert capitalize('usd') == '$'
+    assert capitalize('vwap') == 'VWAP'
+
+
+def test_titlecase():
+    # Line 309
+    assert titlecase('the quick brown fox') == 'The Quick Brown Fox'
+
+
+def test_percent_class():
+    # Lines 317-319
+    p = Percent(0.5)
+    assert p == 0.5
+    assert p.pct is True
+
+
+def test_format_phone():
+    # Lines 328-333
+    assert format_phone('6877995559') == '687-799-5559'
+    assert format_phone('16877995559') == '1-687-799-5559'
+    assert format_phone('7995559') == '-799-5559'
+
+
+def test_format_string_input():
+    # Test that string numeric inputs work correctly (only pure digits)
+    result = fmt('123', '1p')
+    assert result == '123.0'
+
+    # Non-digit strings (like '-123') are returned unchanged per design
+    result = fmt('-123', '1p')
+    assert result == '-123'
+
+    # Numeric values work correctly
+    result = fmt(-123, '1p')
+    assert result == '(123.0)'
+
+
+def test_format_zero_with_short_scale():
+    # Zero should work with 's' format without raising math domain error
+    result = fmt(0, '1s')
+    assert result == '0.0'
+    result = fmt(0, '1S')
+    assert result == '0.0'
 
 
 if __name__ == '__main__':

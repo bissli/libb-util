@@ -1,12 +1,12 @@
 import logging
-import os
+import pathlib
 import site
 
 import pytest
 
 logger = logging.getLogger(__name__)
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = pathlib.Path(pathlib.Path(__file__).resolve()).parent
 site.addsitedir(HERE)
 
 
@@ -27,7 +27,7 @@ def logger(request):
 
     numeric_level = getattr(logging, loglevel.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % loglevel)
+        raise ValueError(f'Invalid log level: {loglevel}')
 
     logging.basicConfig()
     logger = logging.getLogger(__name__)
