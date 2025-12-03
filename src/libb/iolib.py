@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import os
+import pathlib
 import sys
 from collections.abc import Iterable
 from contextlib import contextmanager
@@ -43,13 +44,13 @@ class CsvZip(ZipFile):
         return self.__buffer.getvalue()
 
     def __init__(self):
-        self.__buffer = io.StringIO()
+        self.__buffer = io.BytesIO()
         ZipFile.__init__(self, self.__buffer, 'w')
 
     def writecsv(self, filename, data):
         info = ZipInfo(f'{filename}.csv')
         info.external_attr = 0o644 << 16
-        self.writestr(info, render_csv(data))
+        self.writestr(info, render_csv(data).encode('utf-8'))
 
 
 def iterable_to_stream(iterable, buffer_size=io.DEFAULT_BUFFER_SIZE):
@@ -162,7 +163,7 @@ def suppress_print():
     """Suppress `print` in case someone decided to include print statements"""
     try:
         _original_stdout = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
+        sys.stdout = pathlib.Path(os.devnull).open('w')
         yield
     finally:
         sys.stdout.close()

@@ -267,7 +267,10 @@ class VirtualModule:
         if attrname in self._submodules:
             __import__(self._submodules[attrname])
             return sys.modules[self._submodules[attrname]]
-        return self._mod.__dict__[attrname]
+        try:
+            return self._mod.__dict__[attrname]
+        except KeyError:
+            raise AttributeError(f"module '{self._modname}' has no attribute '{attrname}'")
 
 
 def create_virtual_module(modname: str, submodules: dict[str, str]) -> None:

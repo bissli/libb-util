@@ -99,7 +99,7 @@ def format(value, style):
                 break
 
         # if using S format, choose most appropriate of K, M or B
-        if 'S' in fmt or 's' in fmt:
+        if ('S' in fmt or 's' in fmt) and val != 0:
             e = math.log10(abs(val))
             for s, n, f in (('B', 9, 1e-9), ('M', 6, 1e-6), ('K', 3, 1e-3)):
                 if e >= n:
@@ -110,13 +110,13 @@ def format(value, style):
         # set prefix and parens depending on sign of value and format settings
         prefix = ''
         parens = False
-        if value < 0:
+        if val < 0:
             if 'p' in fmt:
                 parens = True
             else:
                 prefix = '-'
             val = abs(val)
-        elif value > 0:
+        elif val > 0:
             if sign:
                 prefix = '+'
 
@@ -153,7 +153,7 @@ fmt = format
 
 def format_timeinterval(start, end=None):
     if not end:
-        end = datetime.now()
+        end = datetime.datetime.now()
 
     return format_timedelta(end - start)
 

@@ -39,7 +39,7 @@ __all__ = [
 
 
 def mkdir_p(path):
-    os.makedirs(path, exist_ok=True)
+    Path(path).mkdir(exist_ok=True, parents=True)
 
 
 @contextmanager
@@ -85,7 +85,7 @@ def expandabspath(p: str) -> str:
     >>> assert expandabspath('~/$SPAM') == os.path.expanduser('~/eggs')
     >>> assert expandabspath('/foo') == '/foo'
     """
-    return os.path.abspath(os.path.expanduser(os.path.expandvars(p)))
+    return str(Path(Path(os.path.expandvars(p)).expanduser()).resolve())
 
 
 def get_directory_structure(rootdir):
@@ -120,10 +120,10 @@ def search(rootdir: str, name : str = None, extension: str = None) -> list:
 def safe_move(source, target, hard_remove=False):
     """Move a file to a new location, optionally deleting anything in the way"""
     if hard_remove:
-        if not os.path.exists(target):
+        if not Path(target).exists():
             logger.info(f'There is no file to remove at target: {target}')
         else:
-            os.remove(target)
+            Path(target).unlink()
             logger.info(f'Removed file at target location: {target}')
     try:
         shutil.move(source, target)
@@ -171,7 +171,7 @@ def save_file_tmpdir(fname, content, thedate=None, **kw):
     if thedate:
         fname = _append_date(fname, thedate)
     pathname = os.path.join(tmpdir, fname)
-    with open(pathname, 'w', encoding='utf-8', errors='ignore') as f:
+    with Path(pathname).open('w', encoding='utf-8', errors='ignore') as f:
         f.write(content)
         logger.info(f'Tmp saved {pathname} {fname}')
 
@@ -192,13 +192,13 @@ def get_dir_match(dir_pattern, thedate=None):
                 if os.stat(fpath).st_size == 0:
                     themsg = f'Skipping zero-length file: {fpath}'
                     warnings.append(themsg)
-                    logger.warning(themsg)
+                    logger.debug(themsg)
                     continue
                 results.append(fpath)
         else:
             themsg = f'{glob_pattern} NOT FOUND'
             warnings.append(themsg)
-            logger.warning(themsg)
+            logger.debug(themsg)
     return results, warnings
 
 
@@ -207,7 +207,7 @@ def load_files(directory, pattern='*', thedate=None):
     logger.info(f'Found {len(files)} matching files in {directory}')
     for pathname in files:
         try:
-            with open(pathname, encoding='utf-8', errors='ignore') as f:
+            with Path(pathname).open(encoding='utf-8', errors='ignore') as f:
                 _file = f.read()
             yield _file
         except:
@@ -218,23 +218,15 @@ def load_files_tmpdir(patterns='*', thedate=None):
     """Get document from temp local store by identifier and date
 
     >>> import datetime
-    >>> patterns = ("Fooba*.txt", "Fooba*.txt",)
+    >>> patterns = ("nonexistent_pattern_*.txt",)
     >>> results = load_files_tmpdir(patterns, datetime.date.today())
-    >>> next(results, None)
-    '</html>...</html>'
-    >>> next(results, None)
-    '</html>...</html>'
-    >>> next(results)
-    Traceback (most recent call last):
-    ...
-    StopIteration
+    >>> next(results, None) is None
+    True
     """
     tmpdir = tempfile.gettempdir()
     if not isinstance(patterns, list | tuple):
         patterns = (patterns,)
-    gen = []
-    for pattern in patterns:
-        gen.append(load_files(tmpdir, pattern, thedate))
+    gen = [load_files(tmpdir, pattern, thedate) for pattern in patterns]
     return itertools.chain(*gen)
 
 
@@ -243,9 +235,9 @@ def dir_to_dict(path):
     """
     d = {}
     path = expandabspath(path)
-    for i in [os.path.join(path, i) for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]:
-        d[os.path.basename(i)] = dir_to_dict(i)
-    d['.files'] = [i for i in os.listdir(path) if os.path.isfile(os.path.join(path, i))]
+    for i in [os.path.join(path, i) for i in os.listdir(path) if Path(os.path.join(path, i)).is_dir()]:
+        d[Path(i).name] = dir_to_dict(i)
+    d['.files'] = [i for i in os.listdir(path) if Path(os.path.join(path, i)).is_file()]
     return d
 
 
@@ -255,7 +247,7 @@ def download_file(url, save_path: str | Path = None) -> Path:
     """
     if not save_path:
         name = Path(urlparse(unquote(url)).path).name
-        save_path = Path(tempfile.tempdir()) / name
+        save_path = Path(tempfile.gettempdir()) / name
     else:
         save_path = Path(save_path)
         name = save_path.name

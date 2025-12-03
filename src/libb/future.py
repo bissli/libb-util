@@ -62,15 +62,18 @@ class Future:
         return a
 
     def Wrapper(self, func, param):
-        # Run the actual function, and let us housekeep around it
-        self.__C.acquire()
+        # Run the actual function OUTSIDE the lock so callers can wait
         try:
-            self.__result = func(*param)
+            result = func(*param)
         except:
-            self.__result = 'Exception raised within Future'
+            result = 'Exception raised within Future'
+
+        # Only hold lock when updating shared state and notifying
+        self.__C.acquire()
+        self.__result = result
         self.__done = 1
         self.__status = repr(self.__result)
-        self.__C.notify()
+        self.__C.notify_all()
         self.__C.release()
 
 
