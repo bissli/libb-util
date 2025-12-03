@@ -85,6 +85,18 @@ test = [
 ]
 deploy = ["bump2version"]
 
+[tool.coverage.run]
+source = ["src/libb"]
+omit = ["src/libb/chart.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
+  "raise NotImplementedError",
+  "if TYPE_CHECKING:",
+]
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
