@@ -40,6 +40,12 @@ def random_choice(choices: list):
 
     :param list choices: List of items to choose from.
     :returns: Randomly selected item.
+
+    Example::
+
+        >>> result = random_choice(['a', 'b', 'c'])
+        >>> result in ['a', 'b', 'c']
+        True
     """
     choices = list(choices)  # copy to avoid mutating input
     random.shuffle(choices)
@@ -54,6 +60,12 @@ def random_int(a: int, b: int):
     :param int b: Upper bound.
     :returns: Random integer in [a, b].
     :rtype: int
+
+    Example::
+
+        >>> result = random_int(1, 10)
+        >>> 1 <= result <= 10
+        True
     """
     return random.randint(a, b)
 
@@ -64,6 +76,12 @@ def random_random():
 
     :returns: Random float.
     :rtype: float
+
+    Example::
+
+        >>> result = random_random()
+        >>> 0 <= result < 1
+        True
     """
     return random.random()
 

@@ -44,6 +44,15 @@ def mkdir_p(path):
     """Create directory and any missing parent directories.
 
     :param path: Directory path to create.
+
+    Example::
+
+        >>> import tempfile, os
+        >>> tmpdir = tempfile.mkdtemp()
+        >>> newdir = os.path.join(tmpdir, 'a', 'b', 'c')
+        >>> mkdir_p(newdir)
+        >>> os.path.isdir(newdir)
+        True
     """
     Path(path).mkdir(exist_ok=True, parents=True)
 
@@ -111,6 +120,16 @@ def get_directory_structure(rootdir):
     :param str rootdir: Root directory to traverse.
     :returns: Nested dictionary of the directory structure.
     :rtype: dict
+
+    Example::
+
+        >>> import tempfile, os
+        >>> tmpdir = tempfile.mkdtemp()
+        >>> os.makedirs(os.path.join(tmpdir, 'sub'))
+        >>> Path(os.path.join(tmpdir, 'file.txt')).touch()
+        >>> result = get_directory_structure(tmpdir)
+        >>> 'file.txt' in result[os.path.basename(tmpdir)]
+        True
     """
     dir = {}
     rootdir = rootdir.rstrip(os.sep)
@@ -130,6 +149,9 @@ def search(rootdir: str, name : str = None, extension: str = None):
     :param str name: Optional file name pattern to match.
     :param str extension: Optional file extension to match.
     :yields Path: Full path to each matching file.
+
+    .. seealso::
+        See ``tests/test_dir.py`` for usage examples.
     """
     def match(file, s):
         return re.match(fr'.*{s}({Path(file).suffix})?$', file)
@@ -150,6 +172,9 @@ def safe_move(source, target, hard_remove=False) -> Path:
     :param bool hard_remove: If True, delete existing file at target first.
     :returns: Final target path (may differ if conflict occurred).
     :rtype: Path
+
+    .. seealso::
+        See ``tests/test_dir.py`` for usage examples.
     """
     target = Path(target)
     if hard_remove:
@@ -231,6 +256,9 @@ def get_dir_match(dir_pattern, thedate=None) -> tuple[list[Path], list[str]]:
     :param thedate: Optional date to append to patterns.
     :returns: Tuple of (results list of Path objects, warnings list of strings).
     :rtype: tuple[list[Path], list[str]]
+
+    .. seealso::
+        See ``tests/test_dir.py`` for usage examples.
     """
     results = []
     warnings = []
@@ -262,6 +290,9 @@ def load_files(directory, pattern='*', thedate=None):
     :param str pattern: Glob pattern to match files.
     :param thedate: Optional date to append to pattern.
     :yields: File contents as strings.
+
+    .. seealso::
+        See ``tests/test_dir.py`` for usage examples.
     """
     files, _ = get_dir_match([(directory, pattern)], thedate)
     logger.info(f'Found {len(files)} matching files in {directory}')
@@ -302,6 +333,15 @@ def dir_to_dict(path):
     :param str path: Directory path to convert.
     :returns: Dictionary with subdirectories as nested dicts and ``.files`` key for files.
     :rtype: dict
+
+    Example::
+
+        >>> import tempfile, os
+        >>> tmpdir = tempfile.mkdtemp()
+        >>> Path(os.path.join(tmpdir, 'test.txt')).touch()
+        >>> result = dir_to_dict(tmpdir)
+        >>> 'test.txt' in result['.files']
+        True
     """
     d = {}
     path = expandabspath(path)
@@ -321,6 +361,9 @@ def download_file(url, save_path: str | Path = None) -> Path:
     :type save_path: str or Path
     :returns: Path to downloaded file.
     :rtype: Path
+
+    .. seealso::
+        See ``tests/test_dir.py`` for usage examples.
     """
     if not save_path:
         name = Path(urlparse(unquote(url)).path).name

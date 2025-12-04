@@ -48,6 +48,19 @@ def format(value, style):
     - **#** - scale by 10000 and add 'bps' at the end
     - **/x** - divide the number by 1e3 (k), 1e6 (m), 1e9 (b) first
       (does not append the units like KMB do)
+
+    Example::
+
+        >>> format(1234.56, '2c')
+        '1,234.56'
+        >>> format(-100, '0cp')
+        '(100)'
+        >>> format(0, '2z')
+        ''
+        >>> format(0.5, '1%')
+        '50.0%'
+        >>> format(1500000, '1M')
+        '1.5M'
     """
     if isinstance(value, str):
         value = value.strip()
@@ -161,6 +174,13 @@ def format_timeinterval(start, end=None):
     :param datetime end: End datetime (defaults to now).
     :returns: Human-readable time interval string.
     :rtype: str
+
+    Example::
+
+        >>> start = datetime.datetime(2020, 1, 1, 12, 0, 0)
+        >>> end = datetime.datetime(2020, 1, 1, 14, 30, 0)
+        >>> format_timeinterval(start, end)
+        '2.5 hrs'
     """
     if not end:
         end = datetime.datetime.now()
@@ -174,6 +194,13 @@ def format_secondsdelta(seconds):
     :param float seconds: Number of seconds.
     :returns: Human-readable time string.
     :rtype: str
+
+    Example::
+
+        >>> format_secondsdelta(3661)
+        '1 hrs'
+        >>> format_secondsdelta(90)
+        '1.5 min'
     """
     return format_timedelta(datetime.timedelta(0, seconds, 0))
 
@@ -184,6 +211,15 @@ def format_timedelta(td):
     :param timedelta td: Time delta to format.
     :returns: Human-readable string (e.g., '2 hrs', '30 min').
     :rtype: str
+
+    Example::
+
+        >>> format_timedelta(datetime.timedelta(days=2))
+        '2 days'
+        >>> format_timedelta(datetime.timedelta(hours=3))
+        '3 hrs'
+        >>> format_timedelta(datetime.timedelta(seconds=45))
+        '45 sec'
     """
     def fmt_num(val, units):
         s = f'{val:.1f} {units}'
@@ -356,12 +392,26 @@ def titlecase(s):
     :param str s: String to convert.
     :returns: Title-cased string.
     :rtype: str
+
+    Example::
+
+        >>> titlecase('the quick brown fox')
+        'The Quick Brown Fox'
     """
     return _titlecase(s)
 
 
 class Percent(float):
-    """Float subclass that marks values for percentage formatting in display tables."""
+    """Float subclass that marks values for percentage formatting in display tables.
+
+    Example::
+
+        >>> p = Percent(0.25)
+        >>> float(p)
+        0.25
+        >>> p.pct
+        True
+    """
 
     def __new__(cls, val):
         p = float.__new__(cls, val)

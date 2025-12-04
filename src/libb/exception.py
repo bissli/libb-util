@@ -12,6 +12,13 @@ def print_exception(e, short=True):
 
     :param Exception e: The exception to print.
     :param bool short: If True, prints only traceback above current frame.
+
+    Example::
+
+        >>> try:
+        ...     raise ValueError("example error")
+        ... except Exception as e:
+        ...     print_exception(e)  # doctest: +SKIP
     """
     if short:
         print('Printing only the traceback above the current stack frame')

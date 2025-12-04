@@ -19,6 +19,14 @@ def base64file(fil):
     :returns: Base64 encoded bytes.
     :rtype: bytes
 
+    Example::
+
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        ...     _ = f.write('hello world')
+        >>> base64file(f.name)
+        b'aGVsbG8gd29ybGQ=\\n'
+
     .. note::
         This function reads the entire file into memory.
         Use with caution on large files.
@@ -32,6 +40,13 @@ def kryptophy(blah):
     :param str blah: String to convert.
     :returns: Integer representation of the string.
     :rtype: int
+
+    Example::
+
+        >>> kryptophy('AB')
+        16706
+        >>> kryptophy('hello')
+        448378203247
     """
     return int('0x' + ''.join([hex(ord(x))[2:] for x in blah]), 16)
 

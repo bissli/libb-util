@@ -133,8 +133,6 @@ def unique(iterable, key=None):
     insertion order rather than returning elements in sorted order. Internally
     uses :func:`more_itertools.unique_everseen`. Returns a list instead of a
     generator.
-    `See more_itertools <https://more-itertools.readthedocs.io/en/stable/
-    api.html#more_itertools.unique>`_.
 
     :param iterable: Iterable to deduplicate.
     :param key: Optional function to compute uniqueness key.
@@ -188,6 +186,12 @@ def hashby(iterable, keyfunc):
     :param keyfunc: Function to extract key from each item.
     :returns: Dictionary mapping keys to items.
     :rtype: dict
+
+    Example::
+
+        >>> items = [{'id': 1, 'name': 'a'}, {'id': 2, 'name': 'b'}]
+        >>> hashby(items, lambda x: x['id'])
+        {1: {'id': 1, 'name': 'a'}, 2: {'id': 2, 'name': 'b'}}
     """
     return {keyfunc(item): item for item in iterable}
 
@@ -243,8 +247,6 @@ def collapse(*args, base_type=(tuple, list)):
     ``*args`` instead of a single iterable, and ``base_type`` specifies which
     types TO flatten (default: tuple, list) rather than which types to exclude.
     Also does not support a ``levels`` parameter.
-    `See more_itertools <https://more-itertools.readthedocs.io/en/stable/
-    api.html#more_itertools.collapse>`_.
 
     :param args: Items to collapse.
     :param base_type: Types to recursively expand (default: tuple, list).
@@ -330,7 +332,17 @@ def same_order(ref, comp):
 
 
 def coalesce(*args):
-    """Return first non-None value"""
+    """Return first non-None value.
+
+    Example::
+
+        >>> coalesce(None, None, 1, 2)
+        1
+        >>> coalesce(None, None) is None
+        True
+        >>> coalesce(0, 1, 2)
+        0
+    """
     return next((a for a in args if a is not None), None)
 
 

@@ -30,6 +30,18 @@ def is_instance_method(func):
     :param func: Function to check.
     :returns: True if function is an instance method.
     :rtype: bool
+
+    Example::
+
+        >>> class MyClass:
+        ...     def my_method(self):
+        ...         pass
+        >>> def my_function():
+        ...     pass
+        >>> is_instance_method(MyClass.my_method)
+        True
+        >>> is_instance_method(my_function)
+        False
     """
     return len(func.__qualname__.split('.')) > 1
 
@@ -40,6 +52,16 @@ def find_decorators(target):
     :param target: Module or class to inspect.
     :returns: Dictionary mapping function names to decorator AST representations.
     :rtype: dict
+
+    Example::
+
+        >>> class Example:
+        ...     @staticmethod
+        ...     def static_method():
+        ...         pass
+        >>> decorators = find_decorators(Example)
+        >>> 'static_method' in decorators
+        True
 
     .. note::
         Algorithm from https://stackoverflow.com/a/9580006
@@ -224,6 +246,9 @@ def get_calling_function():
 
     :returns: The calling function object.
     :raises AttributeError: If function cannot be found.
+
+    .. seealso::
+        See ``tests/test_func.py`` for usage examples.
     """
     fr = sys._getframe(1)   # inspect.stack()[1][0]
     co = fr.f_code
@@ -282,6 +307,17 @@ def timing(func):
 
     :param func: Function to time.
     :returns: Wrapped function that logs execution time.
+
+    Example::
+
+        >>> @timing
+        ... def slow_function():
+        ...     import time
+        ...     time.sleep(0.01)
+        ...     return 42
+        >>> result = slow_function()  # doctest: +SKIP
+        >>> result
+        42
     """
     @wraps(func)
     def wrap(*args, **kw):
@@ -298,6 +334,16 @@ def suppresswarning(func):
 
     :param func: Function to wrap.
     :returns: Wrapped function that suppresses warnings.
+
+    Example::
+
+        >>> import warnings
+        >>> @suppresswarning
+        ... def noisy_function():
+        ...     warnings.warn("This warning is suppressed")
+        ...     return "done"
+        >>> noisy_function()
+        'done'
     """
     @wraps(func)
     def wrapper(*args, **kwargs):

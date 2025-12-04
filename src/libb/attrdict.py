@@ -282,7 +282,17 @@ class MutableDict(dict):
     __slots__ = ()
 
     def insert_before(self, key, new_key, val):
-        """Insert new_key:value into dict before key"""
+        """Insert new_key:value into dict before key.
+
+        Example::
+
+            >>> d = MutableDict({'a': 1, 'b': 2, 'c': 3})
+            >>> d.insert_before('b', 'x', 10)
+            >>> list(d.keys())
+            ['a', 'x', 'b', 'c']
+            >>> d['x']
+            10
+        """
         keys = list(self.keys())
         vals = list(self.values())
 
@@ -295,7 +305,17 @@ class MutableDict(dict):
         self.update({x: vals[i] for i, x in enumerate(keys)})
 
     def insert_after(self, key, new_key, val):
-        """Insert new_key:value into dict after key"""
+        """Insert new_key:value into dict after key.
+
+        Example::
+
+            >>> d = MutableDict({'a': 1, 'b': 2, 'c': 3})
+            >>> d.insert_after('a', 'x', 10)
+            >>> list(d.keys())
+            ['a', 'x', 'b', 'c']
+            >>> d['x']
+            10
+        """
         keys = list(self.keys())
         vals = list(self.values())
 
@@ -360,7 +380,14 @@ class CaseInsensitiveDict(MutableMapping):
         return len(self._store)
 
     def lower_items(self):
-        """Like iteritems(), but with all lowercase keys."""
+        """Like iteritems(), but with all lowercase keys.
+
+        Example::
+
+            >>> cid = CaseInsensitiveDict({'Content-Type': 'application/json'})
+            >>> list(cid.lower_items())
+            [('content-type', 'application/json')]
+        """
         return ((lowerkey, keyval[1]) for (lowerkey, keyval) in self._store.items())
 
     def __eq__(self, other):

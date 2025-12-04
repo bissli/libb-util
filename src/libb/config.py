@@ -289,6 +289,19 @@ def setting_unlocked(setting: Setting):
     """Context manager to safely modify a setting with unlock/lock protection.
 
     :param Setting setting: The Setting object to unlock/lock.
+
+    Example::
+
+        >>> cfg = Setting()
+        >>> cfg.lock()
+        >>> with setting_unlocked(cfg):
+        ...     cfg.foo = 'bar'
+        >>> cfg.foo
+        'bar'
+        >>> cfg.baz = 'qux'
+        Traceback (most recent call last):
+         ...
+        ValueError: This Setting object is locked from editing
     """
     setting.unlock()
     try:
@@ -305,6 +318,19 @@ def configure_environment(module, **config_overrides: Any) -> None:
 
     :param module: The module containing Setting objects to configure.
     :param config_overrides: Configuration values to set with keys as dotted paths.
+
+    Example::
+
+        >>> from libb import create_mock_module
+        >>> Setting.unlock()
+        >>> db = Setting()
+        >>> db.host = 'localhost'
+        >>> Setting.lock()
+        >>> create_mock_module('my_config', {'db': db})
+        >>> import my_config
+        >>> configure_environment(my_config, db_host='remotehost')
+        >>> my_config.db.host
+        'remotehost'
     """
     for key, value in config_overrides.items():
         parts = key.split('_')
@@ -352,6 +378,19 @@ def patch_library_config(library_name: str, config_name:str = 'config', **config
     :param str library_name: Name of the library whose config should be patched.
     :param str config_name: Name of the config module (default: 'config').
     :param config_overrides: Configuration values to set with keys as dotted paths.
+
+    Example::
+
+        >>> from libb import create_mock_module
+        >>> Setting.unlock()
+        >>> api = Setting()
+        >>> api.key = 'oldkey'
+        >>> Setting.lock()
+        >>> create_mock_module('mylib.config', {'api': api})
+        >>> patch_library_config('mylib', api_key='newkey')
+        >>> import mylib.config
+        >>> mylib.config.api.key
+        'newkey'
     """
     import sys
 

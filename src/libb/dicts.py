@@ -56,6 +56,11 @@ def invert(dct):
     :param dict dct: Dictionary to invert.
     :returns: New dictionary with keys and values swapped.
     :rtype: dict
+
+    Example::
+
+        >>> invert({'a': 1, 'b': 2})
+        {1: 'a', 2: 'b'}
     """
     return {v: k for k, v in list(dct.items())}
 
@@ -67,6 +72,11 @@ def mapkeys(func, dct):
     :param dict dct: Dictionary to transform.
     :returns: New dictionary with transformed keys.
     :rtype: dict
+
+    Example::
+
+        >>> mapkeys(str.upper, {'a': 1, 'b': 2})
+        {'A': 1, 'B': 2}
     """
     return {func(key): val for key, val in list(dct.items())}
 
@@ -78,6 +88,11 @@ def mapvals(func, dct):
     :param dict dct: Dictionary to transform.
     :returns: New dictionary with transformed values.
     :rtype: dict
+
+    Example::
+
+        >>> mapvals(lambda x: x * 2, {'a': 1, 'b': 2})
+        {'a': 2, 'b': 4}
     """
     return {key: func(val) for key, val in list(dct.items())}
 
@@ -91,8 +106,6 @@ def flatten(kv, prefix=None):
     them with underscores (e.g., ``{'a': {'b': 1}}`` becomes ``('a_b', 1)``),
     whereas more_itertools.flatten removes one level of nesting from a list of
     lists.
-    `See more_itertools <https://more-itertools.readthedocs.io/en/stable/
-    api.html#more_itertools.flatten>`_.
 
     :param dict kv: Dictionary to flatten.
     :param list prefix: Internal prefix list for recursion (do not set manually).
@@ -130,6 +143,11 @@ def unnest(d, keys=None):
     :param list keys: Internal key accumulator (do not set manually).
     :returns: List of tuples representing paths to leaf values.
     :rtype: list
+
+    Example::
+
+        >>> unnest({'a': {'b': 1}, 'c': 2})
+        [('a', 'b', 1), ('c', 2)]
     """
     if keys is None:
         keys = []

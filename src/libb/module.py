@@ -105,6 +105,12 @@ def get_module(modulename: str) -> ModuleType:
     :param str modulename: Dotted module name to import.
     :returns: The imported module.
     :rtype: ModuleType
+
+    Example::
+
+        >>> m = get_module('libb.module')
+        >>> m.__name__
+        'libb.module'
     """
     __import__(modulename)
     return sys.modules[modulename]
@@ -119,6 +125,12 @@ def get_class(classname: str) -> type:
     :param str classname: Class name, optionally with module prefix.
     :returns: The class object.
     :rtype: type
+
+    Example::
+
+        >>> cls = get_class('libb.Setting')
+        >>> cls.__name__
+        'Setting'
     """
     if '.' in classname:
         mod, cls = classname.rsplit('.', 1)

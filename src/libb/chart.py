@@ -24,6 +24,16 @@ class NiceScale:
     :param float minv: Minimum value of the data range.
     :param float maxv: Maximum value of the data range.
 
+    Example::
+
+        >>> scale = NiceScale(0.5, 10.5)
+        >>> scale.nice_min
+        0.0
+        >>> scale.nice_max
+        12.0
+        >>> scale.tick_spacing
+        2.0
+
     .. note::
         Algorithm from https://stackoverflow.com/a/16363437
     """

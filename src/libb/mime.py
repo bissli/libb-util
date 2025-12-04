@@ -30,6 +30,11 @@ def guess_extension(mimetype: str) -> str:
     :param str mimetype: The mimetype to look up.
     :returns: File extension (including dot) or None.
     :rtype: str
+
+    Example::
+
+        >>> guess_extension('image/jpeg')
+        '.jpg'
     """
     return mimetypes.guess_extension(mimetype)
 
@@ -40,6 +45,13 @@ def guess_type(url: str):
     :param str url: URL or filename to examine.
     :returns: Guessed mimetype or None.
     :rtype: str
+
+    Example::
+
+        >>> guess_type('document.pdf')
+        'application/pdf'
+        >>> guess_type('image.jpg')
+        'image/jpeg'
     """
     return mimetypes.guess_type(url)[0]
 

@@ -31,6 +31,11 @@ def render_csv(rows, dialect=csv.excel):
     :param dialect: CSV dialect to use (default: csv.excel).
     :returns: CSV formatted string.
     :rtype: str
+
+    Example::
+
+        >>> render_csv([['a', 'b'], ['1', '2']])
+        'a,b\\r\\n1,2\\r\\n'
     """
     f = io.StringIO()
     writer = csv.writer(f, dialect=dialect)
@@ -41,6 +46,13 @@ def render_csv(rows, dialect=csv.excel):
 
 class CsvZip(ZipFile):
     """Zipped CSV file that handles file permissions correctly on DOS.
+
+    Example::
+
+        >>> cz = CsvZip()
+        >>> cz.writecsv('test', [['a', 'b'], ['1', '2']])
+        >>> len(cz.value) > 0
+        True
 
     .. note::
         See http://stackoverflow.com/q/279945/424380
@@ -67,6 +79,12 @@ def iterable_to_stream(iterable, buffer_size=io.DEFAULT_BUFFER_SIZE):
     :param iterable: Iterable yielding bytestrings.
     :param int buffer_size: Buffer size for the stream.
     :returns: BufferedReader stream.
+
+    Example::
+
+        >>> stream = iterable_to_stream([b'hello', b' ', b'world'])
+        >>> stream.read()
+        b'hello world'
 
     .. note::
         See https://stackoverflow.com/a/20260030
@@ -195,6 +213,11 @@ def suppress_print():
     """Context manager to suppress stdout (print statements).
 
     Useful when third-party code includes unwanted print statements.
+
+    Example::
+
+        >>> with suppress_print():
+        ...     print("This won't appear")
     """
     try:
         _original_stdout = sys.stdout
@@ -210,6 +233,15 @@ def wrap_suppress_print(func):
 
     :param func: Function to wrap.
     :returns: Wrapped function with suppressed stdout.
+
+    Example::
+
+        >>> @wrap_suppress_print
+        ... def noisy():
+        ...     print("This won't appear")
+        ...     return 42
+        >>> noisy()
+        42
     """
     @wraps(func)
     def wrapped(*a, **kw):

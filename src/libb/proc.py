@@ -18,6 +18,9 @@ def process_by_name(name):
 
     :param str name: Process name to search for.
     :yields: psutil.Process objects matching the name with LISTEN connections.
+
+    .. seealso::
+        See ``tests/test_proc.py`` for usage examples.
     """
     for p in psutil.process_iter():
         try:
@@ -36,6 +39,9 @@ def process_by_name_and_port(name, port):
     :param str name: Process name to search for.
     :param int port: Port number to match.
     :returns: psutil.Process if found, None otherwise.
+
+    .. seealso::
+        See ``tests/test_proc.py`` for usage examples.
     """
     for p in psutil.process_iter():
         try:
@@ -57,6 +63,9 @@ def kill_proc(name=None, version=None, dry_run=False, use_terminate=False):
     :param bool use_terminate: If True, use terminate instead of kill.
     :returns: True if matching processes were found.
     :rtype: bool
+
+    .. seealso::
+        See ``tests/test_proc.py`` for usage examples.
     """
     assert name or version, 'Need something to kill'
     _name = fr'.*{(name or "")}(\.exe)?$'

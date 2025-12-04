@@ -35,6 +35,9 @@ def run_command(cmd, workingdir=None, raise_on_error=True, hidearg=None):
     :returns: Combined stdout and stderr output.
     :rtype: bytes
     :raises Exception: If command fails and raise_on_error is True.
+
+    .. seealso::
+        See ``tests/test_win.py`` for usage examples.
     """
     def hide(cmd):
         for bit in cmd:

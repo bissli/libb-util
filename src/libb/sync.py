@@ -23,6 +23,16 @@ def syncd(lock):
 
     :param lock: Threading lock to acquire during function execution.
     :returns: Decorator function.
+
+    Example::
+
+        >>> import threading
+        >>> lock = threading.Lock()
+        >>> @syncd(lock)
+        ... def safe_increment(counter):
+        ...     return counter + 1
+        >>> safe_increment(0)
+        1
     """
     def wrap(f):
         def new_function(*args, **kw):

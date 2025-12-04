@@ -12,6 +12,12 @@ def stream_is_tty(somestream):
     :param somestream: Stream to check (typically sys.stdout).
     :returns: True if stream is a TTY.
     :rtype: bool
+
+    Example::
+
+        >>> import io
+        >>> stream_is_tty(io.StringIO())
+        False
     """
     isatty = getattr(somestream, 'isatty', None)
     return isatty and isatty()
