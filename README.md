@@ -3,7 +3,7 @@ Bissli Utilities Module
 
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://bissli.github.io/libb-util/)
 
-![libb](https://github.com/bissli/libb/raw/master/bissli.jpg "Bissli - via wikipedia https://en.wikipedia.org/wiki/Bissli")
+![libb](https://raw.githubusercontent.com/bissli/libb-util/refs/heads/master/bissli.jpg "Bissli - via wikipedia https://en.wikipedia.org/wiki/Bissli")
 
 Contents
 --------
@@ -251,31 +251,6 @@ results = fuzzy_search("apple", items)
 ```
 
 For more examples, see module-specific documentation and doctests.
-
-## Key Features
-
-- **36 specialized modules** covering configuration, I/O, text processing, data structures, web utilities, and more
-- **Transparent API** - all utilities accessible from top-level import
-- **Graceful dependency handling** - optional dependencies don't break imports
-- **Comprehensive test coverage** - 31+ tests with doctests in all modules
-- **Type hints** - modern Python type annotations throughout
-- **Well documented** - extensive docstrings and examples
-
-## Recent Refactoring
-
-The library underwent a comprehensive refactoring in 2024-2025:
-
-1. **Phase 1**: Renamed 18 modules to short, singular names (e.g., `funcutils.py` → `func.py`)
-2. **Phase 2**: Broke up 400+ line `util.py` catch-all into specialized modules, created `crypto.py` and `geo.py`
-3. **Phase 3**: Flattened `collections/` directory, renamed files after primary classes (e.g., `collections/dict.py` → `attrdict.py`)
-4. **Cleanup**: Fixed critical bugs, added missing `__all__` exports to 17 modules
-
-See `REFACTORING_COMPLETE.md` for full details.
-
-## Contributing
-
-Contributions to this project are welcome. Please follow the contribution
-guidelines outlined in `CONTRIBUTING.md`.
 
 ## License
 
