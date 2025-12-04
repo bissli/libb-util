@@ -21,6 +21,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.Setting
    libb.ConfigOptions
@@ -37,6 +38,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.attrs
    libb.include
@@ -58,6 +60,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.is_instance_method
    libb.find_decorators
@@ -75,6 +78,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.chunked
    libb.chunked_even
@@ -103,6 +107,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.random_string
    libb.fix_text
@@ -123,6 +128,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.Percent
    libb.capitalize
@@ -141,6 +147,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.add_to_sys_path
    libb.cd
@@ -151,6 +158,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.ismapping
    libb.invert
@@ -173,6 +181,7 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.OverrideModuleGetattr
    libb.get_module
@@ -194,11 +203,11 @@ Core Utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.FileLike
    libb.Attachable
    libb.Dimension
-
 Collections
 ~~~~~~~~~~~
 
@@ -206,6 +215,7 @@ Collections
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.attrdict
    libb.lazydict
@@ -218,6 +228,7 @@ Collections
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.OrderedSet
 
@@ -225,9 +236,9 @@ Collections
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.ComparableHeap
-
 Input/Output
 ~~~~~~~~~~~~
 
@@ -235,6 +246,7 @@ Input/Output
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.render_csv
    libb.CsvZip
@@ -249,6 +261,7 @@ Input/Output
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.is_tty
    libb.stream_is_tty
@@ -257,6 +270,7 @@ Input/Output
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.process_by_name
    libb.process_by_name_and_port
@@ -266,6 +280,7 @@ Input/Output
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.SIGNAL_TRANSLATION_MAP
    libb.DelayedKeyboardInterrupt
@@ -274,6 +289,7 @@ Input/Output
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.guess_type
    libb.guess_extension
@@ -283,6 +299,7 @@ Input/Output
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.mkdir_p
    libb.make_tmpdir
@@ -298,7 +315,6 @@ Input/Output
    libb.download_file
    libb.splitall
    libb.resplit
-
 Specialized
 ~~~~~~~~~~~
 
@@ -306,6 +322,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.npfunc
    libb.avg
@@ -354,6 +371,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.asyncd
    libb.call_with_future
@@ -366,6 +384,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.syncd
    libb.NonBlockingDelay
@@ -373,12 +392,12 @@ Specialized
    libb.debounce
    libb.wait_until
    libb.timeout
-   libb.Future
 
 **Cryptography** - Encoding utilities
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.base64file
    libb.kryptophy
@@ -387,6 +406,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.merc_x
    libb.merc_y
@@ -395,6 +415,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.random_choice
    libb.random_int
@@ -405,6 +426,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.print_exception
    libb.try_else
@@ -413,6 +435,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.numpy_timeseries_plot
 
@@ -420,6 +443,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.is_null
    libb.download_tzdata
@@ -430,6 +454,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.get_or_create
    libb.paged
@@ -479,6 +504,7 @@ Specialized
 
 .. autosummary::
    :nosignatures:
+   :toctree: generated
 
    libb.run_command
    libb.psexec_session
@@ -487,7 +513,6 @@ Specialized
    libb.mount_file_share
    libb.parse_wmic_output
    libb.exit_cmd
-
 ----
 
 Design Philosophy

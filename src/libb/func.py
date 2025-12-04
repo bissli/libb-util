@@ -337,6 +337,22 @@ class MultiMethod:
 
 
 def multimethod(*types):
+    """Decorator for type-based method dispatch (multiple dispatch).
+
+    Register function overloads that dispatch based on argument types.
+
+    :param types: Type(s) to match for this overload.
+    :returns: Decorator that registers the function with MultiMethod.
+
+    Example::
+
+        >>> @multimethod(int, int)
+        ... def foo(a, b):
+        ...     return a + b
+        >>> @multimethod(str, str)
+        ... def foo(a, b):
+        ...     return a + ' ' + b
+    """
     def register(function):
         name = function.__name__
         mm = registry.get(name)

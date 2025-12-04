@@ -7,7 +7,8 @@ __all__ = [
 ]
 
 SIGMAP = {signal.SIGINT: 'SIGINT', signal.SIGTERM: 'SIGTERM'}
-SIGNAL_TRANSLATION_MAP = SIGMAP  # Alias for backward compatibility
+#: Map of signal numbers to signal names. Alias for backward compatibility.
+SIGNAL_TRANSLATION_MAP = SIGMAP
 
 
 class DelayedKeyboardInterrupt:

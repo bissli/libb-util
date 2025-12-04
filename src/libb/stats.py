@@ -642,11 +642,21 @@ def linterp(x0, x1, x, y0, y1):
 
 
 def np_divide(a, b):
-    """Allow divide where b may have a 0"""
+    """Safely divide numpy arrays, returning 0 where divisor is 0.
+
+    :param a: Numerator array.
+    :param b: Denominator array.
+    :returns: Result array with 0 where b was 0.
+    """
     return np.divide(a, b, out=np.zeros_like(a), where=b != 0)
 
 
 def safe_add(*args):
+    """Safely add numbers, returning None if any argument is None.
+
+    :param args: Numbers to add.
+    :returns: Sum or None if any arg is None.
+    """
     if not args:
         return None
     if None not in args:
@@ -655,6 +665,11 @@ def safe_add(*args):
 
 
 def safe_diff(*args):
+    """Safely subtract numbers, returning None if any argument is None.
+
+    :param args: Numbers to subtract sequentially.
+    :returns: Difference or None if any arg is None.
+    """
     if not args:
         return None
     if None not in args:
@@ -698,12 +713,25 @@ def safe_mult(*args):
 
 
 def safe_round(arg, places=2):
+    """Safely round a number, returning None if argument is None.
+
+    :param arg: Number to round.
+    :param int places: Decimal places (default 2).
+    :returns: Rounded number or None.
+    """
     if arg is None:
         return None
     return round(float(arg), places)
 
 
 def safe_cmp(op, a, b):
+    """Compare two values using a comparison operator.
+
+    :param op: Operator string ('>', '>=', '<', '<=', '==', '!=') or operator function.
+    :param a: First value.
+    :param b: Second value.
+    :returns: Boolean result of comparison.
+    """
     if op in {'>', operator.gt}:
         return cmp(a, b) == 1
     if op in {'>=', operator.ge}:
@@ -928,6 +956,12 @@ class BBox:
 
 
 def overlaps(*boxes):
+    """Check if any bounding boxes overlap.
+
+    :param boxes: BBox instances to check.
+    :returns: True if any boxes overlap.
+    :rtype: bool
+    """
     x_min = min(boxes, key=lambda c: c.x)
     y_min = min(boxes, key=lambda c: c.y)
     x_max = max(boxes, key=lambda c: c.x)

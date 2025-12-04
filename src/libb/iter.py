@@ -32,11 +32,17 @@ __all__ = [
     ]
 
 
+#: Split iterable into chunks of length n. See :func:`more_itertools.chunked`.
 chunked = _more_itertools.chunked
+#: Split iterable into n chunks of roughly equal size. See :func:`more_itertools.chunked_even`.
 chunked_even = _more_itertools.chunked_even
+#: Collect data into fixed-length chunks. See :func:`more_itertools.grouper`.
 grouper = _more_itertools.grouper
+#: Partition items into those where pred is False/True. See :func:`more_itertools.partition`.
 partition = _more_itertools.partition
+#: Interleave items from multiple iterables. See :func:`more_itertools.roundrobin`.
 roundrobin = _more_itertools.roundrobin
+#: Yield unique elements, preserving order. See :func:`more_itertools.unique_everseen`.
 unique_iter = _more_itertools.unique_everseen
 
 

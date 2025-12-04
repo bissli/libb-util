@@ -46,6 +46,10 @@ autodoc_typehints = 'description'
 autodoc_typehints_description_target = 'documented'
 
 autosummary_generate = True
+# Handle case conflicts for Dropbox filesystem (MultiMethod vs multimethod)
+autosummary_filename_map = {
+    'libb.multimethod': 'libb.multimethod_decorator',
+}
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),

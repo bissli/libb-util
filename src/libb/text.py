@@ -76,6 +76,12 @@ VULGAR_FRACTION = dict(list(zip(UNI_VULGAR_FRACTIONS, _VULGAR_FRACTIONS)))
 
 
 def random_string(length):
+    """Generate a random alphanumeric string.
+
+    :param int length: Length of the string to generate.
+    :returns: Random string of uppercase letters and digits.
+    :rtype: str
+    """
     return ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(length))
 
 
@@ -147,6 +153,12 @@ def uncamel(camel):
 
 
 def strip_ascii(s):
+    """Remove non-ASCII characters from a string.
+
+    :param str s: Input string.
+    :returns: String with only ASCII characters.
+    :rtype: str
+    """
     return s.encode('ascii', errors='ignore').decode()
 
 

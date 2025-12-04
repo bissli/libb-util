@@ -78,8 +78,7 @@ __all__ = [
     'COOKIE_DEFAULTS',
 ]
 
-# convenient placeholders for cookielib.Cookie
-# allows us to quickly make Cookie(name='', value='', **COOKIE_DEFAULTS)
+#: Default kwargs for cookielib.Cookie. Use as ``Cookie(name='', value='', **COOKIE_DEFAULTS)``.
 COOKIE_DEFAULTS = {
     'version': 0,
     'domain': '',

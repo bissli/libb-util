@@ -398,6 +398,7 @@ class staticandinstancemethod:
         return newfunc
 
 
+#: Cache for generated metaclasses to avoid redundant class creation.
 metadict = weakref.WeakValueDictionary()
 
 

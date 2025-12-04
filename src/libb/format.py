@@ -150,6 +150,7 @@ def format(value, style):
         return value or ''
 
 
+#: Alias for :func:`format`.
 fmt = format
 
 
