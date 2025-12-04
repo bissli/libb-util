@@ -315,7 +315,7 @@ class TestGetDirs:
     def test_get_tempdir_with_env_var(self, tmp_path):
         os.environ['CONFIG_TMPDIR_DIR'] = str(tmp_path)
         result = get_tempdir()
-        assert str(tmp_path) in result.dir
+        assert tmp_path == result.dir
 
     def test_get_vendordir_default(self):
         os.environ.pop('CONFIG_VENDOR_DIR', None)
@@ -326,7 +326,7 @@ class TestGetDirs:
     def test_get_vendordir_with_env_var(self, tmp_path):
         os.environ['CONFIG_VENDOR_DIR'] = str(tmp_path)
         result = get_vendordir()
-        assert str(tmp_path) in result.dir
+        assert tmp_path == result.dir
 
     def test_get_outputdir_default(self):
         os.environ.pop('CONFIG_OUTPUT_DIR', None)
@@ -337,7 +337,7 @@ class TestGetDirs:
     def test_get_outputdir_with_env_var(self, tmp_path):
         os.environ['CONFIG_OUTPUT_DIR'] = str(tmp_path)
         result = get_outputdir()
-        assert str(tmp_path) in result.dir
+        assert tmp_path == result.dir
 
     def test_get_localdir(self):
         result = get_localdir()

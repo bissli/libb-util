@@ -14,13 +14,15 @@ class TestGetModuleDir:
     def test_get_module_dir_with_module(self):
         # Pass actual module object
         result = get_module_dir(libb)
-        assert pathlib.Path(result).is_dir()
-        assert 'libb' in result
+        assert isinstance(result, pathlib.Path)
+        assert result.is_dir()
+        assert 'libb' in str(result)
 
     def test_get_module_dir_without_args(self):
         # When called without args, gets caller's module dir
         result = get_module_dir()
-        assert pathlib.Path(result).is_dir()
+        assert isinstance(result, pathlib.Path)
+        assert result.is_dir()
 
 
 class TestAddToSysPath:

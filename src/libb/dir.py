@@ -72,8 +72,8 @@ def make_tmpdir(prefix=None) -> Path:
         ...
         Exception: File does not exist
     """
-    prefix = prefix or tempfile.gettempdir()
-    prefix = os.path.join(prefix, '')
+    prefix = Path(prefix) if prefix else Path(tempfile.gettempdir())
+    prefix = str(prefix) + os.sep
     try:
         path = tempfile.mkdtemp(prefix=prefix)
         yield Path(path)
@@ -88,21 +88,21 @@ def make_tmpdir(prefix=None) -> Path:
             logger.error(f'Failed to clean up temp dir {path}')
 
 
-def expandabspath(p: str) -> str:
+def expandabspath(p: str) -> Path:
     """Expand path to absolute path with environment variables and user expansion.
 
     :param str p: Path string to expand.
     :returns: Absolute path with all expansions applied.
-    :rtype: str
+    :rtype: Path
 
     Example::
 
         >>> import os
         >>> os.environ['SPAM'] = 'eggs'
-        >>> assert expandabspath('~/$SPAM') == os.path.expanduser('~/eggs')
-        >>> assert expandabspath('/foo') == '/foo'
+        >>> assert expandabspath('~/$SPAM') == Path(os.path.expanduser('~/eggs'))
+        >>> assert expandabspath('/foo') == Path('/foo')
     """
-    return str(Path(Path(os.path.expandvars(p)).expanduser()).resolve())
+    return Path(Path(os.path.expandvars(p)).expanduser()).resolve()
 
 
 def get_directory_structure(rootdir):
@@ -123,13 +123,13 @@ def get_directory_structure(rootdir):
     return dir
 
 
-def search(rootdir: str, name : str = None, extension: str = None) -> list:
+def search(rootdir: str, name : str = None, extension: str = None):
     """Search for files by name, extension, or both in directory.
 
     :param str rootdir: Root directory to search.
     :param str name: Optional file name pattern to match.
     :param str extension: Optional file extension to match.
-    :yields: Full path to each matching file.
+    :yields Path: Full path to each matching file.
     """
     def match(file, s):
         return re.match(fr'.*{s}({Path(file).suffix})?$', file)
@@ -139,31 +139,31 @@ def search(rootdir: str, name : str = None, extension: str = None) -> list:
             if ((name and match(file, name)) or
                     (extension and Path(file).suffix == extension) or
                     (not name and not extension)):
-                yield os.path.join(rootdir, file)
+                yield Path(rootdir) / file
 
 
-def safe_move(source, target, hard_remove=False):
+def safe_move(source, target, hard_remove=False) -> Path:
     """Move a file to a new location, optionally deleting anything in the way.
 
     :param str source: Source file path.
     :param str target: Target file path.
     :param bool hard_remove: If True, delete existing file at target first.
     :returns: Final target path (may differ if conflict occurred).
-    :rtype: str
+    :rtype: Path
     """
+    target = Path(target)
     if hard_remove:
-        if not Path(target).exists():
+        if not target.exists():
             logger.info(f'There is no file to remove at target: {target}')
         else:
-            Path(target).unlink()
+            target.unlink()
             logger.info(f'Removed file at target location: {target}')
     try:
         shutil.move(source, target)
     except OSError as err:
         logger.warning('Target already used; adding rendom string to target loc, trying again.')
-        targetname, ext = os.path.splitext(target)
-        targetname += f'_{random.getrandbits(64):016x}'
-        target = targetname + ext
+        targetname = target.stem + f'_{random.getrandbits(64):016x}'
+        target = target.with_name(targetname + target.suffix)
         shutil.move(source, target)
         logger.warning(f'Succeeded moving to new target: {target}')
     return target
@@ -213,35 +213,36 @@ def save_file_tmpdir(fname, content, thedate=None, **kw):
         >>> content = "</html>...</html>"
         >>> save_file_tmpdir("Foobar.txt", content, thedate=datetime.date.today())
     """
-    tmpdir = kw.pop('tmpdir', tempfile.gettempdir())
+    tmpdir = Path(kw.pop('tmpdir', tempfile.gettempdir()))
     if thedate:
         fname = _append_date(fname, thedate)
-    pathname = os.path.join(tmpdir, fname)
-    with Path(pathname).open('w', encoding='utf-8', errors='ignore') as f:
+    pathname = tmpdir / fname
+    with pathname.open('w', encoding='utf-8', errors='ignore') as f:
         f.write(content)
         logger.info(f'Tmp saved {pathname} {fname}')
 
 
-def get_dir_match(dir_pattern, thedate=None):
+def get_dir_match(dir_pattern, thedate=None) -> tuple[list[Path], list[str]]:
     """Get paths of existing files matching each glob pattern.
 
     Filters zero-size files and returns warnings for missing patterns.
 
     :param dir_pattern: List of (directory, pattern) tuples.
     :param thedate: Optional date to append to patterns.
-    :returns: Tuple of (results list, warnings list).
-    :rtype: tuple
+    :returns: Tuple of (results list of Path objects, warnings list of strings).
+    :rtype: tuple[list[Path], list[str]]
     """
     results = []
     warnings = []
     for directory, pattern in dir_pattern:
         if thedate:
             pattern = _append_date(pattern, thedate)
-        glob_pattern = os.path.join(directory, pattern)
-        files = glob.glob(glob_pattern)
+        glob_pattern = Path(directory) / pattern
+        files = glob.glob(str(glob_pattern))
         if files:
             for fpath in files:
-                if os.stat(fpath).st_size == 0:
+                fpath = Path(fpath)
+                if fpath.stat().st_size == 0:
                     themsg = f'Skipping zero-length file: {fpath}'
                     warnings.append(themsg)
                     logger.debug(themsg)
@@ -266,7 +267,7 @@ def load_files(directory, pattern='*', thedate=None):
     logger.info(f'Found {len(files)} matching files in {directory}')
     for pathname in files:
         try:
-            with Path(pathname).open(encoding='utf-8', errors='ignore') as f:
+            with pathname.open(encoding='utf-8', errors='ignore') as f:
                 _file = f.read()
             yield _file
         except:
@@ -304,9 +305,10 @@ def dir_to_dict(path):
     """
     d = {}
     path = expandabspath(path)
-    for i in [os.path.join(path, i) for i in os.listdir(path) if Path(os.path.join(path, i)).is_dir()]:
-        d[Path(i).name] = dir_to_dict(i)
-    d['.files'] = [i for i in os.listdir(path) if Path(os.path.join(path, i)).is_file()]
+    for item in path.iterdir():
+        if item.is_dir():
+            d[item.name] = dir_to_dict(item)
+    d['.files'] = [item.name for item in path.iterdir() if item.is_file()]
     return d
 
 

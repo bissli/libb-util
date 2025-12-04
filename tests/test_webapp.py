@@ -507,15 +507,17 @@ class TestLocalOrStaticJoin:
             local_file = Path(tmpdir) / 'test.txt'
             local_file.write_text('local content')
             result = local_or_static_join('/nonexistent/static', str(local_file))
-            # Function returns path from expandabspath
-            assert str(result) == str(local_file)
+            # Function returns Path from expandabspath
+            assert isinstance(result, Path)
+            assert result == local_file
 
     def test_local_or_static_join_static_exists(self):
         with tempfile.TemporaryDirectory() as static_dir:
             static_file = Path(static_dir) / 'test.txt'
             static_file.write_text('static content')
             result = local_or_static_join(static_dir, 'test.txt')
-            assert result == str(static_file)
+            assert isinstance(result, Path)
+            assert result == static_file
 
     def test_local_or_static_join_neither_exists(self):
         with pytest.raises(OSError, match='does not exist'):

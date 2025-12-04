@@ -76,7 +76,7 @@ def download_tzdata():
     """
     from libb import download_file, expandabspath
 
-    base = Path(expandabspath('~/Downloads')) / 'tzdata'
+    base = expandabspath('~/Downloads') / 'tzdata'
     base.mkdir(exist_ok=True)
     temppath = Path(tempfile.gettempdir())
 

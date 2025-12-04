@@ -600,15 +600,17 @@ def local_or_static_join(static, somepath):
     :param str static: Static folder path.
     :param str somepath: Relative path to template.
     :returns: Full path to existing template.
-    :rtype: str
+    :rtype: Path
     :raises OSError: If template not found in either location.
     """
     localpath = expandabspath(somepath)
-    staticpath = safe_join(static, somepath)
-    if pathlib.Path(localpath).exists():
+    if localpath.exists():
         return localpath
-    if pathlib.Path(staticpath).exists():
-        return staticpath
+    staticjoin = safe_join(static, somepath)
+    if staticjoin:
+        staticpath = pathlib.Path(staticjoin)
+        if staticpath.exists():
+            return staticpath
     raise OSError('That template does not exist on your path or in the local package.')
 
 

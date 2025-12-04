@@ -1,8 +1,8 @@
 import inspect
 import os
-import pathlib
 import sys
 from contextlib import contextmanager
+from pathlib import Path
 
 __all__ = [
     'add_to_sys_path',
@@ -12,22 +12,22 @@ __all__ = [
 ]
 
 
-def get_module_dir(module=None):
+def get_module_dir(module=None) -> Path:
     """Get the directory containing a module.
 
     :param module: Module to get directory for, defaults to caller's module.
     :returns: Directory path containing the module.
-    :rtype: str
+    :rtype: Path
 
     Example::
 
-        etcdir = os.path.join(get_module_dir(), '../../etc')
+        etcdir = get_module_dir() / '../../etc'
     """
     if not module:
         # get caller's module
         frame = inspect.stack()[1]
         module = inspect.getmodule(frame[0])
-    return os.path.split(pathlib.Path(module.__file__).resolve())[0]
+    return Path(module.__file__).resolve().parent
 
 
 def add_to_sys_path(path=None, relative_path=None):
@@ -44,10 +44,10 @@ def add_to_sys_path(path=None, relative_path=None):
     if not path:
         frame = inspect.stack()[1]
         module = inspect.getmodule(frame[0])
-        path = os.path.split(pathlib.Path(module.__file__).resolve())[0]
+        path = Path(module.__file__).resolve().parent
     if relative_path:
-        path = os.path.join(path, relative_path)
-    sys.path.insert(0, path)
+        path = Path(path) / relative_path
+    sys.path.insert(0, str(path))
 
 
 @contextmanager
@@ -63,7 +63,7 @@ def cd(path):
         with cd("/some/folder"):
             run_command("some_command")
     """
-    old_dir = pathlib.Path.cwd()
+    old_dir = Path.cwd()
     os.chdir(path)
     try:
         yield
@@ -89,7 +89,7 @@ def scriptname(task=None):
     """
     task = task or sys.argv[0]
     if task:
-        app, _ = os.path.splitext(pathlib.Path(task).name)
+        app = Path(task).stem
     else:
         app = ''
     return app

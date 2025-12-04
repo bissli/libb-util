@@ -48,10 +48,12 @@ class TestExpandabspath:
 
     def test_expandabspath_tilde(self):
         result = expandabspath('~')
-        assert pathlib.Path(str(result)).is_absolute()
+        assert isinstance(result, pathlib.Path)
+        assert result.is_absolute()
 
     def test_expandabspath_absolute(self):
         result = expandabspath('/foo')
+        assert isinstance(result, pathlib.Path)
         assert '/foo' in str(result)
 
 
@@ -108,7 +110,8 @@ class TestSearch:
 
             results = list(search(tmpdir, name='test_file'))
             assert len(results) == 1
-            assert 'test_file' in results[0]
+            assert isinstance(results[0], pathlib.Path)
+            assert 'test_file' in str(results[0])
 
     def test_search_by_extension(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -117,7 +120,8 @@ class TestSearch:
 
             results = list(search(tmpdir, extension='.txt'))
             assert len(results) == 1
-            assert results[0].endswith('.txt')
+            assert isinstance(results[0], pathlib.Path)
+            assert results[0].suffix == '.txt'
 
     def test_search_all_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -126,6 +130,7 @@ class TestSearch:
 
             results = list(search(tmpdir))
             assert len(results) == 2
+            assert all(isinstance(r, pathlib.Path) for r in results)
 
 
 class TestSafeMove:
@@ -138,7 +143,8 @@ class TestSafeMove:
             source.write_text('content')
 
             result = safe_move(str(source), str(target))
-            assert pathlib.Path(result).exists()
+            assert isinstance(result, pathlib.Path)
+            assert result.exists()
             assert not source.exists()
 
     def test_safe_move_hard_remove(self):
@@ -149,8 +155,9 @@ class TestSafeMove:
             target.write_text('target content')
 
             result = safe_move(str(source), str(target), hard_remove=True)
-            assert pathlib.Path(result).exists()
-            assert pathlib.Path(result).read_text() == 'source content'
+            assert isinstance(result, pathlib.Path)
+            assert result.exists()
+            assert result.read_text() == 'source content'
 
     def test_safe_move_target_not_exists_hard_remove(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -160,7 +167,8 @@ class TestSafeMove:
 
             # hard_remove=True but target doesn't exist
             result = safe_move(str(source), str(target), hard_remove=True)
-            assert pathlib.Path(result).exists()
+            assert isinstance(result, pathlib.Path)
+            assert result.exists()
 
     def test_safe_move_collision_renames(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -173,7 +181,8 @@ class TestSafeMove:
 
             # This should cause rename with random suffix
             result = safe_move(str(source), str(target_dir))
-            assert pathlib.Path(result).exists()
+            assert isinstance(result, pathlib.Path)
+            assert result.exists()
 
 
 class TestSaveFileTmpdir:
@@ -210,7 +219,8 @@ class TestGetDirMatch:
 
             results, warnings = get_dir_match([(tmpdir, 'test.txt')])
             assert len(results) == 1
-            assert results[0] == str(test_file)
+            assert isinstance(results[0], pathlib.Path)
+            assert results[0] == test_file
             assert len(warnings) == 0
 
     def test_get_dir_match_warns_not_found(self):
@@ -238,6 +248,7 @@ class TestGetDirMatch:
 
             results, warnings = get_dir_match([(tmpdir, 'test*.txt')], thedate=thedate)
             assert len(results) == 1
+            assert isinstance(results[0], pathlib.Path)
 
 
 class TestLoadFiles:
