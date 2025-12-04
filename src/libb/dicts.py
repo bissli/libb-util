@@ -85,6 +85,15 @@ def mapvals(func, dct):
 def flatten(kv, prefix=None):
     """Flatten a dictionary, recursively flattening nested dicts.
 
+    Unlike `more_itertools.flatten <https://more-itertools.readthedocs.io/en/
+    stable/api.html#more_itertools.flatten>`_, this operates on dictionaries
+    rather than iterables. It recursively flattens nested dict keys by joining
+    them with underscores (e.g., ``{'a': {'b': 1}}`` becomes ``('a_b', 1)``),
+    whereas more_itertools.flatten removes one level of nesting from a list of
+    lists.
+    `See more_itertools <https://more-itertools.readthedocs.io/en/stable/
+    api.html#more_itertools.flatten>`_.
+
     :param dict kv: Dictionary to flatten.
     :param list prefix: Internal prefix list for recursion (do not set manually).
     :yields: Tuples of (flattened_key, value).

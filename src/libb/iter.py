@@ -128,6 +128,14 @@ def iscollection(obj):
 def unique(iterable, key=None):
     """Remove duplicate elements while preserving order.
 
+    Unlike `more_itertools.unique <https://more-itertools.readthedocs.io/en/
+    stable/api.html#more_itertools.unique>`_, this preserves the original
+    insertion order rather than returning elements in sorted order. Internally
+    uses :func:`more_itertools.unique_everseen`. Returns a list instead of a
+    generator.
+    `See more_itertools <https://more-itertools.readthedocs.io/en/stable/
+    api.html#more_itertools.unique>`_.
+
     :param iterable: Iterable to deduplicate.
     :param key: Optional function to compute uniqueness key.
     :returns: List of unique elements.
@@ -230,7 +238,13 @@ def infinite_iterator(iterable):
 def collapse(*args, base_type=(tuple, list)):
     """Recursively flatten nested lists/tuples into a single generator.
 
-    Similar to more_itertools.collapse but with explicit base types.
+    Unlike `more_itertools.collapse <https://more-itertools.readthedocs.io/en/
+    stable/api.html#more_itertools.collapse>`_, this function takes variadic
+    ``*args`` instead of a single iterable, and ``base_type`` specifies which
+    types TO flatten (default: tuple, list) rather than which types to exclude.
+    Also does not support a ``levels`` parameter.
+    `See more_itertools <https://more-itertools.readthedocs.io/en/stable/
+    api.html#more_itertools.collapse>`_.
 
     :param args: Items to collapse.
     :param base_type: Types to recursively expand (default: tuple, list).
