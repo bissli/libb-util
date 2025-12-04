@@ -42,3 +42,7 @@ poetry.toml
 poetry.lock
 .envrc
 TODO.*
+
+# Documentation build
+docs/build/
+docs/source/_autosummary/

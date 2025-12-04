@@ -1,6 +1,8 @@
 Bissli Utilities Module
 =======================
 
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://bissli.github.io/libb-util/)
+
 ![libb](https://github.com/bissli/libb/raw/master/bissli.jpg "Bissli - via wikipedia https://en.wikipedia.org/wiki/Bissli")
 
 Contents

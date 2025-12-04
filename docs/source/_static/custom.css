@@ -1,0 +1,38 @@
+/* Custom styles for libb-util documentation */
+
+/* Improve code block readability */
+.highlight {
+    background: #f8f8f8;
+}
+
+/* Better spacing for function signatures */
+.sig-param {
+    font-style: italic;
+}
+
+/* Improve docstring examples visibility */
+.doctest {
+    background-color: #f0f0f0;
+    border-left: 3px solid #6ab0de;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+/* Better inline code visibility */
+code.literal {
+    background-color: #f4f4f4;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+/* Improve note/warning boxes */
+.admonition {
+    margin: 1em 0;
+    padding: 0.5em 1em;
+}
+
+/* Make important callouts stand out */
+.admonition.important {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+}
