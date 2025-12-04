@@ -208,6 +208,14 @@ def iflocked(func):
 
 @iflocked
 def get_tempdir() -> Setting:
+    """Get temporary directory setting from environment or system default.
+
+    :returns: Setting object with ``dir`` attribute pointing to temp directory.
+    :rtype: Setting
+
+    Uses ``CONFIG_TMPDIR_DIR`` environment variable if set, otherwise
+    falls back to system temp directory.
+    """
     from libb import expandabspath
     tmpdir = Setting()
     if os.getenv('CONFIG_TMPDIR_DIR'):
@@ -220,6 +228,14 @@ def get_tempdir() -> Setting:
 
 @iflocked
 def get_vendordir() -> Setting:
+    """Get vendor directory setting from environment or system default.
+
+    :returns: Setting object with ``dir`` attribute pointing to vendor directory.
+    :rtype: Setting
+
+    Uses ``CONFIG_VENDOR_DIR`` environment variable if set, otherwise
+    falls back to system temp directory.
+    """
     from libb import expandabspath
     vendor = Setting()
     if os.getenv('CONFIG_VENDOR_DIR'):
@@ -232,6 +248,14 @@ def get_vendordir() -> Setting:
 
 @iflocked
 def get_outputdir() -> Setting:
+    """Get output directory setting from environment or system default.
+
+    :returns: Setting object with ``dir`` attribute pointing to output directory.
+    :rtype: Setting
+
+    Uses ``CONFIG_OUTPUT_DIR`` environment variable if set, otherwise
+    falls back to system temp directory.
+    """
     from libb import expandabspath
     output = Setting()
     if os.getenv('CONFIG_OUTPUT_DIR'):
@@ -244,6 +268,14 @@ def get_outputdir() -> Setting:
 
 @iflocked
 def get_localdir() -> Setting:
+    """Get local data directory setting using platform-appropriate location.
+
+    :returns: Setting object with ``dir`` attribute pointing to local data directory.
+    :rtype: Setting
+
+    Uses platformdirs to determine the appropriate local data directory
+    for the current operating system.
+    """
     from libb import expandabspath
     local = Setting()
     local.dir = Path(expandabspath(list(__dirs.iter_data_dirs())[0]))

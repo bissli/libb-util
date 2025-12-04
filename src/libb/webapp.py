@@ -78,8 +78,12 @@ __all__ = [
     'COOKIE_DEFAULTS',
 ]
 
-#: Default kwargs for cookielib.Cookie. Use as ``Cookie(name='', value='', **COOKIE_DEFAULTS)``.
-COOKIE_DEFAULTS = {
+
+class _CookieDefaults(dict):
+    """Default kwargs for cookielib.Cookie constructor."""
+
+
+COOKIE_DEFAULTS = _CookieDefaults({
     'version': 0,
     'domain': '',
     'domain_specified': False,
@@ -95,7 +99,7 @@ COOKIE_DEFAULTS = {
     'comment_url': None,
     'rest': {'HttpOnly': None},
     'rfc2109': False,
-}
+})
 
 
 #

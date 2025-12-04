@@ -1,10 +1,10 @@
 """Sphinx configuration for libb-util documentation."""
 
-import os
 import sys
 from datetime import datetime
+import pathlib
 
-sys.path.insert(0, os.path.abspath('../../src'))
+sys.path.insert(0, pathlib.Path('../../src').resolve())
 
 project = 'libb-util'
 copyright = f'{datetime.now().year}, bissli'
@@ -44,6 +44,7 @@ autodoc_default_options = {
 }
 autodoc_typehints = 'description'
 autodoc_typehints_description_target = 'documented'
+autodoc_inherit_docstrings = False
 
 autosummary_generate = True
 # Handle case conflicts for Dropbox filesystem (MultiMethod vs multimethod)

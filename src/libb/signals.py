@@ -6,9 +6,15 @@ __all__ = [
     'DelayedKeyboardInterrupt',
 ]
 
-SIGMAP = {signal.SIGINT: 'SIGINT', signal.SIGTERM: 'SIGTERM'}
-#: Map of signal numbers to signal names. Alias for backward compatibility.
-SIGNAL_TRANSLATION_MAP = SIGMAP
+
+class _SignalMap(dict):
+    """Map of signal numbers to signal names."""
+
+
+SIGNAL_TRANSLATION_MAP = _SignalMap({signal.SIGINT: 'SIGINT', signal.SIGTERM: 'SIGTERM'})
+
+# Alias for internal use
+SIGMAP = SIGNAL_TRANSLATION_MAP
 
 
 class DelayedKeyboardInterrupt:
