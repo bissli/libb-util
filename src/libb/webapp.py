@@ -105,7 +105,13 @@ COOKIE_DEFAULTS = {
 
 
 def get_or_create(session, model, **kw):
-    """A la django"""
+    """Get existing model instance or create new one (Django-style).
+
+    :param session: SQLAlchemy session.
+    :param model: SQLAlchemy model class.
+    :param kw: Keyword arguments for filtering/creating.
+    :returns: Existing or newly created model instance.
+    """
     obj = session.query(model).filter_by(**kw).first()
     if not obj:
         obj = model(**kw)
@@ -115,13 +121,20 @@ def get_or_create(session, model, **kw):
 
 
 def paged(order_by_df, per_page_df):
-    """Decorator to pass in default order / page / per page for pagination
+    """Decorator to pass in default order/page/per page for pagination.
 
-    #. acquire the thread-local request object
-    #. calculate pagination order by / offset / limit from request object
-    #. patch the info into a database connection
+    Steps performed:
 
-    WARNING: careful not to patch MULTIPLE queries within the controller
+    1. Acquire the thread-local request object
+    2. Calculate pagination order by/offset/limit from request object
+    3. Patch the info into a database connection
+
+    :param str order_by_df: Default column to order by.
+    :param int per_page_df: Default number of items per page.
+    :returns: Decorator function.
+
+    .. warning::
+        Careful not to patch MULTIPLE queries within the controller.
     """
 
     def wrapper(query_fn):
@@ -157,13 +170,25 @@ def paged(order_by_df, per_page_df):
 
 
 def rsleep(always=0, rand_extra=8):
+    """Sleep for a random amount of time.
+
+    :param float always: Minimum seconds to sleep.
+    :param float rand_extra: Maximum additional random seconds.
+    """
     seconds = max(always + (random.randrange(0, max(rand_extra, 1) * 1000) * 0.001), 0)
     logger.debug(f'Sleeping {seconds:0.2f} seconds ...')
     time.sleep(seconds)
 
 
 def rand_retry(x_times=10, exception=Exception):
-    """Randomly space out retries, to account for automated thresholding."""
+    """Decorator that retries function with random delays.
+
+    Useful for avoiding automated thresholding on web requests.
+
+    :param int x_times: Maximum number of retries.
+    :param exception: Exception type(s) to catch and retry on.
+    :returns: Decorator function.
+    """
 
     def wrapper(fn):
         @wraps(fn)
@@ -189,10 +214,17 @@ def rand_retry(x_times=10, exception=Exception):
 
 
 def cors_webpy(app, **kw):
-    """Wrap a web.py controller with headers for cross origin resource sharing.
+    """Wrap a web.py controller with CORS headers.
 
     Especially useful for views using resources from many websites.
-    See https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS
+
+    :param app: web.py application instance.
+    :param kw: CORS options (origin, credentials, methods, headers, max_age,
+        attach_to_all, automatic_options).
+    :returns: Decorator function.
+
+    .. seealso::
+        https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS
     """
     origin = kw.get('origin')
     credentials = kw.get('credentials', True)
@@ -243,9 +275,14 @@ def cors_webpy(app, **kw):
 
 
 def cors_flask(app, **kw):
-    """Wrap a flask controller with headers to allow cross origin resource sharing.
+    """Wrap a Flask controller with CORS headers.
 
     Especially useful for views using resources from many websites.
+
+    :param app: Flask application instance.
+    :param kw: CORS options (origin, credentials, methods, headers, max_age,
+        attach_to_all, automatic_options).
+    :returns: Decorator function.
     """
     origin = kw.get('origin')
     credentials = kw.get('credentials', True)
@@ -297,9 +334,13 @@ def cors_flask(app, **kw):
 
 
 def authd(checker_fn, fallback_fn):
-    """Simple decorator that checks if a user meets an auth criterion.
+    """Decorator that checks if user meets an auth criterion.
 
     Works with both web.py and Flask frameworks.
+
+    :param checker_fn: Callable that returns True if authorized.
+    :param fallback_fn: Callable to invoke if not authorized.
+    :returns: Decorator function.
     """
 
     def wrapper(f):
@@ -319,8 +360,13 @@ def authd(checker_fn, fallback_fn):
 
 
 def xsrf_token():
-    """x-site request forgery protection token
-    TODO add the xsrf tokens to forms
+    """Generate cross-site request forgery protection token.
+
+    :returns: XSRF token string.
+    :rtype: str
+
+    .. todo::
+        Add the xsrf tokens to forms.
     """
     if 'xsrf' not in web.ctx.session:
         web.ctx.session.xsrf = uuid.uuid4().hex  # better use sha?
@@ -328,8 +374,13 @@ def xsrf_token():
 
 
 def xsrf_protected(fn):
-    """Decorator protecting PUT/POST requests from session riding
-    TODO decorate controllers for xsrf prot forms
+    """Decorator protecting PUT/POST requests from session riding.
+
+    :param fn: Function to protect.
+    :returns: Wrapped function.
+
+    .. todo::
+        Decorate controllers for xsrf protected forms.
     """
 
     def dec_fn(*args, **kwargs):
@@ -348,10 +399,14 @@ VALID_KEY = re.compile('[a-zA-Z0-9_-]{1,255}')
 
 
 def valid_api_key(key):
-    """Check if key has valid format (alphanumeric, underscore, hyphen, 1-255 chars).
+    """Check if key has valid format.
 
-    This validates the format only. For user validation, integrate with your
-    user model's key validation.
+    Validates format only (alphanumeric, underscore, hyphen, 1-255 chars).
+    For user validation, integrate with your user model's key validation.
+
+    :param str key: API key to validate.
+    :returns: True if key format is valid.
+    :rtype: bool
     """
     if not key:
         return False
@@ -359,8 +414,12 @@ def valid_api_key(key):
 
 
 def requires_api_key(fn):
-    """Controller decorator defining how to allow api access
-    (protects against directory traversal attacks / rolling perm's)
+    """Decorator requiring valid API key for controller access.
+
+    Protects against directory traversal attacks and permission issues.
+
+    :param fn: Controller function to protect.
+    :returns: Wrapped function.
     """
 
     def decorated_fn(*args, **kwargs):
@@ -377,52 +436,58 @@ def requires_api_key(fn):
 
 
 def make_url(path, **params):
-    """Consistent url generation.
+    """Generate URL with query parameters.
 
-    - pass in arbitrary params inspired by `werkzeug.urls.Href`
-    - always assume traditional multiple params (do not overwrite)
-    - to overwrite, use special method `__replace__`
-    - to ignore certain params, use `__ignore__` (handy for ajax back and forth)
+    Inspired by ``werkzeug.urls.Href``. Assumes traditional multiple params
+    (does not overwrite). Use ``__replace__`` to overwrite params.
+    Use ``__ignore__`` to filter out certain params.
 
-    >>> ignore_fn = lambda x: x.startswith('_')
-    >>> kw = dict(fuz=1, biz="boo")
-    >>> make_url('/foo/', _format='excel', __ignore__=ignore_fn, **kw)
-    '/foo/?fuz=1&biz=boo'
-    >>> make_url('/foo/?bar=1', _format='excel', **kw)
-    '/foo/?_format=excel&fuz=1&biz=boo&bar=1'
-    >>> make_url('/foo/', bar=1, baz=2)
-    '/foo/?bar=1&baz=2'
-    >>> make_url('/foo/', **{'bar':1, 'fuz':(1,2,), 'biz':"boo"})
-    '/foo/?bar=1&fuz=1&fuz=2&biz=boo'
-    >>> make_url('/foo/?a=1&a=2')
-    '/foo/?a=1&a=2'
+    :param str path: Base URL path.
+    :param params: Query parameters.
+    :returns: Complete URL with query string.
+    :rtype: str
 
-    >>> kwargs = dict(fuz=1, biz="boo", __ignore__=ignore_fn)
-    >>> xx = make_url('www.foobar.com/foo/', **kwargs)
-    >>> 'www' in xx and 'foobar' in xx and '/foo/' in xx and 'fuz=1' in xx and 'biz=boo' in xx
-    True
-    >>> xx = make_url('/foo/', _format='excel', **kwargs)
-    >>> '_format=excel' in xx
-    False
-    >>> 'fuz=1' in xx
-    True
-    >>> 'biz=boo' in xx
-    True
-    >>> yy = make_url('/foo/?bar=1', _format='excel', **kwargs)
-    >>> 'bar=1' in yy
-    True
-    >>> '_format=excel' in yy
-    False
-    >>> zz = make_url('/foo/', **{'bar':1, 'fuz':(1,2,), 'biz':"boo"})
-    >>> 'fuz=1' in zz
-    True
-    >>> 'fuz=2' in zz
-    True
-    >>> qq = make_url('/foo/?a=1&a=2')
-    >>> 'a=1' in qq
-    True
-    >>> 'a=2' in qq
-    True
+    Example::
+
+        >>> ignore_fn = lambda x: x.startswith('_')
+        >>> kw = dict(fuz=1, biz="boo")
+        >>> make_url('/foo/', _format='excel', __ignore__=ignore_fn, **kw)
+        '/foo/?fuz=1&biz=boo'
+        >>> make_url('/foo/?bar=1', _format='excel', **kw)
+        '/foo/?_format=excel&fuz=1&biz=boo&bar=1'
+        >>> make_url('/foo/', bar=1, baz=2)
+        '/foo/?bar=1&baz=2'
+        >>> make_url('/foo/', **{'bar':1, 'fuz':(1,2,), 'biz':"boo"})
+        '/foo/?bar=1&fuz=1&fuz=2&biz=boo'
+        >>> make_url('/foo/?a=1&a=2')
+        '/foo/?a=1&a=2'
+
+        >>> kwargs = dict(fuz=1, biz="boo", __ignore__=ignore_fn)
+        >>> xx = make_url('www.foobar.com/foo/', **kwargs)
+        >>> 'www' in xx and 'foobar' in xx and '/foo/' in xx and 'fuz=1' in xx and 'biz=boo' in xx
+        True
+        >>> xx = make_url('/foo/', _format='excel', **kwargs)
+        >>> '_format=excel' in xx
+        False
+        >>> 'fuz=1' in xx
+        True
+        >>> 'biz=boo' in xx
+        True
+        >>> yy = make_url('/foo/?bar=1', _format='excel', **kwargs)
+        >>> 'bar=1' in yy
+        True
+        >>> '_format=excel' in yy
+        False
+        >>> zz = make_url('/foo/', **{'bar':1, 'fuz':(1,2,), 'biz':"boo"})
+        >>> 'fuz=1' in zz
+        True
+        >>> 'fuz=2' in zz
+        True
+        >>> qq = make_url('/foo/?a=1&a=2')
+        >>> 'a=1' in qq
+        True
+        >>> 'a=2' in qq
+        True
     """
     replace = params.pop('__replace__', {})
     ignore = params.pop('__ignore__', None)
@@ -454,6 +519,14 @@ def make_url(path, **params):
 
 
 def prefix_urls(pathpfx, classpfx, urls):
+    """Add prefixes to web.py URL mappings.
+
+    :param str pathpfx: Prefix for URL paths.
+    :param str classpfx: Prefix for class names.
+    :param tuple urls: web.py URL mapping tuple.
+    :returns: New URL mapping tuple with prefixes.
+    :rtype: tuple
+    """
     newurls = []
     for i in range(0, len(urls), 2):
         newurls.extend((pathpfx + urls[i], classpfx + urls[i + 1]))
@@ -461,7 +534,11 @@ def prefix_urls(pathpfx, classpfx, urls):
 
 
 def url_path_join(*parts):
-    """Normalize url parts and join them with a slash.
+    """Normalize URL parts and join them with a slash.
+
+    :param parts: URL parts to join.
+    :returns: Joined URL string.
+    :rtype: str
     """
     schemes, netlocs, paths, queries, fragments = zip(*(urlsplit(part) for part in parts))
     scheme, netloc, query, fragment = first_of_each(schemes, netlocs, queries, fragments)
@@ -470,6 +547,11 @@ def url_path_join(*parts):
 
 
 def first_of_each(*sequences):
+    """Return first non-empty element from each sequence.
+
+    :param sequences: Variable number of sequences.
+    :returns: Generator yielding first non-empty element from each.
+    """
     return (next((x for x in sequence if x), '') for sequence in sequences)
 
 
@@ -479,14 +561,17 @@ _os_alt_seps: list[str] = [
 
 
 def safe_join(directory: str, *pathnames: str) -> str | None:
-    """Safely join zero or more untrusted path components to a base
-    directory to avoid escaping the base directory.
-    via github.com/mitsuhiko/werkzeug security.py
+    """Safely join untrusted path components to a base directory.
 
-    :param directory: The trusted base directory.
-    :param pathnames: The untrusted path components relative to the
-        base directory.
-    :return: A safe path, otherwise ``None``.
+    Prevents escaping the base directory via path traversal.
+
+    :param str directory: The trusted base directory.
+    :param pathnames: The untrusted path components relative to base.
+    :returns: A safe path, or ``None`` if path would escape base.
+    :rtype: str | None
+
+    .. note::
+        Via github.com/mitsuhiko/werkzeug security.py
     """
     if not directory:
         # Ensure we end up with ./path if directory="" is given,
@@ -507,7 +592,14 @@ def safe_join(directory: str, *pathnames: str) -> str | None:
 
 
 def local_or_static_join(static, somepath):
-    """Infer if user is referring to template in their working directory, or in static"""
+    """Find template in working directory or static folder.
+
+    :param str static: Static folder path.
+    :param str somepath: Relative path to template.
+    :returns: Full path to existing template.
+    :rtype: str
+    :raises OSError: If template not found in either location.
+    """
     localpath = expandabspath(somepath)
     staticpath = safe_join(static, somepath)
     if pathlib.Path(localpath).exists():
@@ -518,13 +610,23 @@ def local_or_static_join(static, somepath):
 
 
 def inject_file(x):
-    """Little wrapper for injecting css, js, etc, for html email templates"""
+    """Read file contents for injection into HTML email templates.
+
+    :param str x: Path to file (CSS, JS, etc.).
+    :returns: File contents.
+    :rtype: str
+    """
     with pathlib.Path(x).open(encoding='locale') as f:
         return f.read()
 
 
 def inject_image(x):
-    """base64 encoded code to put in src of an image tag in html"""
+    """Generate base64 data URI for image embedding in HTML.
+
+    :param str x: Path to image file.
+    :returns: Data URI string for use in img src attribute.
+    :rtype: str
+    """
     _, ext = os.path.splitext(x)
     with pathlib.Path(x).open('rb') as f:
         code = base64.b64encode(f.read())
@@ -532,7 +634,12 @@ def inject_image(x):
 
 
 def build_breadcrumb(ctx):
-    """Introspect web.py app_stack to build a reasonable breadcrumb"""
+    """Build breadcrumb HTML from web.py app_stack.
+
+    :param ctx: web.py context object.
+    :returns: HTML string with breadcrumb links.
+    :rtype: str
+    """
     paths = [x.fvars.get('breadcrumb', '') for x in web.ctx.app_stack]
     names = [' '.join(_.title() for _ in path.strip('/').split('_')) for path in paths]
     paths[0], names[0] = ctx.realhome, 'Home'
@@ -544,7 +651,12 @@ def build_breadcrumb(ctx):
 
 
 def breadcrumbify(url_app_tuple):
-    """Assuming web.py style mapping, patch url mapping into subapps"""
+    """Patch URL mapping into web.py subapps for breadcrumbs.
+
+    :param tuple url_app_tuple: web.py style URL mapping.
+    :returns: Modified URL mapping with breadcrumb info.
+    :rtype: list
+    """
     url_app_tuple = list(collapse(url_app_tuple))
     for i, app_or_url in enumerate(url_app_tuple):
         if isinstance(app_or_url, web.application):
@@ -553,8 +665,14 @@ def breadcrumbify(url_app_tuple):
 
 
 def _format_link(cls):
-    """For subapps (`web.application` instances within `urls` mapping)
-    return the __name__ of the parent module, contained in the `fvars` attr
+    """Format link text for subapps in URL mapping.
+
+    For ``web.application`` instances, returns the ``__name__`` of the
+    parent module from the ``fvars`` attribute.
+
+    :param cls: Class or web.application instance.
+    :returns: Formatted link text.
+    :rtype: str
     """
     if isinstance(cls, web.application):
         return splitcap(cls.fvars['__name__'])
@@ -562,8 +680,13 @@ def _format_link(cls):
 
 
 def appmenu(urls, home='', fmt=_format_link):
-    """Given a web.py (name,link,) tuple, home path, and formatter,
-    builds a simple html menu to represent links in a web.py app.
+    """Build HTML menu from web.py URL mapping.
+
+    :param tuple urls: web.py (name, link) tuple.
+    :param str home: Home path prefix.
+    :param fmt: Formatter function for link text.
+    :returns: HTML unordered list string.
+    :rtype: str
     """
     links = (
         f"    <li><a href=\"{urllib.parse.urljoin(home, link.strip('/') + '/')}\">{fmt(name)}</a></li>\n"
@@ -573,6 +696,13 @@ def appmenu(urls, home='', fmt=_format_link):
 
 
 def scale(color, pct):
+    """Scale a hex color by a percentage.
+
+    :param str color: Hex color string (e.g., '#FFF' or '#FFFFFF').
+    :param float pct: Scale factor (1.0 = no change).
+    :returns: Scaled hex color string.
+    :rtype: str
+    """
     def clamp(l, x, h):
         return min(max(l, x), h)
 
@@ -593,7 +723,14 @@ def scale(color, pct):
 
 
 def render_field(field):
-    """Render either web.py or Django form"""
+    """Render form field with error styling.
+
+    Works with both web.py and Django forms.
+
+    :param field: Form field object.
+    :returns: HTML string for rendered field.
+    :rtype: str
+    """
 
     def get_error(field):
         if hasattr(field, 'note'):
@@ -623,7 +760,12 @@ def render_field(field):
 
 
 def login_protected(priv_level=3, login_level=1):
-    """Decorator protects session auth/auth, default priv=3"""
+    """Decorator protecting routes by session authentication.
+
+    :param int priv_level: Required privilege level (default 3).
+    :param int login_level: Required login level (default 1).
+    :returns: Decorator function.
+    """
 
     def dec_fn(fn):
         def wrapped(*args, **kwargs):
@@ -643,7 +785,11 @@ def login_protected(priv_level=3, login_level=1):
 
 
 def userid_or_admin(fn):
-    """Decorator limits access to your userid unless admin"""
+    """Decorator limiting access to own user ID unless admin.
+
+    :param fn: Function to protect.
+    :returns: Wrapped function.
+    """
 
     def dec_fn(*args, **kwargs):
         user_id = args[1]  # userid first REST arg for user manip
@@ -655,7 +801,11 @@ def userid_or_admin(fn):
 
 
 def manager_or_admin(fn):
-    """Decorator limits access to cancers user manages unless admin"""
+    """Decorator limiting access to managed resources unless admin.
+
+    :param fn: Function to protect.
+    :returns: Wrapped function.
+    """
 
     def dec_fn(*args, **kwargs):
         disease_id = args[1]  # diseaseid first REST arg for dis manip
@@ -667,10 +817,12 @@ def manager_or_admin(fn):
 
 
 class JSONEncoderISODate(json.JSONEncoder):
-    """json encoder adding assumption of ISO Date format
+    """JSON encoder that serializes dates in ISO format.
 
-    >>> JSONEncoderISODate().encode({'dt': datetime.date(2014, 10, 2)})
-    '{"dt": "2014-10-02"}'
+    Example::
+
+        >>> JSONEncoderISODate().encode({'dt': datetime.date(2014, 10, 2)})
+        '{"dt": "2014-10-02"}'
     """
 
     def default(self, obj):
@@ -680,10 +832,12 @@ class JSONEncoderISODate(json.JSONEncoder):
 
 
 class JSONDecoderISODate(json.JSONDecoder):
-    """Json decoder parsing arbitrary date formats
+    """JSON decoder that parses date strings into datetime objects.
 
-    >>> JSONDecoderISODate().decode('{"dt": "2014-10-02"}')
-    {'dt': datetime.datetime(2014, 10, 2, 0, 0)}
+    Example::
+
+        >>> JSONDecoderISODate().decode('{"dt": "2014-10-02"}')
+        {'dt': datetime.datetime(2014, 10, 2, 0, 0)}
     """
 
     def __init__(self, **kw):
@@ -700,11 +854,17 @@ class JSONDecoderISODate(json.JSONDecoder):
 
 
 class ProfileMiddleware:
-    """Generic wsgi middleware for profiling wsgi calls.
+    """WSGI middleware for profiling requests.
 
-    WARNING: should always be last middleware loaded:
-      1. you want to profile everything else
-      2. for speed, we return the result NOT the wrapped func
+    :param func: WSGI application callable.
+    :param log: Logger instance for output.
+    :param str sort: Profile sort key (default 'time').
+    :param int count: Number of top functions to show (default 20).
+
+    .. warning::
+        Should always be last middleware loaded:
+        1. You want to profile everything else
+        2. For speed, we return the result NOT the wrapped func
     """
 
     def __init__(self, func, log=None, sort='time', count=20):
@@ -731,7 +891,12 @@ class ProfileMiddleware:
 
 
 def logerror(olderror, logger):
-    """Wrap internalerror function to log the traceback too."""
+    """Wrap internalerror function to log tracebacks.
+
+    :param olderror: Original error handler function.
+    :param logger: Logger instance for error output.
+    :returns: Wrapped error handler.
+    """
 
     def logerror_fn():
         theerr = olderror()
@@ -743,16 +908,22 @@ def logerror(olderror, logger):
 
 
 def validip6addr(address):
-    """Returns True if `address` is a valid IPv6 address.
+    """Check if address is a valid IPv6 address.
 
-    >>> validip6addr('::')
-    True
-    >>> validip6addr('aaaa:bbbb:cccc:dddd::1')
-    True
-    >>> validip6addr('1:2:3:4:5:6:7:8:9:10')
-    False
-    >>> validip6addr('12:10')
-    False
+    :param str address: Address string to validate.
+    :returns: True if valid IPv6 address.
+    :rtype: bool
+
+    Example::
+
+        >>> validip6addr('::')
+        True
+        >>> validip6addr('aaaa:bbbb:cccc:dddd::1')
+        True
+        >>> validip6addr('1:2:3:4:5:6:7:8:9:10')
+        False
+        >>> validip6addr('12:10')
+        False
     """
     try:
         socket.inet_pton(socket.AF_INET6, address)
@@ -763,16 +934,22 @@ def validip6addr(address):
 
 
 def validipaddr(address):
-    """Returns True if `address` is a valid IPv4 address.
+    """Check if address is a valid IPv4 address.
 
-    >>> validipaddr('192.168.1.1')
-    True
-    >>> validipaddr('192.168. 1.1')
-    False
-    >>> validipaddr('192.168.1.800')
-    False
-    >>> validipaddr('192.168.1')
-    False
+    :param str address: Address string to validate.
+    :returns: True if valid IPv4 address.
+    :rtype: bool
+
+    Example::
+
+        >>> validipaddr('192.168.1.1')
+        True
+        >>> validipaddr('192.168. 1.1')
+        False
+        >>> validipaddr('192.168.1.800')
+        False
+        >>> validipaddr('192.168.1')
+        False
     """
     try:
         octets = address.split('.')
@@ -791,14 +968,20 @@ def validipaddr(address):
 
 
 def validipport(port):
-    """Returns True if `port` is a valid IPv4 port.
+    """Check if port is a valid port number.
 
-    >>> validipport('9000')
-    True
-    >>> validipport('foo')
-    False
-    >>> validipport('1000000')
-    False
+    :param str port: Port string to validate.
+    :returns: True if valid port (0-65535).
+    :rtype: bool
+
+    Example::
+
+        >>> validipport('9000')
+        True
+        >>> validipport('foo')
+        False
+        >>> validipport('1000000')
+        False
     """
     try:
         if not (0 <= int(port) <= 65535):
@@ -809,21 +992,29 @@ def validipport(port):
 
 
 def validip(ip, defaultaddr='0.0.0.0', defaultport=8080):
-    """Returns `(ip_address, port)` from string `ip_addr_port`
+    """Parse IP address and port from string.
 
-    >>> validip('1.2.3.4')
-    ('1.2.3.4', 8080)
-    >>> validip('80')
-    ('0.0.0.0', 80)
-    >>> validip('192.168.0.1:85')
-    ('192.168.0.1', 85)
-    >>> validip('::')
-    ('::', 8080)
-    >>> validip('[::]:88')
-    ('::', 88)
-    >>> validip('[::1]:80')
-    ('::1', 80)
+    :param str ip: IP address string (with optional port).
+    :param str defaultaddr: Default address if not specified.
+    :param int defaultport: Default port if not specified.
+    :returns: Tuple of (ip_address, port).
+    :rtype: tuple
+    :raises ValueError: If invalid IP address/port format.
 
+    Example::
+
+        >>> validip('1.2.3.4')
+        ('1.2.3.4', 8080)
+        >>> validip('80')
+        ('0.0.0.0', 80)
+        >>> validip('192.168.0.1:85')
+        ('192.168.0.1', 85)
+        >>> validip('::')
+        ('::', 8080)
+        >>> validip('[::]:88')
+        ('::', 88)
+        >>> validip('[::1]:80')
+        ('::1', 80)
     """
     addr = defaultaddr
     port = defaultport
@@ -862,22 +1053,28 @@ def validip(ip, defaultaddr='0.0.0.0', defaultport=8080):
 
 
 def validaddr(string_):
-    """Returns either (ip_address, port) or "/path/to/socket" from string_
+    """Parse address as IP:port tuple or Unix socket path.
 
-    >>> validaddr('/path/to/socket')
-    '/path/to/socket'
-    >>> validaddr('8000')
-    ('0.0.0.0', 8000)
-    >>> validaddr('127.0.0.1')
-    ('127.0.0.1', 8080)
-    >>> validaddr('127.0.0.1:8000')
-    ('127.0.0.1', 8000)
-    >>> validip('[::1]:80')
-    ('::1', 80)
-    >>> validaddr('fff')
-    Traceback (most recent call last):
-        ...
-    ValueError: fff is not a valid IP address/port
+    :param str string_: Address string to parse.
+    :returns: (ip_address, port) tuple or socket path string.
+    :raises ValueError: If invalid format.
+
+    Example::
+
+        >>> validaddr('/path/to/socket')
+        '/path/to/socket'
+        >>> validaddr('8000')
+        ('0.0.0.0', 8000)
+        >>> validaddr('127.0.0.1')
+        ('127.0.0.1', 8080)
+        >>> validaddr('127.0.0.1:8000')
+        ('127.0.0.1', 8000)
+        >>> validip('[::1]:80')
+        ('::1', 80)
+        >>> validaddr('fff')
+        Traceback (most recent call last):
+            ...
+        ValueError: fff is not a valid IP address/port
     """
     if '/' in string_:
         return string_
@@ -885,14 +1082,20 @@ def validaddr(string_):
 
 
 def urlquote(val):
-    """Quotes a string for use in a URL.
+    """Quote string for safe use in a URL.
 
-    >>> urlquote('://?f=1&j=1')
-    '%3A//%3Ff%3D1%26j%3D1'
-    >>> urlquote(None)
-    ''
-    >>> urlquote(u'\u203d')
-    '%E2%80%BD'
+    :param val: String to quote (or None).
+    :returns: URL-encoded string.
+    :rtype: str
+
+    Example::
+
+        >>> urlquote('://?f=1&j=1')
+        '%3A//%3Ff%3D1%26j%3D1'
+        >>> urlquote(None)
+        ''
+        >>> urlquote(u'\u203d')
+        '%E2%80%BD'
     """
     if val is None:
         return ''
@@ -902,20 +1105,32 @@ def urlquote(val):
 
 
 def httpdate(date_obj):
-    """Formats a datetime object for use in HTTP headers.
+    """Format datetime object for HTTP headers.
 
-    >>> import datetime
-    >>> httpdate(datetime.datetime(1970, 1, 1, 1, 1, 1))
-    'Thu, 01 Jan 1970 01:01:01 GMT'
+    :param date_obj: datetime object to format.
+    :returns: HTTP date string in RFC 1123 format.
+    :rtype: str
+
+    Example::
+
+        >>> import datetime
+        >>> httpdate(datetime.datetime(1970, 1, 1, 1, 1, 1))
+        'Thu, 01 Jan 1970 01:01:01 GMT'
     """
     return date_obj.strftime('%a, %d %b %Y %H:%M:%S GMT')
 
 
 def parsehttpdate(string_):
-    """Parses an HTTP date into a datetime object.
+    """Parse HTTP date string into datetime object.
 
-    >>> parsehttpdate('Thu, 01 Jan 1970 01:01:01 GMT')
-    datetime.datetime(1970, 1, 1, 1, 1, 1)
+    :param str string_: HTTP date string in RFC 1123 format.
+    :returns: Parsed datetime object, or None if invalid.
+    :rtype: datetime.datetime | None
+
+    Example::
+
+        >>> parsehttpdate('Thu, 01 Jan 1970 01:01:01 GMT')
+        datetime.datetime(1970, 1, 1, 1, 1, 1)
     """
     try:
         t = time.strptime(string_, '%a, %d %b %Y %H:%M:%S %Z')
@@ -925,10 +1140,16 @@ def parsehttpdate(string_):
 
 
 def htmlquote(text):
-    r"""Encodes `text` for raw use in HTML.
+    r"""Encode text for safe use in HTML.
 
-    >>> htmlquote(u"<'&\">")
-    '&lt;&#39;&amp;&quot;&gt;'
+    :param str text: Text to encode.
+    :returns: HTML-encoded string.
+    :rtype: str
+
+    Example::
+
+        >>> htmlquote(u"<'&\">")
+        '&lt;&#39;&amp;&quot;&gt;'
     """
     text = text.replace('&', '&amp;')  # Must be done first!
     text = text.replace('<', '&lt;')
@@ -939,10 +1160,16 @@ def htmlquote(text):
 
 
 def htmlunquote(text):
-    r"""Decodes `text` that's HTML quoted.
+    r"""Decode HTML-encoded text.
 
-    >>> htmlunquote(u'&lt;&#39;&amp;&quot;&gt;')
-    '<\'&">'
+    :param str text: HTML-encoded string.
+    :returns: Decoded text.
+    :rtype: str
+
+    Example::
+
+        >>> htmlunquote(u'&lt;&#39;&amp;&quot;&gt;')
+        '<\'&">'
     """
     text = text.replace('&quot;', '"')
     text = text.replace('&#39;', "'")
@@ -953,14 +1180,20 @@ def htmlunquote(text):
 
 
 def websafe(val):
-    r"""Converts `val` so that it is safe for use in Unicode HTML.
+    r"""Convert value to safe Unicode HTML string.
 
-    >>> websafe("<'&\">")
-    '&lt;&#39;&amp;&quot;&gt;'
-    >>> websafe(None)
-    ''
-    >>> websafe(u'\u203d') == u'\u203d'
-    True
+    :param val: Value to convert (string, bytes, or None).
+    :returns: HTML-safe string.
+    :rtype: str
+
+    Example::
+
+        >>> websafe("<'&\">")
+        '&lt;&#39;&amp;&quot;&gt;'
+        >>> websafe(None)
+        ''
+        >>> websafe(u'\u203d') == u'\u203d'
+        True
     """
     if val is None:
         return ''

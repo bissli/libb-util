@@ -19,7 +19,11 @@ __all__ = [
 
 
 def rseed(func):
-    """Random seed through the OS"""
+    """Decorator to seed random with OS entropy before function call.
+
+    :param func: Function to wrap.
+    :returns: Wrapped function with OS-seeded randomness.
+    """
     @wraps(func)
     def wrapper(*args, **kwargs):
         RAND_SIZE = 4
@@ -32,7 +36,11 @@ def rseed(func):
 
 @rseed
 def random_choice(choices: list):
-    """Random choice among list of choices"""
+    """Random choice from a list, seeded with OS entropy.
+
+    :param list choices: List of items to choose from.
+    :returns: Randomly selected item.
+    """
     choices = list(choices)  # copy to avoid mutating input
     random.shuffle(choices)
     return choices[0]
@@ -40,15 +48,33 @@ def random_choice(choices: list):
 
 @rseed
 def random_int(a: int, b: int):
+    """Random integer between a and b inclusive, seeded with OS entropy.
+
+    :param int a: Lower bound.
+    :param int b: Upper bound.
+    :returns: Random integer in [a, b].
+    :rtype: int
+    """
     return random.randint(a, b)
 
 
 @rseed
 def random_random():
+    """Random float in [0, 1), seeded with OS entropy.
+
+    :returns: Random float.
+    :rtype: float
+    """
     return random.random()
 
 
 @rseed
 def random_sample(arr: 'np.array', size: int = 1) -> 'np.array':
-    """Random sample size N element from numpy array"""
+    """Random sample of N elements from numpy array.
+
+    :param np.array arr: Array to sample from.
+    :param int size: Number of elements to sample.
+    :returns: Array of sampled elements.
+    :rtype: np.array
+    """
     return arr[np.random.choice(len(arr), size=size, replace=False)]

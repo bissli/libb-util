@@ -1,5 +1,4 @@
-"""Config related settings, follows 12factor.net
-"""
+"""Config related settings, follows 12factor.net."""
 import logging
 import os
 import tempfile
@@ -29,32 +28,42 @@ __all__ = [
 
 
 class Setting(dict):
-    """Dict where d['foo'] can also be accessed as d.foo
-    but also automatically creates new sub-attributes of
-    type Setting. This behavior can be locked to turn off
-    later. WARNING: not copy safe
+    """Dict where ``d['foo']`` can also be accessed as ``d.foo``.
 
-    >>> cfg = Setting()
-    >>> cfg.unlock() # locked after config.py load
+    Automatically creates new sub-attributes of type Setting. This behavior
+    can be locked to turn off later.
 
-    >>> cfg.foo.bar = 1
-    >>> hasattr(cfg.foo, 'bar')
-    True
-    >>> cfg.foo.bar
-    1
-    >>> cfg.lock()
-    >>> cfg.foo.bar = 2
-    Traceback (most recent call last):
-     ...
-    ValueError: This Setting object is locked from editing
-    >>> cfg.foo.baz = 3
-    Traceback (most recent call last):
-     ...
-    ValueError: This Setting object is locked from editing
-    >>> cfg.unlock()
-    >>> cfg.foo.baz = 3
-    >>> cfg.foo.baz
-    3
+    .. warning::
+        Not copy safe.
+
+    Basic Usage::
+
+        >>> cfg = Setting()
+        >>> cfg.unlock() # locked after config.py load
+        >>> cfg.foo.bar = 1
+        >>> hasattr(cfg.foo, 'bar')
+        True
+        >>> cfg.foo.bar
+        1
+
+    Locking Behavior::
+
+        >>> cfg.lock()
+        >>> cfg.foo.bar = 2
+        Traceback (most recent call last):
+         ...
+        ValueError: This Setting object is locked from editing
+        >>> cfg.foo.baz = 3
+        Traceback (most recent call last):
+         ...
+        ValueError: This Setting object is locked from editing
+
+    Unlocking::
+
+        >>> cfg.unlock()
+        >>> cfg.foo.baz = 3
+        >>> cfg.foo.baz
+        3
     """
 
     _locked = False
@@ -88,7 +97,7 @@ class Setting(dict):
 
 @dataclass
 class ConfigOptions(ABC):
-    """Load from config.py"""
+    """Abstract base class for loading options from config.py."""
 
     @classmethod
     def from_config(cls, setting: str, config=None):
@@ -102,50 +111,52 @@ def load_options(func=None, *, cls=ConfigOptions):
     """Wrapper that builds dataclass options from config file.
 
     Standard interface:
-        options: str | dict | ConfigOptions| None
-        config: config module that defines options in `Settings` format
-        kwargs: additional kw-args to pass to function
 
-    >>> from libb import Setting, create_mock_module
+    - ``options``: str | dict | ConfigOptions | None
+    - ``config``: config module that defines options in ``Settings`` format
+    - ``kwargs``: additional kw-args to pass to function
 
-    >>> Setting.unlock()
-    >>> test = Setting()
-    >>> test.foo.ftp.host = 'foo'
-    >>> test.foo.ftp.user = 'bar'
-    >>> test.foo.ftp.pazz = 'baz'
-    >>> Setting.lock()
+    Setup::
 
-    >>> create_mock_module('test_config', {'test': test})
-    >>> import test_config
+        >>> from libb import Setting, create_mock_module
+        >>> Setting.unlock()
+        >>> test = Setting()
+        >>> test.foo.ftp.host = 'foo'
+        >>> test.foo.ftp.user = 'bar'
+        >>> test.foo.ftp.pazz = 'baz'
+        >>> Setting.lock()
+        >>> create_mock_module('test_config', {'test': test})
+        >>> import test_config
+        >>> @dataclass
+        ... class Options(ConfigOptions):
+        ...     host: str = None
+        ...     user: str = None
+        ...     pazz: str = None
 
-    >>> @dataclass
-    ... class Options(ConfigOptions):
-    ...     host: str = None
-    ...     user: str = None
-    ...     pazz: str = None
+    On a Function::
 
-    on a function
-    >>> @load_options(cls=Options)
-    ... def testfunc(options=None, config=None, **kwargs):
-    ...     return options.host, options.user, options.pazz
+        >>> @load_options(cls=Options)
+        ... def testfunc(options=None, config=None, **kwargs):
+        ...     return options.host, options.user, options.pazz
+        >>> testfunc('test.foo.ftp', config=test_config)
+        ('foo', 'bar', 'baz')
 
-    >>> testfunc('test.foo.ftp', config=test_config)
-    ('foo', 'bar', 'baz')
+    As Simple Kwargs::
 
-    as simple kwargs
-    >>> testfunc(host='foo', user='bar', pazz='baz')
-    ('foo', 'bar', 'baz')
+        >>> testfunc(host='foo', user='bar', pazz='baz')
+        ('foo', 'bar', 'baz')
 
-    on a class
-    >>> class Test:
-    ...     @load_options(cls=Options)
-    ...     def __init__(self, options, config, **kwargs):
-    ...         self.host = options.host
-    ...         self.user = options.user
-    ...         self.pazz = options.pazz
-    >>> t = Test('test.foo.ftp', test_config)
-    >>> t.host, t.user, t.pazz
-    ('foo', 'bar', 'baz')
+    On a Class::
+
+        >>> class Test:
+        ...     @load_options(cls=Options)
+        ...     def __init__(self, options, config, **kwargs):
+        ...         self.host = options.host
+        ...         self.user = options.user
+        ...         self.pazz = options.pazz
+        >>> t = Test('test.foo.ftp', test_config)
+        >>> t.host, t.user, t.pazz
+        ('foo', 'bar', 'baz')
     """
     def _load(options=None, /, config=None, **kwargs):
         if isinstance(options, dict):
@@ -245,8 +256,7 @@ def get_localdir() -> Setting:
 def setting_unlocked(setting: Setting):
     """Context manager to safely modify a setting with unlock/lock protection.
 
-    Parameters
-        setting: The Setting object to unlock/lock
+    :param Setting setting: The Setting object to unlock/lock.
     """
     setting.unlock()
     try:
@@ -259,14 +269,10 @@ def configure_environment(module, **config_overrides: Any) -> None:
     """Configure environment settings at runtime.
 
     Dynamically sets configuration values on Setting objects in the provided module.
-    Keys should follow the pattern 'setting_attribute' or 'setting_nested_attribute'.
+    Keys should follow the pattern ``setting_attribute`` or ``setting_nested_attribute``.
 
-    Parameters
-        module: The module containing Setting objects to configure
-        **config_overrides: Configuration values to set with keys as dotted paths
-
-    Returns
-        None
+    :param module: The module containing Setting objects to configure.
+    :param config_overrides: Configuration values to set with keys as dotted paths.
     """
     for key, value in config_overrides.items():
         parts = key.split('_')
@@ -311,12 +317,9 @@ def patch_library_config(library_name: str, config_name:str = 'config', **config
     Finds and patches the library's config module before the library imports it.
     Works regardless of import order by patching the config module directly.
 
-    Parameters
-        library_name: Name of the library whose config should be patched
-        **config_overrides: Configuration values to set with keys as dotted paths
-
-    Returns
-        None
+    :param str library_name: Name of the library whose config should be patched.
+    :param str config_name: Name of the config module (default: 'config').
+    :param config_overrides: Configuration values to set with keys as dotted paths.
     """
     import sys
 

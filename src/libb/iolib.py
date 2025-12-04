@@ -25,7 +25,13 @@ __all__ = [
 
 
 def render_csv(rows, dialect=csv.excel):
-    """Quick helper routine to output a csv string."""
+    """Render rows as CSV string.
+
+    :param rows: Iterable of rows to render.
+    :param dialect: CSV dialect to use (default: csv.excel).
+    :returns: CSV formatted string.
+    :rtype: str
+    """
     f = io.StringIO()
     writer = csv.writer(f, dialect=dialect)
     for row in rows:
@@ -34,8 +40,10 @@ def render_csv(rows, dialect=csv.excel):
 
 
 class CsvZip(ZipFile):
-    """Zipped csv file that handles file permissions correctly on dos
-    re: http://stackoverflow.com/q/279945/424380
+    """Zipped CSV file that handles file permissions correctly on DOS.
+
+    .. note::
+        See http://stackoverflow.com/q/279945/424380
     """
 
     @property
@@ -54,8 +62,14 @@ class CsvZip(ZipFile):
 
 
 def iterable_to_stream(iterable, buffer_size=io.DEFAULT_BUFFER_SIZE):
-    """Iterable that yields bytestrings as a read-only input stream
-    re: https://stackoverflow.com/a/20260030
+    """Convert an iterable that yields bytestrings to a read-only input stream.
+
+    :param iterable: Iterable yielding bytestrings.
+    :param int buffer_size: Buffer size for the stream.
+    :returns: BufferedReader stream.
+
+    .. note::
+        See https://stackoverflow.com/a/20260030
     """
 
     class IterStream(io.RawIOBase):
@@ -80,7 +94,11 @@ def iterable_to_stream(iterable, buffer_size=io.DEFAULT_BUFFER_SIZE):
 
 
 def stream(func):
-    """General wrapper that converts input param to a stream"""
+    """Decorator that converts first streamable input param to a stream.
+
+    :param func: Function to wrap.
+    :returns: Wrapped function.
+    """
 
     class StreamWriter:
         """Find `first` streamable argument in params and convert to stream"""
@@ -130,23 +148,37 @@ def stream(func):
 
 
 def json_load_byteified(file_handle):
-    """Parse ascii encoded json from ascii encoded file"""
+    """Parse ASCII encoded JSON from file handle.
+
+    :param file_handle: File handle to read from.
+    :returns: Parsed JSON data.
+    """
     return _byteify(json.load(file_handle, object_hook=_byteify), ignore_dicts=True)
 
 
 def json_loads_byteified(json_text):
-    """Parse ascii encoded json from ascii encoded text
+    """Parse ASCII encoded JSON from text string.
 
-    >>> json_loads_byteified('{"foo": "bar"}')
-    {'foo': 'bar'}
-    >>> json_loads_byteified('{"foo": "bar", "things": [7, {"qux": "baz", "moo": {"cow": ["milk"]}}]}')
-    {'foo': 'bar', 'things': [7, {'qux': 'baz', 'moo': {'cow': ['milk']}}]}
+    :param str json_text: JSON text to parse.
+    :returns: Parsed JSON data.
+
+    Example::
+
+        >>> json_loads_byteified('{"foo": "bar"}')
+        {'foo': 'bar'}
+        >>> json_loads_byteified('{"foo": "bar", "things": [7, {"qux": "baz", "moo": {"cow": ["milk"]}}]}')
+        {'foo': 'bar', 'things': [7, {'qux': 'baz', 'moo': {'cow': ['milk']}}]}
     """
     return _byteify(json.loads(json_text, object_hook=_byteify), ignore_dicts=True)
 
 
 def _byteify(data, ignore_dicts=False):
-    """Load string from Json"""
+    """Recursively convert JSON data to native Python types.
+
+    :param data: JSON data to convert.
+    :param bool ignore_dicts: If True, skip dictionary conversion.
+    :returns: Converted data.
+    """
     if isinstance(data, str):
         return data
     if isinstance(data, list):
@@ -160,7 +192,10 @@ def _byteify(data, ignore_dicts=False):
 
 @contextmanager
 def suppress_print():
-    """Suppress `print` in case someone decided to include print statements"""
+    """Context manager to suppress stdout (print statements).
+
+    Useful when third-party code includes unwanted print statements.
+    """
     try:
         _original_stdout = sys.stdout
         sys.stdout = pathlib.Path(os.devnull).open('w')
@@ -171,7 +206,11 @@ def suppress_print():
 
 
 def wrap_suppress_print(func):
-    """Decorator for `suppress_print`"""
+    """Decorator version of suppress_print context manager.
+
+    :param func: Function to wrap.
+    :returns: Wrapped function with suppressed stdout.
+    """
     @wraps(func)
     def wrapped(*a, **kw):
         with suppress_print():

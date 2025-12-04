@@ -12,34 +12,34 @@ __all__ = [
 
 
 def merc_x(lon, r_major=6378137.0):
-    """Project longitude into mercator / radians from major axis
+    """Project longitude into mercator / radians from major axis.
 
-    Parameters
-        lon: Longitude in degrees
-        r_major: Major axis radius in meters (default: Earth WGS84)
+    :param float lon: Longitude in degrees.
+    :param float r_major: Major axis radius in meters (default: Earth WGS84).
+    :returns: Mercator x coordinate.
+    :rtype: float
 
-    Returns
-        Mercator x coordinate
+    Example::
 
-    >>> "{:0.3f}".format(merc_x(40.7484))
-    '4536091.139'
+        >>> "{:0.3f}".format(merc_x(40.7484))
+        '4536091.139'
     """
     return r_major * math.radians(lon)
 
 
 def merc_y(lat, r_major=6378137.0, r_minor=6356752.3142):
-    """Project latitude into mercator / radians from major/minor axes
+    """Project latitude into mercator / radians from major/minor axes.
 
-    Parameters
-        lat: Latitude in degrees
-        r_major: Major axis radius in meters (default: Earth WGS84)
-        r_minor: Minor axis radius in meters (default: Earth WGS84)
+    :param float lat: Latitude in degrees.
+    :param float r_major: Major axis radius in meters (default: Earth WGS84).
+    :param float r_minor: Minor axis radius in meters (default: Earth WGS84).
+    :returns: Mercator y coordinate.
+    :rtype: float
 
-    Returns
-        Mercator y coordinate
+    Example::
 
-    >>> "{:0.3f}".format(merc_y(73.9857))
-    '12468646.871'
+        >>> "{:0.3f}".format(merc_y(73.9857))
+        '12468646.871'
     """
     lat = min(lat, 89.5)
     lat = max(lat, -89.5)

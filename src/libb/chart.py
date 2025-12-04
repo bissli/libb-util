@@ -15,9 +15,17 @@ __all__ = ['numpy_timeseries_plot']
 
 
 class NiceScale:
-    """ "nicest" numbers in decimal are 1, 2, and 5, and all power-of-ten multiples of these numbers.
-    We will use only such numbers for the tick spacing, and place tick marks at multiples of the tick spacing...
-    - from https://stackoverflow.com/a/16363437
+    """Calculate nice axis scale values for charts.
+
+    The "nicest" numbers in decimal are 1, 2, and 5, and all power-of-ten
+    multiples of these numbers. This class uses only such numbers for tick
+    spacing and places tick marks at multiples of the tick spacing.
+
+    :param float minv: Minimum value of the data range.
+    :param float maxv: Maximum value of the data range.
+
+    .. note::
+        Algorithm from https://stackoverflow.com/a/16363437
     """
 
     def __init__(self, minv, maxv):
@@ -73,10 +81,21 @@ DEFAULT_TIMESERIES_COLORS = (
 
 
 def numpy_timeseries_plot(title, dates, series=None, labels=None, formats=None):
-    """
-    If 1 y series then no subplots,
-    If 2 y series then same plot overlapping,
-    If 3 y series or more then stack them vertically
+    """Create a matplotlib timeseries plot with automatic subplot layout.
+
+    The layout adapts based on the number of series:
+
+    - 1 series: single plot
+    - 2 series: same plot with dual y-axes (overlapping)
+    - 3+ series: stacked vertically as subplots
+
+    :param str title: Plot title.
+    :param dates: Array of dates for x-axis.
+    :param list series: List of y-value arrays.
+    :param list labels: Labels for each series.
+    :param list formats: Formatter functions for each y-axis.
+    :returns: BytesIO buffer containing the PNG image.
+    :rtype: BytesIO
     """
     if formats is None:
         formats = []

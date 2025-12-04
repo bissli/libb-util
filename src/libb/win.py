@@ -26,6 +26,16 @@ if 'Win' in platform.system():
 
 
 def run_command(cmd, workingdir=None, raise_on_error=True, hidearg=None):
+    """Execute a shell command and return output.
+
+    :param cmd: Command as string or list of arguments.
+    :param str workingdir: Directory to execute in (optional).
+    :param bool raise_on_error: Raise exception on non-zero return code.
+    :param str hidearg: Argument value to mask in logs (for passwords).
+    :returns: Combined stdout and stderr output.
+    :rtype: bytes
+    :raises Exception: If command fails and raise_on_error is True.
+    """
     def hide(cmd):
         for bit in cmd:
             if bit == hidearg:
@@ -61,8 +71,14 @@ def run_command(cmd, workingdir=None, raise_on_error=True, hidearg=None):
 
 
 class psexec_session:
-    """Context manager for running psexec commands. These
-    require the admin share to be mounted. Usage:
+    """Context manager for running psexec commands.
+
+    Mounts admin share before commands and unmounts on exit.
+
+    :param str host: Remote host name or IP.
+    :param str password: Password for authentication.
+
+    Example::
 
         with shell.psexec_session(host, password):
             for cmd in commands:
@@ -81,10 +97,18 @@ class psexec_session:
 
 
 class file_share_session:
-    """Context manager for temporarily mounting a share so can
-    run commands against a remote server's file system. Usage:
+    """Context manager for temporarily mounting a file share.
 
-        with shell.file_share_session(host, password):
+    Mounts share before commands and unmounts on exit.
+
+    :param str host: Remote host name or IP.
+    :param str password: Password for authentication.
+    :param str drive: Local drive letter to mount to.
+    :param str share: Remote share name.
+
+    Example::
+
+        with shell.file_share_session(host, password, 'Z:', 'data'):
             for cmd in commands:
                 out = shell.run_command(cmd)
     """
@@ -103,14 +127,17 @@ class file_share_session:
 
 
 def mount_admin_share(host, password, unmount=False):
-    """Mount the admin share which is required to run psexec commands.
+    """Mount or unmount the admin$ share required for psexec commands.
 
-    This is necessary before running psexec commands because it
-    uses the admin$ share on the remote host. I've had problems where
-    Windows complains about multiple connections to a share by the
-    same user using more than one user name, but if you connect
-    by IP address, it seems to work around this. So I resolve the
-    host to IP first and connect that way.
+    Resolves host to IP address to avoid Windows multiple-connection errors.
+
+    :param str host: Remote host name.
+    :param str password: Password for authentication.
+    :param bool unmount: If True, unmount instead of mount.
+
+    .. note::
+        Connects by IP address to work around Windows complaining about
+        multiple connections to a share by the same user.
     """
     user = os.environ['USERNAME'].lower()
     hostip = socket.gethostbyname(host)
@@ -121,7 +148,14 @@ def mount_admin_share(host, password, unmount=False):
 
 
 def mount_file_share(host, password, drive, share, unmount=False):
-    """Mount a file share."""
+    """Mount or unmount a Windows file share.
+
+    :param str host: Remote host name.
+    :param str password: Password for authentication.
+    :param str drive: Local drive letter to mount to.
+    :param str share: Remote share name.
+    :param bool unmount: If True, unmount instead of mount.
+    """
     user = os.environ['USERNAME'].lower()
     hostip = socket.gethostbyname(host)
     if not unmount:
@@ -133,12 +167,18 @@ def mount_file_share(host, password, drive, share, unmount=False):
 
 
 def parse_wmic_output(output):
-    """Parse output from WMIC query
+    """Parse output from WMIC query into list of dicts.
 
-    >> wmic_output = os.popen('wmic product where name="Python 2.7.11" get Caption, Description, Vendor').read()
-    >> result = parse_wmic_output(wmic_output)
-    >> result[0]['Caption']
-    >> result[0]['Vendor']
+    :param str output: Raw WMIC output string.
+    :returns: List of dictionaries with column headers as keys.
+    :rtype: list[dict]
+
+    Example::
+
+        >> wmic_output = os.popen('wmic product where name="Python 2.7.11" get Caption, Description, Vendor').read()
+        >> result = parse_wmic_output(wmic_output)
+        >> result[0]['Caption']
+        >> result[0]['Vendor']
     """
     result = []
     lines = [s for s in output.splitlines() if s.strip()]
@@ -160,6 +200,7 @@ def parse_wmic_output(output):
 
 
 def exit_cmd():
+    """Kill all running cmd.exe processes via WMI."""
     WMI = GetObject('winmgmts:')
     processes = WMI.InstancesOf('Win32_Process')
     for p in WMI.ExecQuery('select * from Win32_Process where Name="cmd.exe"'):

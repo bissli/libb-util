@@ -7,32 +7,39 @@ __all__ = [
 
 
 class Future:
-    """== Easy Threading
-    Although Python's thread syntax is nicer than in many languages,
-    it can still be a pain if all one wants to do is run a time-consuming
-    function in a separate thread, while allowing the main thread to continue uninterrupted.
-    A Future provides a legible and intuitive way to achieve such an end.
-    via [http://code.activestate.com/recipes/84317/]
+    """Easy threading via a Future pattern.
 
-    >>> import time, math
+    Runs a time-consuming function in a separate thread while allowing
+    the main thread to continue uninterrupted.
 
-    >>> def wait_and_add(x):
-    ...     time.sleep(2)
-    ...     return x+1
+    :param func: Function to run in background thread.
+    :param param: Arguments to pass to the function.
 
-    Won't wait 2 seconds here
-    >>> start = time.time()
-    >>> z = Future(wait_and_add, 2)
-    >>> 1+2
-    3
-    >>> int(math.ceil(time.time()-start))
-    1
+    .. note::
+        Algorithm from http://code.activestate.com/recipes/84317/
 
-    At this point we need to wait the 2 seconds
-    >>> z()
-    3
-    >>> int(math.ceil(time.time()-start)) >= 2
-    True
+    Example::
+
+        >>> import time, math
+        >>> def wait_and_add(x):
+        ...     time.sleep(2)
+        ...     return x+1
+
+    Won't wait 2 seconds here::
+
+        >>> start = time.time()
+        >>> z = Future(wait_and_add, 2)
+        >>> 1+2
+        3
+        >>> int(math.ceil(time.time()-start))
+        1
+
+    At this point we need to wait the 2 seconds::
+
+        >>> z()
+        3
+        >>> int(math.ceil(time.time()-start)) >= 2
+        True
     """
 
     def __init__(self, func, *param):

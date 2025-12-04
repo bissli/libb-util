@@ -1,4 +1,4 @@
-"""Cryptography and encoding utilities"""
+"""Cryptography and encoding utilities."""
 
 import base64
 import logging
@@ -13,18 +13,25 @@ __all__ = [
 
 
 def base64file(fil):
-    """Encode file contents as base64
+    """Encode file contents as base64.
 
-    Note: This function reads the entire file into memory.
-    Use with caution on large files.
+    :param fil: Path to file to encode.
+    :returns: Base64 encoded bytes.
+    :rtype: bytes
+
+    .. note::
+        This function reads the entire file into memory.
+        Use with caution on large files.
     """
     return base64.encodebytes(pathlib.Path(fil).read_bytes())
 
 
 def kryptophy(blah):
-    """Intentionally mysterious
+    """Converts a string to an integer by concatenating hex values of characters.
 
-    Converts a string to an integer by concatenating hex values of characters.
+    :param str blah: String to convert.
+    :returns: Integer representation of the string.
+    :rtype: int
     """
     return int('0x' + ''.join([hex(ord(x))[2:] for x in blah]), 16)
 

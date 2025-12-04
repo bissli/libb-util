@@ -11,22 +11,25 @@ class OrderedSet(MutableSet):
     """A set that maintains insertion order using a doubly linked list.
 
     Provides set operations while preserving the order elements were added.
-    Based on Raymond Hettinger's recipe from ActiveState.
-    - Combines the behavior of sets (unique elements) with lists (order preservation)
-    - Supports all standard set operations (union, intersection, difference)
-    - Maintains insertion order for iteration and representation
 
-    Examples
+    .. note::
+        Based on Raymond Hettinger's recipe from ActiveState.
 
-    Basic usage:
-    >>> s = OrderedSet('abracadaba')
-    >>> t = OrderedSet('simsalabim')
-    >>> (s | t)
-    OrderedSet(['a', 'b', 'r', 'c', 'd', 's', 'i', 'm', 'l'])
-    >>> (s & t)
-    OrderedSet(['a', 'b'])
-    >>> (s - t)
-    OrderedSet(['r', 'c', 'd'])
+    Features:
+        - Combines set behavior (unique elements) with list behavior (order preservation)
+        - Supports all standard set operations (union, intersection, difference)
+        - Maintains insertion order for iteration and representation
+
+    Example::
+
+        >>> s = OrderedSet('abracadaba')
+        >>> t = OrderedSet('simsalabim')
+        >>> (s | t)
+        OrderedSet(['a', 'b', 'r', 'c', 'd', 's', 'i', 'm', 'l'])
+        >>> (s & t)
+        OrderedSet(['a', 'b'])
+        >>> (s - t)
+        OrderedSet(['r', 'c', 'd'])
     """
 
     def __init__(self, iterable: Iterable[Any] = None) -> None:
@@ -35,11 +38,7 @@ class OrderedSet(MutableSet):
         Creates an empty ordered set or populates it from an iterable while
         preserving insertion order and removing duplicates.
 
-        Parameters
-            iterable: Optional sequence of elements to add to the set
-
-        Returns
-            None
+        :param iterable: Optional sequence of elements to add.
         """
         self.end = end = []
         end += [None, end, end]         # sentinel node for doubly linked list
@@ -50,33 +49,24 @@ class OrderedSet(MutableSet):
     def __len__(self) -> int:
         """Return the number of elements in the set.
 
-        Returns
-            The count of unique elements in the set
+        :returns: Count of unique elements.
+        :rtype: int
         """
         return len(self.map)
 
     def __contains__(self, key: Any) -> bool:
         """Check if an element exists in the set.
 
-        Parameters
-            key: The element to check for membership
-
-        Returns
-            True if the element is in the set, False otherwise
+        :param key: Element to check for membership.
+        :returns: True if the element is in the set.
+        :rtype: bool
         """
         return key in self.map
 
     def add(self, key: Any) -> None:
-        """Add an element to the set.
+        """Add an element to the end of the set if not already present.
 
-        Adds the element to the end of the ordered set if not already present.
-        If the element already exists, the set remains unchanged.
-
-        Parameters
-            key: The element to add to the set
-
-        Returns
-            None
+        :param key: Element to add to the set.
         """
         if key not in self.map:
             end = self.end
@@ -86,14 +76,9 @@ class OrderedSet(MutableSet):
     def discard(self, key: Any) -> None:
         """Remove an element from the set if present.
 
-        Removes the specified element from the set without raising an error
-        if the element is not found.
+        Does not raise an error if element is not found.
 
-        Parameters
-            key: The element to remove from the set
-
-        Returns
-            None
+        :param key: Element to remove.
         """
         if key in self.map:
             key, prev, next = self.map.pop(key)
@@ -101,10 +86,10 @@ class OrderedSet(MutableSet):
             next[1] = prev
 
     def __iter__(self) -> Iterator[Any]:
-        """Return an iterator over the set elements in insertion order.
+        """Iterate over elements in insertion order.
 
-        Returns
-            An iterator that yields elements in the order they were added
+        :returns: Iterator yielding elements in order of addition.
+        :rtype: Iterator
         """
         end = self.end
         curr = end[2]
@@ -113,10 +98,10 @@ class OrderedSet(MutableSet):
             curr = curr[2]
 
     def __reversed__(self) -> Iterator[Any]:
-        """Return an iterator over the set elements in reverse insertion order.
+        """Iterate over elements in reverse insertion order.
 
-        Returns
-            An iterator that yields elements in reverse order of addition
+        :returns: Iterator yielding elements in reverse order.
+        :rtype: Iterator
         """
         end = self.end
         curr = end[1]
@@ -127,17 +112,9 @@ class OrderedSet(MutableSet):
     def pop(self, last: bool = True) -> Any:
         """Remove and return an element from the set.
 
-        Removes and returns either the last or first element depending on
-        the last parameter value.
-
-        Parameters
-            last: If True, remove from the end; if False, remove from the beginning
-
-        Returns
-            The removed element
-
-        Raises
-            KeyError: If the set is empty
+        :param bool last: If True, remove from end; if False, from beginning.
+        :returns: The removed element.
+        :raises KeyError: If the set is empty.
         """
         if not self:
             raise KeyError('set is empty')
@@ -146,10 +123,10 @@ class OrderedSet(MutableSet):
         return key
 
     def __repr__(self) -> str:
-        """Return the string representation of the set.
+        """Return string representation of the set.
 
-        Returns
-            A string showing the class name and ordered list of elements
+        :returns: String showing class name and ordered elements.
+        :rtype: str
         """
         if not self:
             return f'{self.__class__.__name__}()'
@@ -161,11 +138,9 @@ class OrderedSet(MutableSet):
         For OrderedSet comparison, both content and order must match.
         For regular set comparison, only content is considered.
 
-        Parameters
-            other: The object to compare with
-
-        Returns
-            True if the sets are equal according to the comparison rules
+        :param other: Object to compare with.
+        :returns: True if sets are equal.
+        :rtype: bool
         """
         if isinstance(other, OrderedSet):
             return len(self) == len(other) and list(self) == list(other)

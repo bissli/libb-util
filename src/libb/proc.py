@@ -14,6 +14,11 @@ __all__ = [
 
 
 def process_by_name(name):
+    """Find processes by name that are listening on a port.
+
+    :param str name: Process name to search for.
+    :yields: psutil.Process objects matching the name with LISTEN connections.
+    """
     for p in psutil.process_iter():
         try:
             if p.name() != name:
@@ -26,6 +31,12 @@ def process_by_name(name):
 
 
 def process_by_name_and_port(name, port):
+    """Find a process by name listening on a specific port.
+
+    :param str name: Process name to search for.
+    :param int port: Port number to match.
+    :returns: psutil.Process if found, None otherwise.
+    """
     for p in psutil.process_iter():
         try:
             if p.name() != name:
@@ -38,7 +49,14 @@ def process_by_name_and_port(name, port):
 
 
 def kill_proc(name=None, version=None, dry_run=False, use_terminate=False):
-    """Generic kill process utilitiy
+    """Kill processes matching name and/or version.
+
+    :param str name: Process name pattern (regex).
+    :param str version: Version string to match in command line.
+    :param bool dry_run: If True, just check for matches without killing.
+    :param bool use_terminate: If True, use terminate instead of kill.
+    :returns: True if matching processes were found.
+    :rtype: bool
     """
     assert name or version, 'Need something to kill'
     _name = fr'.*{(name or "")}(\.exe)?$'

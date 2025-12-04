@@ -7,13 +7,21 @@ __all__ = ['is_tty', 'stream_is_tty']
 
 
 def stream_is_tty(somestream):
-    """Check if stream, typically sys.stdout, running in terminal"""
+    """Check if a stream is running in a terminal.
+
+    :param somestream: Stream to check (typically sys.stdout).
+    :returns: True if stream is a TTY.
+    :rtype: bool
+    """
     isatty = getattr(somestream, 'isatty', None)
     return isatty and isatty()
 
 
 
 def is_tty():
-    """Check if the script is running in an interactive terminal.
+    """Check if running in an interactive terminal.
+
+    :returns: True if both stdin and stdout are TTYs.
+    :rtype: bool
     """
     return sys.stdin.isatty() and sys.stdout.isatty()

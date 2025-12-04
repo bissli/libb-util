@@ -48,15 +48,20 @@ __all__ = ['is_null', 'download_tzdata', 'downcast', 'fuzzymerge']
 
 
 def is_null(x):
-    """Simple null/none checker (pandas required)
+    """Check if value is null/None (pandas required).
 
-    >>> import datetime
-    >>> import numpy as np
-    >>> assert is_null(None)
-    >>> assert not is_null(0)
-    >>> assert is_null(np.nan)
-    >>> assert not is_null(datetime.date(2000, 1, 1))
+    :param x: Value to check.
+    :returns: True if value is null/None/NaN.
+    :rtype: bool
 
+    Example::
+
+        >>> import datetime
+        >>> import numpy as np
+        >>> assert is_null(None)
+        >>> assert not is_null(0)
+        >>> assert is_null(np.nan)
+        >>> assert not is_null(datetime.date(2000, 1, 1))
     """
     with contextlib.suppress(Exception):
         if isinstance(x, NullScalar):
@@ -65,7 +70,9 @@ def is_null(x):
 
 
 def download_tzdata():
-    """Needed for pyarrow date wrangling. Goes into "Downloads" folder.
+    """Download timezone data for pyarrow date wrangling.
+
+    Downloads to the "Downloads" folder.
     """
     from libb import download_file, expandabspath
 
@@ -91,31 +98,39 @@ def download_tzdata():
 
 
 def downcast(df: DataFrame, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
-    """Downcast pandas DataFrame to minimum viable type for each column,
-    ensuring that resulting values are within tolerance of original values.
+    """Downcast DataFrame to minimum viable type for each column.
 
-    RTOL: Default relative tolerance for numpy inexact numeric comparison
-    See: https://numpy.org/doc/stable/reference/generated/numpy.allclose.html
+    Ensures resulting values are within tolerance of original values.
 
-    ATOL: Default absolute tolerance for numpy inexact numeric comparison
-    See: https://numpy.org/doc/stable/reference/generated/numpy.allclose.html
+    :param DataFrame df: DataFrame to downcast.
+    :param float rtol: Relative tolerance for numeric comparison.
+    :param float atol: Absolute tolerance for numeric comparison.
+    :param bool numpy_dtypes_only: Use only numpy dtypes.
+    :returns: Downcasted DataFrame.
+    :rtype: DataFrame
 
-    >>> data = {
-    ... "integers": linspace(1, 100, 100),
-    ... "floats": linspace(1, 1000, 100).round(2),
-    ... "booleans": random.choice([1, 0], 100),
-    ... "categories": random.choice(["foo", "bar", "baz"], 100)}
-    >>> df = DataFrame(data)
-    >>> downcast(df, rtol=1e-10, atol=1e-10).info()
-    <class 'pandas.core.frame.DataFrame'>
-    ...
-    dtypes: bool(1), category(1), float64(1), uint8(1)
-    memory usage: 1.3 KB
-    >>> downcast(df, rtol=1e-05, atol=1e-08).info()
-    <class 'pandas.core.frame.DataFrame'>
-    ...
-    dtypes: bool(1), category(1), float32(1), uint8(1)
-    memory usage: 964.0 bytes
+    .. note::
+        See `numpy.allclose <https://numpy.org/doc/stable/reference/generated/numpy.allclose.html>`_
+        for tolerance parameters.
+
+    Example::
+
+        >>> data = {
+        ... "integers": linspace(1, 100, 100),
+        ... "floats": linspace(1, 1000, 100).round(2),
+        ... "booleans": random.choice([1, 0], 100),
+        ... "categories": random.choice(["foo", "bar", "baz"], 100)}
+        >>> df = DataFrame(data)
+        >>> downcast(df, rtol=1e-10, atol=1e-10).info()
+        <class 'pandas.core.frame.DataFrame'>
+        ...
+        dtypes: bool(1), category(1), float64(1), uint8(1)
+        memory usage: 1.3 KB
+        >>> downcast(df, rtol=1e-05, atol=1e-08).info()
+        <class 'pandas.core.frame.DataFrame'>
+        ...
+        dtypes: bool(1), category(1), float32(1), uint8(1)
+        memory usage: 964.0 bytes
     """
     pdcast.options.RTOL = rtol
     pdcast.options.ATOL = atol
@@ -126,37 +141,32 @@ def fuzzymerge(df1, df2, right_on, left_on, usedtype='uint8', scorer='WRatio',
                concat_value=True, **kwargs):
     """Merge two DataFrames using fuzzy matching on specified columns.
 
-    This function performs a fuzzy matching between two DataFrames `df1` and `df2`
-    based on the columns specified in `right_on` and `left_on`. Fuzzy matching allows
-    you to find similar values between these columns, making it useful for matching
-    data with small variations, such as typos or abbreviations.
+    Performs fuzzy matching between DataFrames based on specified columns,
+    useful for matching data with small variations like typos or abbreviations.
 
-    Parameters
-    df1 (DataFrame): The first DataFrame to be merged.
-    df2 (DataFrame): The second DataFrame to be merged.
-    right_on (str): The column name in `df2` to be used for matching.
-    left_on (str): The column name in `df1` to be used for matching.
-    usedtype (numpy.dtype, optional): The data type to use for the distance matrix.
-        Defaults to `np.uint8`.
-    scorer (function, optional): The scoring function to use for fuzzy matching.
-        Defaults to `fuzz.WRatio`.
-    concat_value (bool, optional): Whether to add a 'concat_value' column in the result DataFrame,
-        containing the similarity scores. Defaults to `True`.
-    **kwargs: Additional keyword arguments to pass to the `pandas.merge` function.
+    :param DataFrame df1: First DataFrame to merge.
+    :param DataFrame df2: Second DataFrame to merge.
+    :param str right_on: Column name in df2 for matching.
+    :param str left_on: Column name in df1 for matching.
+    :param usedtype: Data type for distance matrix (default: uint8).
+    :param scorer: Scoring function for fuzzy matching (default: WRatio).
+    :param bool concat_value: Add similarity scores column (default: True).
+    :param kwargs: Additional arguments for pandas.merge.
+    :returns: Merged DataFrame with fuzzy-matched rows.
+    :rtype: DataFrame
 
-    Returns
-    DataFrame: A merged DataFrame with rows that matched based on the specified fuzzy criteria.
+    Example::
 
-    >>> df1 = read_csv(  # doctest: +SKIP
-    ...     "https://raw.githubusercontent.com/pandas-dev/pandas/main/doc/data/titanic.csv"
-    ... )
-    >>> df2 = df1.copy()  # doctest: +SKIP
-    >>> df2 = concat([df2 for x in range(3)], ignore_index=True)  # doctest: +SKIP
-    >>> df2.Name = (df2.Name + random.uniform(1, 2000, len(df2)).astype("U"))  # doctest: +SKIP
-    >>> df1 = concat([df1 for x in range(3)], ignore_index=True)  # doctest: +SKIP
-    >>> df1.Name = (df1.Name + random.uniform(1, 2000, len(df1)).astype("U"))  # doctest: +SKIP
-    >>> df3 = fuzzymerge(df1, df2, right_on='Name', left_on='Name', usedtype=uint8, scorer=partial_ratio,  # doctest: +SKIP
-    ...                         concat_value=True)
+        >>> df1 = read_csv(  # doctest: +SKIP
+        ...     "https://raw.githubusercontent.com/pandas-dev/pandas/main/doc/data/titanic.csv"
+        ... )
+        >>> df2 = df1.copy()  # doctest: +SKIP
+        >>> df2 = concat([df2 for x in range(3)], ignore_index=True)  # doctest: +SKIP
+        >>> df2.Name = (df2.Name + random.uniform(1, 2000, len(df2)).astype("U"))  # doctest: +SKIP
+        >>> df1 = concat([df1 for x in range(3)], ignore_index=True)  # doctest: +SKIP
+        >>> df1.Name = (df1.Name + random.uniform(1, 2000, len(df1)).astype("U"))  # doctest: +SKIP
+        >>> df3 = fuzzymerge(df1, df2, right_on='Name', left_on='Name', usedtype=uint8, scorer=partial_ratio,  # doctest: +SKIP
+        ...                         concat_value=True)
     """
     # Handle string type annotations
     if isinstance(usedtype, str):

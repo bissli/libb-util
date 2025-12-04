@@ -8,6 +8,11 @@ __all__ = [
 
 
 def print_exception(e, short=True):
+    """Print exception traceback with optional verbosity.
+
+    :param Exception e: The exception to print.
+    :param bool short: If True, prints only traceback above current frame.
+    """
     if short:
         print('Printing only the traceback above the current stack frame')
         print(''.join(traceback.format_exception(sys.exc_info()[0], sys.exc_info()[1], sys.exc_info()[2])))
@@ -25,16 +30,22 @@ def print_exception(e, short=True):
 
 
 def try_else(func, default=None):
-    """Default value if if function fails
+    """Wrap function to return default value if it fails.
 
-    >>> import json
-    >>> d = try_else(json.loads, 2)('{"a": 1, "b": "foo"}')
-    >>> d
-    {'a': 1, 'b': 'foo'}
-    >>> repl = lambda x: 'foobar'
-    >>> d = try_else(json.loads, repl)('{"a": 1, b: "foo"}')
-    >>> d
-    'foobar'
+    :param func: Function to wrap.
+    :param default: Default value or callable to return on failure.
+    :returns: Wrapped function.
+
+    Example::
+
+        >>> import json
+        >>> d = try_else(json.loads, 2)('{"a": 1, "b": "foo"}')
+        >>> d
+        {'a': 1, 'b': 'foo'}
+        >>> repl = lambda x: 'foobar'
+        >>> d = try_else(json.loads, repl)('{"a": 1, b: "foo"}')
+        >>> d
+        'foobar'
     """
 
     def wrapper(*args, **kwargs):

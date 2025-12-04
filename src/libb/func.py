@@ -25,11 +25,25 @@ __all__ = [
 
 
 def is_instance_method(func):
+    """Check if a function is an instance method.
+
+    :param func: Function to check.
+    :returns: True if function is an instance method.
+    :rtype: bool
+    """
     return len(func.__qualname__.split('.')) > 1
 
 
 def find_decorators(target):
-    """https://stackoverflow.com/a/9580006"""
+    """Find decorators applied to functions in a target module/class.
+
+    :param target: Module or class to inspect.
+    :returns: Dictionary mapping function names to decorator AST representations.
+    :rtype: dict
+
+    .. note::
+        Algorithm from https://stackoverflow.com/a/9580006
+    """
     res = {}
 
     def visit_function_def(node):
@@ -42,64 +56,72 @@ def find_decorators(target):
 
 
 def compose(*functions):
-    """Return a function folding over a list of functions
-    each arg must have a single param, so that it is explicit
+    """Return a function folding over a list of functions.
 
-    >>> f = lambda x: x+4
-    >>> g = lambda y: y/2
-    >>> h = lambda z: z*3
-    >>> fgh = compose(f, g, h)
+    Each arg must have a single param.
 
-    beware of order for non-commutative functions (first in, **last** out)
-    >>> fgh(2)==h(g(f(2)))
-    False
-    >>> fgh(2)==f(g(h(2)))
-    True
+    :param functions: Functions to compose.
+    :returns: Composed function.
+
+    Example::
+
+        >>> f = lambda x: x+4
+        >>> g = lambda y: y/2
+        >>> h = lambda z: z*3
+        >>> fgh = compose(f, g, h)
+
+    Beware of order for non-commutative functions (first in, **last** out)::
+
+        >>> fgh(2)==h(g(f(2)))
+        False
+        >>> fgh(2)==f(g(h(2)))
+        True
     """
     return reduce(lambda f, g: lambda x: f(g(x)), functions)
 
 
 def composable(decorators):
-    """Decorator that takes a list of decorators to be composed
+    """Decorator that takes a list of decorators to be composed.
 
-    useful when list of decorators starts getting large and unruly
+    Useful when list of decorators starts getting large and unruly.
 
-    >>> def m3(func):
-    ...     def wrapped(n):
-    ...         return func(n)*3.
-    ...     return wrapped
+    :param decorators: List of decorators to compose.
+    :returns: Composed decorator.
 
-    >>> def d2(func):
-    ...     def wrapped(n):
-    ...         return func(n)/2.
-    ...     return wrapped
+    Setup::
 
-    >>> def p3(n):
-    ...     return n+3.
+        >>> def m3(func):
+        ...     def wrapped(n):
+        ...         return func(n)*3.
+        ...     return wrapped
+        >>> def d2(func):
+        ...     def wrapped(n):
+        ...         return func(n)/2.
+        ...     return wrapped
+        >>> def p3(n):
+        ...     return n+3.
+        >>> @m3
+        ... @d2
+        ... def plusthree(x):
+        ...     return p3(x)
+        >>> @composable([d2, m3])
+        ... def cplusthree(x):
+        ...     return p3(x)
 
-    >>> @m3
-    ... @d2
-    ... def plusthree(x):
-    ...     return p3(x)
+    Note: composed decorators are not interchangeable with ``compose``::
 
-    >>> @composable([d2, m3])
-    ... def cplusthree(x):
-    ...     return p3(x)
+        >>> func = compose(m3, d2, p3)(4)
+        >>> hasattr(func, '__call__')
+        True
+        >>> compose(lambda n: n*3., lambda n: n/2., p3)(4)
+        10.5
 
-    Despite the similar name, composed decorators are not
-    interchangeable with `compose` for standard functions,
-    since decorators return functions, not the func output
-    >>> func = compose(m3, d2, p3)(4)
-    >>> hasattr(func, '__call__')
-    True
-    >>> compose(lambda n: n*3., lambda n: n/2., p3)(4)
-    10.5
+    What they do allow is consolidating longer decorator chains::
 
-    what they do allow is consolidating longer decorator chains
-    >>> plusthree(4)
-    10.5
-    >>> cplusthree(4)
-    10.5
+        >>> plusthree(4)
+        10.5
+        >>> cplusthree(4)
+        10.5
     """
 
     def composed(func):
@@ -119,58 +141,62 @@ def composable(decorators):
 
 
 def copydoc(fromfunc, sep='\n', basefirst=True):
-    """Decorator: Copy the docstring of `fromfunc`
+    """Decorator to copy the docstring of another function.
 
-    >>> class A():
-    ...     def myfunction():
-    ...         '''Documentation for A.'''
-    ...         pass
+    :param fromfunc: Function to copy docstring from.
+    :param str sep: Separator between docstrings.
+    :param bool basefirst: If True, base docstring comes first.
+    :returns: Decorator function.
 
-    >>> class B(A):
-    ...     @copydoc(A.myfunction)
-    ...     def myfunction():
-    ...         '''Extra details for B.'''
-    ...         pass
+    Example::
 
-    >>> class C(A):
-    ...     @copydoc(A.myfunction, basefirst=False)
-    ...     def myfunction():
-    ...         '''Extra details for B.'''
-    ...         pass
+        >>> class A():
+        ...     def myfunction():
+        ...         '''Documentation for A.'''
+        ...         pass
+        >>> class B(A):
+        ...     @copydoc(A.myfunction)
+        ...     def myfunction():
+        ...         '''Extra details for B.'''
+        ...         pass
+        >>> class C(A):
+        ...     @copydoc(A.myfunction, basefirst=False)
+        ...     def myfunction():
+        ...         '''Extra details for B.'''
+        ...         pass
 
-    do not activate doctests!
-    >>> class D():
-    ...     def myfunction():
-    ...         '''.>>> 2 + 2 = 5'''
-    ...         pass
+    Do not activate doctests::
 
-    >>> class E(D):
-    ...     @copydoc(D.myfunction)
-    ...     def myfunction():
-    ...         '''Extra details for E.'''
-    ...         pass
-
-    >>> help(B.myfunction)
-    Help on function myfunction in module ...:
-    <BLANKLINE>
-    myfunction()
-        Documentation for A.
-        Extra details for B.
-    <BLANKLINE>
-    >>> help(C.myfunction)
-    Help on function myfunction in module ...:
-    <BLANKLINE>
-    myfunction()
-        Extra details for B.
-        Documentation for A.
-    <BLANKLINE>
-    >>> help(E.myfunction)
-    Help on function myfunction in module ...:
-    <BLANKLINE>
-    myfunction()
-        .>>> 2 + 2 = 5 # doctest: +DISABLE
-        Extra details for E.
-    <BLANKLINE>
+        >>> class D():
+        ...     def myfunction():
+        ...         '''.>>> 2 + 2 = 5'''
+        ...         pass
+        >>> class E(D):
+        ...     @copydoc(D.myfunction)
+        ...     def myfunction():
+        ...         '''Extra details for E.'''
+        ...         pass
+        >>> help(B.myfunction)
+        Help on function myfunction in module ...:
+        <BLANKLINE>
+        myfunction()
+            Documentation for A.
+            Extra details for B.
+        <BLANKLINE>
+        >>> help(C.myfunction)
+        Help on function myfunction in module ...:
+        <BLANKLINE>
+        myfunction()
+            Extra details for B.
+            Documentation for A.
+        <BLANKLINE>
+        >>> help(E.myfunction)
+        Help on function myfunction in module ...:
+        <BLANKLINE>
+        myfunction()
+            .>>> 2 + 2 = 5 # doctest: +DISABLE
+            Extra details for E.
+        <BLANKLINE>
     """
 
     def _disable_doctest(docstr):
@@ -194,7 +220,11 @@ def copydoc(fromfunc, sep='\n', basefirst=True):
 
 
 def get_calling_function():
-    """Finds the calling function in many decent cases."""
+    """Find the calling function in many common cases.
+
+    :returns: The calling function object.
+    :raises AttributeError: If function cannot be found.
+    """
     fr = sys._getframe(1)   # inspect.stack()[1][0]
     co = fr.f_code
     for get in (
@@ -217,17 +247,22 @@ def get_calling_function():
 
 
 def repeat(x_times=2):
-    """Repeat function x_times
+    """Decorator to repeat a function multiple times.
 
-    >>> @repeat(3)
-    ... def printme():
-    ...    print('Foo')
-    ...    return 'Bar'
-    >>> printme()
-    Foo
-    Foo
-    Foo
-    'Bar'
+    :param int x_times: Number of times to repeat (default: 2).
+    :returns: Decorator function.
+
+    Example::
+
+        >>> @repeat(3)
+        ... def printme():
+        ...    print('Foo')
+        ...    return 'Bar'
+        >>> printme()
+        Foo
+        Foo
+        Foo
+        'Bar'
     """
 
     def wrapper(func):
@@ -243,6 +278,11 @@ def repeat(x_times=2):
 
 
 def timing(func):
+    """Decorator to log function execution time.
+
+    :param func: Function to time.
+    :returns: Wrapped function that logs execution time.
+    """
     @wraps(func)
     def wrap(*args, **kw):
         ts = time()
@@ -254,7 +294,11 @@ def timing(func):
 
 
 def suppresswarning(func):
-    """Suppressing warnings"""
+    """Decorator to suppress warnings during function execution.
+
+    :param func: Function to wrap.
+    :returns: Wrapped function that suppresses warnings.
+    """
     @wraps(func)
     def wrapper(*args, **kwargs):
         with warnings.catch_warnings():
@@ -267,10 +311,12 @@ registry = {}
 
 
 class MultiMethod:
-    """Multimethod that supports args no kwargs (by design ...)
-    via bdfl http://www.artima.com/weblogs/viewpost.jsp?thread=101605
+    """Multimethod that supports args (no kwargs by design).
 
-    @multimethod(int, int)
+    Use with the ``@multimethod`` decorator to register type-specific implementations.
+
+    .. note::
+        Algorithm from http://www.artima.com/weblogs/viewpost.jsp?thread=101605
     """
 
     def __init__(self, name):

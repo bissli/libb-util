@@ -19,7 +19,10 @@ __all__ = [
 
 
 def syncd(lock):
-    """Synchronize an arbitrary number of functions with shared lock.
+    """Decorator to synchronize functions with a shared lock.
+
+    :param lock: Threading lock to acquire during function execution.
+    :returns: Decorator function.
     """
     def wrap(f):
         def new_function(*args, **kw):
@@ -33,18 +36,25 @@ def syncd(lock):
 
 
 class NonBlockingDelay:
-    """Non blocking delay class"""
+    """Non-blocking delay for checking time elapsed."""
 
     def __init__(self):
         self._timestamp = 0.0
         self._delay = 0.0
 
     def timeout(self):
-        """Check if time is up"""
+        """Check if the delay time has elapsed.
+
+        :returns: True if time is up.
+        :rtype: bool
+        """
         return (time.monotonic() - self._timestamp) > self._delay
 
     def delay(self, delay: float) -> None:
-        """Non blocking delay in seconds"""
+        """Start a non-blocking delay.
+
+        :param float delay: Delay duration in seconds.
+        """
         self._timestamp = time.monotonic()
         self._delay = delay
 
@@ -67,7 +77,7 @@ def delay(seconds: float) -> None:
 
 
 class Debouncer:
-    """Debounce handler for `debounce`"""
+    """Debounce handler used by :func:`debounce` decorator."""
 
     def __init__(self, func: Callable[..., Any], wait: float):
         self.func = func
@@ -87,7 +97,7 @@ class Debouncer:
             self._timer.start()
 
     def flush(self) -> None:
-        """Execute pending call immediately if one exists."""
+        """Execute any pending call immediately."""
         with self._lock:
             if self._timer is not None:
                 self._timer.cancel()
@@ -98,7 +108,7 @@ class Debouncer:
                     self._last_kwargs = None
 
     def cancel(self) -> None:
-        """Cancel any pending call without executing."""
+        """Cancel any pending call without executing it."""
         with self._lock:
             if self._timer is not None:
                 self._timer.cancel()
@@ -111,7 +121,12 @@ VoidFunction = TypeVar('VoidFunction', bound=Callable[..., None])
 
 
 def debounce(wait: float):
-    """Wait `interval` seconds before calling `func`, and cancel if called again.
+    """Decorator to debounce function calls.
+
+    Waits ``wait`` seconds before calling function, cancels if called again.
+
+    :param float wait: Seconds to wait before executing.
+    :returns: Decorator function.
     """
     def wrapper(func: VoidFunction) -> VoidFunction:
         if wait <= 0:
@@ -127,7 +142,16 @@ def wait_until(
     tz: datetime.tzinfo | None = timezone.utc,
     time_unit: str = 'milliseconds'
 ) -> int:
-    """Calculate milliseconds to wait until specified hour/minute/second.
+    """Calculate time to wait until specified hour/minute/second.
+
+    :param int hour: Hour (0-23).
+    :param int minute: Minute (0-59).
+    :param int second: Second (0-59).
+    :param tz: Timezone (default: UTC).
+    :param str time_unit: Return unit ('seconds' or 'milliseconds').
+    :returns: Time to wait in specified unit.
+    :rtype: int
+    :raises ValueError: If hour/minute/second out of range.
     """
     assert time_unit in {'seconds', 'milliseconds'}
     if not (0 <= hour <= 23):
@@ -144,9 +168,13 @@ def wait_until(
 
 
 class timeout:
-    """Context manager to manage timeouts for potential hanging code.
-    
-    Note: Uses SIGALRM and only works on Unix/Linux systems.
+    """Context manager for timing out potentially hanging code.
+
+    :param int seconds: Timeout in seconds (default: 100).
+    :param str error_message: Message for timeout error.
+
+    .. warning::
+        Uses SIGALRM and only works on Unix/Linux systems.
     """
 
     def __init__(self, seconds: int = 100, error_message: str = 'Timeout!!'):

@@ -35,44 +35,41 @@ def attrs(*attrnames: str) -> None:
     Automatically generates property accessors for attributes that follow
     the _name convention, allowing clean access to private attributes.
 
-    Parameters
-        *attrnames: Names of attributes to create properties for (without underscore prefix)
+    :param attrnames: Names of attributes to create properties for (without underscore prefix).
 
-    Returns
-        None (modifies caller's local namespace)
+    Basic Usage::
 
-    Examples
+        >>> class Foo:
+        ...     _a = 1
+        ...     _b = 2
+        ...     _c = 3
+        ...     _z = (_a, _b, _c)
+        ...     attrs('a', 'b', 'c', 'z')
+        >>> f = Foo()
+        >>> f.a
+        1
+        >>> f.a+f.b==f.c
+        True
 
-    Basic attribute access:
-    >>> class Foo:
-    ...     _a = 1
-    ...     _b = 2
-    ...     _c = 3
-    ...     _z = (_a, _b, _c)
-    ...     attrs('a', 'b', 'c', 'z')
-    >>> f = Foo()
-    >>> f.a
-    1
-    >>> f.a+f.b==f.c
-    True
+    Setter Functionality::
 
-    Setter functionality:
-    >>> f.a = 2
-    >>> f.a==f._a==2
-    True
+        >>> f.a = 2
+        >>> f.a==f._a==2
+        True
 
-    Lazy definitions:
-    >>> len(f.z)==3
-    True
-    >>> sum(f.z)==6
-    True
-    >>> f.z[0]==f._z[0]==1
-    True
-    >>> f.z = (4, 5, 6,)
-    >>> sum(f.z)
-    15
-    >>> f.a==2
-    True
+    Lazy Definitions::
+
+        >>> len(f.z)==3
+        True
+        >>> sum(f.z)==6
+        True
+        >>> f.z[0]==f._z[0]==1
+        True
+        >>> f.z = (4, 5, 6,)
+        >>> sum(f.z)
+        15
+        >>> f.a==2
+        True
     """
     def _makeprop(name):
         _get = lambda self: getattr(self, f'_{name}')
@@ -90,31 +87,27 @@ def include(source: dict[str, Any], names: tuple[str, ...] = ()) -> None:
     Injects dictionary key-value pairs into the calling class namespace,
     optionally filtering by specific names.
 
-    Parameters
-        source: Dictionary containing attributes to include
-        names: Optional tuple of specific attribute names to include (includes all if empty)
+    :param dict source: Dictionary containing attributes to include.
+    :param tuple names: Optional tuple of specific attribute names to include (includes all if empty).
 
-    Returns
-        None (modifies caller's local namespace)
+    Include All Attributes::
 
-    Examples
+        >>> d = dict(x=10, y='foo')
+        >>> class Foo:
+        ...     include(d)
+        >>> Foo.x
+        10
+        >>> Foo.y
+        'foo'
 
-    Include all attributes:
-    >>> d = dict(x=10, y='foo')
-    >>> class Foo:
-    ...     include(d)
-    >>> Foo.x
-    10
-    >>> Foo.y
-    'foo'
+    Include Specific Attributes::
 
-    Include specific attributes:
-    >>> class Boo:
-    ...     include(d, ('y',))
-    >>> hasattr(Boo, 'x')
-    False
-    >>> hasattr(Boo, 'y')
-    True
+        >>> class Boo:
+        ...     include(d, ('y',))
+        >>> hasattr(Boo, 'x')
+        False
+        >>> hasattr(Boo, 'y')
+        True
     """
     sys._getframe(1).f_locals.update({name: source[name] for name in names} if names else source)
 
@@ -125,40 +118,38 @@ def singleton(cls: type) -> object:
     Ensures only one instance of the decorated class can exist.
     All calls to the class return the same instance.
 
-    Parameters
-        cls: The class to convert to a singleton
+    :param type cls: The class to convert to a singleton.
+    :returns: The single instance of the class.
 
-    Returns
-        The single instance of the class
+    Basic Usage::
 
-    Examples
+        >>> @singleton
+        ... class Foo:
+        ...     _x = 100
+        ...     _y = 'y'
+        ...     attrs('x', 'y')
+        >>> F = Foo
+        >>> F() is F() is F
+        True
+        >>> id(F()) == id(F())
+        True
 
-    Basic singleton behavior:
-    >>> @singleton
-    ... class Foo:
-    ...     _x = 100
-    ...     _y = 'y'
-    ...     attrs('x', 'y')
-    >>> F = Foo
-    >>> F() is F() is F
-    True
-    >>> id(F()) == id(F())
-    True
+    Shared State::
 
-    Shared state:
-    >>> f = F()
-    >>> f.x == F().x == f.x == 100
-    True
-    >>> F.x = 50
-    >>> f.x == F().x == F.x == 50
-    True
+        >>> f = F()
+        >>> f.x == F().x == f.x == 100
+        True
+        >>> F.x = 50
+        >>> f.x == F().x == F.x == 50
+        True
 
-    Deep copy behavior:
-    >>> import copy
-    >>> fc = copy.deepcopy(f)
-    >>> FC = copy.deepcopy(F)
-    >>> fc.y==f.y==F.y==FC.y=='y'
-    True
+    Deep Copy Behavior::
+
+        >>> import copy
+        >>> fc = copy.deepcopy(f)
+        >>> FC = copy.deepcopy(F)
+        >>> fc.y==f.y==F.y==FC.y=='y'
+        True
     """
     obj = cls()
     obj.__class__ = type(obj.__class__.__name__, (obj.__class__,), {})
@@ -173,32 +164,29 @@ def memoize(obj: Callable[P, R]) -> Callable[P, R]:
     function itself, avoiding redundant computations for repeated calls
     with the same arguments.
 
-    Parameters
-        obj: The function to memoize
+    :param obj: The function to memoize.
+    :returns: A wrapped function with caching behavior.
 
-    Returns
-        A wrapped function with caching behavior
+    Basic Usage::
 
-    Examples
+        >>> def n_with_sum_k(n, k):
+        ...     if n==0:
+        ...         return 0
+        ...     elif k==0:
+        ...         return 1
+        ...     else:
+        ...         less_n = n_with_sum_k(n-1, k)
+        ...         less_k = n_with_sum_k(n, k-1)
+        ...         less_both = n_with_sum_k(n-1, k-1)
+        ...         return less_n + less_k + less_both
 
-    Fibonacci-like recursive function:
-    >>> def n_with_sum_k(n, k):
-    ...     if n==0:
-    ...         return 0
-    ...     elif k==0:
-    ...         return 1
-    ...     else:
-    ...         less_n = n_with_sum_k(n-1, k)
-    ...         less_k = n_with_sum_k(n, k-1)
-    ...         less_both = n_with_sum_k(n-1, k-1)
-    ...         return less_n + less_k + less_both
+    Memoization Speeds Up Recursive Calls::
 
-    Memoization speeds up recursive calls:
-    >>> n_with_sum_k_mz = memoize(n_with_sum_k)
-    >>> n_with_sum_k_mz(3, 5)
-    61
-    >>> n_with_sum_k_mz.cache
-    {((3, 5), ()): 61}
+        >>> n_with_sum_k_mz = memoize(n_with_sum_k)
+        >>> n_with_sum_k_mz(3, 5)
+        61
+        >>> n_with_sum_k_mz.cache
+        {((3, 5), ()): 61}
     """
 
     cache = obj.cache = {}
@@ -219,25 +207,25 @@ class classproperty(property):
     Similar to @property but works on classes rather than instances,
     allowing dynamic class-level attributes.
 
-    Examples
+    Basic Usage::
 
-    Basic usage:
-    >>> class Foo:
-    ...     include(dict(a=1, b=2))
-    ...     @classproperty
-    ...     def c(cls):
-    ...         return cls.a+cls.b
-    >>> Foo.a
-    1
-    >>> Foo.b
-    2
-    >>> Foo.c
-    3
+        >>> class Foo:
+        ...     include(dict(a=1, b=2))
+        ...     @classproperty
+        ...     def c(cls):
+        ...         return cls.a+cls.b
+        >>> Foo.a
+        1
+        >>> Foo.b
+        2
+        >>> Foo.c
+        3
 
-    Dynamic updates:
-    >>> Foo.a = 2
-    >>> Foo.c
-    4
+    Dynamic Updates::
+
+        >>> Foo.a = 2
+        >>> Foo.c
+        4
     """
 
     def __get__(desc, self, cls):
@@ -250,33 +238,30 @@ def delegate(deleg: str, attrs: str | list[str]) -> None:
     Creates properties that forward attribute access to a specified
     delegate object, enabling composition over inheritance.
 
-    Parameters
-        deleg: Name of the attribute containing the delegate object
-        attrs: Single attribute name or list of attribute names to delegate
+    :param str deleg: Name of the attribute containing the delegate object.
+    :param attrs: Single attribute name or list of attribute names to delegate.
+    :type attrs: str or list[str]
 
-    Returns
-        None (modifies caller's local namespace)
+    Delegate Simple Attributes::
 
-    Examples
+        >>> class X:
+        ...     a = 1
+        >>> class Y:
+        ...     x = X()
+        ...     delegate('x', 'a')
+        >>> Y().a
+        1
 
-    Delegate simple attributes:
-    >>> class X:
-    ...     a = 1
-    >>> class Y:
-    ...     x = X()
-    ...     delegate('x', 'a')
-    >>> Y().a
-    1
+    Delegate Methods::
 
-    Delegate methods:
-    >>> class A:
-    ...     def echo(self, x):
-    ...         print(x)
-    >>> class B:
-    ...     a = A()
-    ...     delegate('a', ['echo'])
-    >>> B().echo('whoa!')
-    whoa!
+        >>> class A:
+        ...     def echo(self, x):
+        ...         print(x)
+        >>> class B:
+        ...     a = A()
+        ...     delegate('a', ['echo'])
+        >>> B().echo('whoa!')
+        whoa!
     """
 
     def _makeprop(attr):
@@ -295,52 +280,51 @@ def lazy_property(fn: Callable[[Any], R]) -> property:
     Computes the property value only once on first access, then caches
     the result for subsequent accesses. Useful for expensive computations.
 
-    Parameters
-        fn: The property method to make lazy
+    :param fn: The property method to make lazy.
+    :returns: A lazy property descriptor.
 
-    Returns
-        A lazy property descriptor
+    Basic Lazy Evaluation::
 
-    Examples
+        >>> import time
+        >>> class Sloth:
+        ...     def _slow_cool(self, n):
+        ...         time.sleep(n)
+        ...         return n**2
+        ...     @lazy_property
+        ...     def slow(self):
+        ...         return True
+        ...     @lazy_property
+        ...     def cool(self):
+        ...         return self._slow_cool(3)
 
-    Basic lazy evaluation:
-    >>> import time
-    >>> class Sloth:
-    ...     def _slow_cool(self, n):
-    ...         time.sleep(n)
-    ...         return n**2
-    ...     @lazy_property
-    ...     def slow(self):
-    ...         return True
-    ...     @lazy_property
-    ...     def cool(self):
-    ...         return self._slow_cool(3)
+    Instantiation is Fast::
 
-    Instantiation is fast:
-    >>> x = time.time()
-    >>> s = Sloth()
-    >>> time.time()-x < 1
-    True
-    >>> time.time()-x < 1
-    True
+        >>> x = time.time()
+        >>> s = Sloth()
+        >>> time.time()-x < 1
+        True
+        >>> time.time()-x < 1
+        True
 
-    First access triggers computation:
-    >>> hasattr(s, '_lazy_slow')
-    False
-    >>> s.slow
-    True
-    >>> hasattr(s, '_lazy_slow')
-    True
+    First Access Triggers Computation::
 
-    Expensive computation happens once:
-    >>> s.cool
-    9
-    >>> 3 < time.time()-x < 6
-    True
-    >>> s.cool
-    9
-    >>> 3 < time.time()-x < 6
-    True
+        >>> hasattr(s, '_lazy_slow')
+        False
+        >>> s.slow
+        True
+        >>> hasattr(s, '_lazy_slow')
+        True
+
+    Expensive Computation Happens Once::
+
+        >>> s.cool
+        9
+        >>> 3 < time.time()-x < 6
+        True
+        >>> s.cool
+        9
+        >>> 3 < time.time()-x < 6
+        True
     """
     attr_name = '_lazy_' + fn.__name__
 
@@ -364,21 +348,20 @@ class cachedstaticproperty:
     Creates a class-level property that is computed once on first access
     and cached for subsequent accesses.
 
-    Examples
+    Basic Usage (expensive computation runs only once)::
 
-    Expensive computation runs only once:
-    >>> def somecalc():
-    ...     print('Running somecalc...')
-    ...     return 1
-    >>> class Foo:
-    ...    @cachedstaticproperty
-    ...    def somefunc():
-    ...        return somecalc()
-    >>> Foo.somefunc
-    Running somecalc...
-    1
-    >>> Foo.somefunc
-    1
+        >>> def somecalc():
+        ...     print('Running somecalc...')
+        ...     return 1
+        >>> class Foo:
+        ...    @cachedstaticproperty
+        ...    def somefunc():
+        ...        return somecalc()
+        >>> Foo.somefunc
+        Running somecalc...
+        1
+        >>> Foo.somefunc
+        1
     """
     def __init__(self, func):
         self.func = func
@@ -395,17 +378,16 @@ class staticandinstancemethod:
     When called on the class, self is None. When called on an instance,
     self is the instance.
 
-    Examples
+    Basic Usage (dual behavior)::
 
-    Dual behavior:
-    >>> class Foo:
-    ...     @staticandinstancemethod
-    ...     def bar(self, x, y):
-    ...         print(self is None and "static" or "instance")
-    >>> Foo.bar(1,2)
-    static
-    >>> Foo().bar(1,2)
-    instance
+        >>> class Foo:
+        ...     @staticandinstancemethod
+        ...     def bar(self, x, y):
+        ...         print(self is None and "static" or "instance")
+        >>> Foo.bar(1,2)
+        static
+        >>> Foo().bar(1,2)
+        instance
     """
     def __init__(self, f):
         self.f = f
@@ -444,46 +426,47 @@ def makecls(*metas: type, **options: Any) -> Callable[[str, tuple[type, ...], di
     When multiple inheritance involves conflicting metaclasses, this factory
     generates a compatible metaclass that inherits from all necessary metaclasses.
 
-    Parameters
-        *metas: Explicit metaclasses to use
-        **options:
-            - priority: If True, given metaclasses take precedence over base metaclasses
+    :param metas: Explicit metaclasses to use.
+    :param options: Keyword options:
 
-    Returns
-        A class factory function that creates classes with resolved metaclasses
+        - **priority**: If True, given metaclasses take precedence over base metaclasses.
 
-    Examples
+    :returns: A class factory function that creates classes with resolved metaclasses.
 
-    Metaclass conflict resolution:
-    >>> class M_A(type):
-    ...     pass
-    >>> class M_B(type):
-    ...     pass
-    >>> class A(metaclass=M_A):
-    ...     pass
-    >>> class B(metaclass=M_B):
-    ...     pass
+    Metaclass Conflict Resolution::
 
-    Normal inheritance fails:
-    >>> class C(A,B):
-    ...     pass
-    Traceback (most recent call last):
-    ...
-    TypeError: metaclass conflict: the metaclass of a derived class must be a (non-strict) subclass of the metaclasses of all its bases
+        >>> class M_A(type):
+        ...     pass
+        >>> class M_B(type):
+        ...     pass
+        >>> class A(metaclass=M_A):
+        ...     pass
+        >>> class B(metaclass=M_B):
+        ...     pass
 
-    Using makecls resolves the conflict:
-    >>> class C(A,B,metaclass=makecls()):
-    ...    pass
-    >>> (C, C.__class__)
-    (<class '....C'>, <class '...._M_AM_B'>)
+    Normal Inheritance Fails::
 
-    Metaclass caching:
-    >>> class D(A,B,metaclass=makecls()):
-    ...    pass
-    >>> (D, D.__class__)
-    (<class '....D'>, <class '...._M_AM_B'>)
-    >>> C.__class__ is D.__class__
-    True
+        >>> class C(A,B):
+        ...     pass
+        Traceback (most recent call last):
+        ...
+        TypeError: metaclass conflict: the metaclass of a derived class must be a (non-strict) subclass of the metaclasses of all its bases
+
+    Using makecls Resolves the Conflict::
+
+        >>> class C(A,B,metaclass=makecls()):
+        ...    pass
+        >>> (C, C.__class__)
+        (<class '....C'>, <class '...._M_AM_B'>)
+
+    Metaclass Caching::
+
+        >>> class D(A,B,metaclass=makecls()):
+        ...    pass
+        >>> (D, D.__class__)
+        (<class '....D'>, <class '...._M_AM_B'>)
+        >>> C.__class__ is D.__class__
+        True
     """
     priority = options.get('priority', False)
     return lambda n, b, d: _generatemetaclass(b, metas, priority)(n, b, d)
@@ -495,62 +478,59 @@ def extend_instance(obj: object, cls: type, left: bool = True) -> None:
     Modifies an object's class to include additional base classes,
     effectively adding mixins or extending functionality after instantiation.
 
-    Parameters
-        obj: The instance to extend
-        cls: The class to mix into the instance's hierarchy
-        left: If True, adds cls with higher precedence; if False, lower precedence
+    :param object obj: The instance to extend.
+    :param type cls: The class to mix into the instance's hierarchy.
+    :param bool left: If True, adds cls with higher precedence; if False, lower precedence.
 
-    Returns
-        None (modifies obj in place)
+    Method Resolution Order Demonstration::
 
-    Examples
+        >>> from pprint import pprint
+        >>> class X:pass
+        >>> class Y: pass
+        >>> class Z:pass
+        >>> class A(X,Y):pass
+        >>> class B(A,Y,Z):pass
+        >>> class F(B): pass
+        >>> pprint(F.mro())
+        [<class '....F'>,
+         <class '....B'>,
+         <class '....A'>,
+         <class '....X'>,
+         <class '....Y'>,
+         <class '....Z'>,
+         <class 'object'>]
 
-    Method resolution order demonstration:
-    >>> from pprint import pprint
-    >>> class X:pass
-    >>> class Y: pass
-    >>> class Z:pass
-    >>> class A(X,Y):pass
-    >>> class B(A,Y,Z):pass
-    >>> class F(B): pass
-    >>> pprint(F.mro())
-    [<class '....F'>,
-     <class '....B'>,
-     <class '....A'>,
-     <class '....X'>,
-     <class '....Y'>,
-     <class '....Z'>,
-     <class 'object'>]
+    Left Precedence (higher priority)::
 
-    Left precedence (higher priority):
-    >>> class F_L:
-    ...     def __init__(self):
-    ...         extend_instance(self, B, left=True)
-    >>> f_l = F_L()
-    >>> pprint(f_l.__class__.__mro__)
-    (<class '....F_L'>,
-     <class '....B'>,
-     <class '....A'>,
-     <class '....X'>,
-     <class '....Y'>,
-     <class '....Z'>,
-     <class '....F_L'>,
-     <class 'object'>)
+        >>> class F_L:
+        ...     def __init__(self):
+        ...         extend_instance(self, B, left=True)
+        >>> f_l = F_L()
+        >>> pprint(f_l.__class__.__mro__)
+        (<class '....F_L'>,
+         <class '....B'>,
+         <class '....A'>,
+         <class '....X'>,
+         <class '....Y'>,
+         <class '....Z'>,
+         <class '....F_L'>,
+         <class 'object'>)
 
-    Right precedence (lower priority):
-    >>> class F_R:
-    ...     def __init__(self):
-    ...         extend_instance(self, B, left=False)
-    >>> f_r = F_R()
-    >>> pprint(f_r.__class__.__mro__)
-    (<class '....F_R'>,
-     <class '....F_R'>,
-     <class '....B'>,
-     <class '....A'>,
-     <class '....X'>,
-     <class '....Y'>,
-     <class '....Z'>,
-     <class 'object'>)
+    Right Precedence (lower priority)::
+
+        >>> class F_R:
+        ...     def __init__(self):
+        ...         extend_instance(self, B, left=False)
+        >>> f_r = F_R()
+        >>> pprint(f_r.__class__.__mro__)
+        (<class '....F_R'>,
+         <class '....F_R'>,
+         <class '....B'>,
+         <class '....A'>,
+         <class '....X'>,
+         <class '....Y'>,
+         <class '....Z'>,
+         <class 'object'>)
     """
     if left:
         obj.__class__ = type(obj.__class__.__name__, (cls, obj.__class__), {})
@@ -565,39 +545,37 @@ def ultimate_type(typeobj: object | type | None) -> type:
     that isn't 'object' itself. Useful for identifying the core type of
     subclassed objects.
 
-    Parameters
-        typeobj: An object, type, or None to analyze
+    :param typeobj: An object, type, or None to analyze.
+    :returns: The ultimate base type (excluding object).
+    :rtype: type
 
-    Returns
-        The ultimate base type (excluding object)
+    Finding Base Types::
 
-    Examples
+        >>> import datetime
+        >>> class DateFoo(datetime.date):
+        ...     pass
+        >>> class DateBar(DateFoo):
+        ...    pass
+        >>> d0 = datetime.date(2000, 1, 1)
+        >>> d1 = DateFoo(2000, 1, 1)
+        >>> d2 = DateBar(2000, 1, 1)
+        >>> ultimate_type(d0)
+        <class 'datetime.date'>
+        >>> ultimate_type(d1)
+        <class 'datetime.date'>
+        >>> ultimate_type(d1)
+        <class 'datetime.date'>
+        >>> ultimate_type(d1.__class__)
+        <class 'datetime.date'>
+        >>> ultimate_type(d2.__class__)
+        <class 'datetime.date'>
 
-    Finding base types:
-    >>> import datetime
-    >>> class DateFoo(datetime.date):
-    ...     pass
-    >>> class DateBar(DateFoo):
-    ...    pass
-    >>> d0 = datetime.date(2000, 1, 1)
-    >>> d1 = DateFoo(2000, 1, 1)
-    >>> d2 = DateBar(2000, 1, 1)
-    >>> ultimate_type(d0)
-    <class 'datetime.date'>
-    >>> ultimate_type(d1)
-    <class 'datetime.date'>
-    >>> ultimate_type(d1)
-    <class 'datetime.date'>
-    >>> ultimate_type(d1.__class__)
-    <class 'datetime.date'>
-    >>> ultimate_type(d2.__class__)
-    <class 'datetime.date'>
+    Special Cases::
 
-    Special cases:
-    >>> ultimate_type(None)
-    <class 'NoneType'>
-    >>> ultimate_type(object)
-    <class 'object'>
+        >>> ultimate_type(None)
+        <class 'NoneType'>
+        >>> ultimate_type(object)
+        <class 'object'>
     """
     if not isinstance(typeobj, type):
         typeobj = type(typeobj)
@@ -618,28 +596,25 @@ def catch_exception(f: Callable[P, R] | None = None, *, level: int = logging.DEB
 
     Can be used with or without parameters to specify the logging level.
 
-    Parameters
-        f: Function to wrap with exception handling (when used without parameters)
-        level: Logging level for exception details (default: logging.DEBUG)
+    :param f: Function to wrap with exception handling (when used without parameters).
+    :param int level: Logging level for exception details (default: logging.DEBUG).
+    :returns: Wrapped function that prints exceptions instead of raising them.
 
-    Returns
-        Wrapped function that prints exceptions instead of raising them
+    Default Usage (DEBUG level)::
 
-    Examples
+        >>> @catch_exception
+        ... def divide(x, y):
+        ...     return x / y
+        >>> divide(1, 0) is None
+        True
 
-    Default usage (DEBUG level):
-    >>> @catch_exception
-    ... def divide(x, y):
-    ...     return x / y
-    >>> divide(1, 0) is None
-    True
+    Specifying Log Level::
 
-    Specifying log level:
-    >>> @catch_exception(level=logging.ERROR)
-    ... def risky_operation():
-    ...     raise ValueError("Something went wrong")
-    >>> risky_operation() is None
-    True
+        >>> @catch_exception(level=logging.ERROR)
+        ... def risky_operation():
+        ...     raise ValueError("Something went wrong")
+        >>> risky_operation() is None
+        True
     """
     def decorator(func: Callable[P, R]) -> Callable[P, R | None]:
         @wraps(func)
@@ -661,30 +636,31 @@ class ErrorCatcher(type):
 
     Automatically applies exception handling to all callable attributes
     of a class, preventing exceptions from propagating. Can optionally
-    specify the logging level for all wrapped methods.
+    specify the logging level for all wrapped methods via the
+    ``_error_log_level`` class attribute.
 
-    Examples
+    Automatic Exception Handling::
 
-    Automatic exception handling:
-    >>> import logging
-    >>> logging.getLogger(__name__).setLevel(logging.CRITICAL)
-    >>> class Test(metaclass=ErrorCatcher):
-    ...     def __init__(self, val):
-    ...         self.val = val
-    ...     def calc(self):
-    ...         return self.val / 0
-    >>> t = Test(5)
-    >>> t.calc() is None
-    True
+        >>> import logging
+        >>> logging.getLogger(__name__).setLevel(logging.CRITICAL)
+        >>> class Test(metaclass=ErrorCatcher):
+        ...     def __init__(self, val):
+        ...         self.val = val
+        ...     def calc(self):
+        ...         return self.val / 0
+        >>> t = Test(5)
+        >>> t.calc() is None
+        True
 
-    With custom log level:
-    >>> class TestWithLevel(metaclass=ErrorCatcher):
-    ...     _error_log_level = logging.ERROR
-    ...     def risky(self):
-    ...         raise RuntimeError("Oops")
-    >>> t2 = TestWithLevel()
-    >>> t2.risky() is None
-    True
+    With Custom Log Level::
+
+        >>> class TestWithLevel(metaclass=ErrorCatcher):
+        ...     _error_log_level = logging.ERROR
+        ...     def risky(self):
+        ...         raise RuntimeError("Oops")
+        >>> t2 = TestWithLevel()
+        >>> t2.risky() is None
+        True
     """
     def __new__(cls, name, bases, dct):
         log_level = dct.get('_error_log_level', logging.DEBUG)

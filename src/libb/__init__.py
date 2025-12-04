@@ -24,10 +24,8 @@ from libb.heap import *
 from libb.iolib import *
 from libb.iter import *
 from libb.stats import *
-from libb.matrix import *
 from libb.mime import *
 from libb.module import *
-from libb.montecarlo import *
 from libb.orderedset import *
 from libb.pandasutils import *
 from libb.path import *

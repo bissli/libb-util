@@ -1,5 +1,7 @@
-"""os.walk and even scandir are miserably slow over network connections in Python 2.
-Once you migrate to Python 3, move off glob match to full regex match.
+"""Directory and file system utilities.
+
+.. note::
+    ``os.walk`` and ``scandir`` were slow over network connections in Python 2.
 """
 import glob
 import itertools
@@ -39,27 +41,36 @@ __all__ = [
 
 
 def mkdir_p(path):
+    """Create directory and any missing parent directories.
+
+    :param path: Directory path to create.
+    """
     Path(path).mkdir(exist_ok=True, parents=True)
 
 
 @contextmanager
 def make_tmpdir(prefix=None) -> Path:
-    """Context manager to wrap a temporary directory with auto-cleanup
+    """Context manager to wrap a temporary directory with auto-cleanup.
 
-    >>> import os.path
-    >>> fpath = ""
-    >>> with make_tmpdir() as basedir:
-    ...     fpath = os.path.join(basedir, 'temp.txt')
-    ...     with open(fpath, "w") as file:
-    ...         file.write("We expect the file to be deleted when context closes")
-    52
-    >>> try:
-    ...     file = open(fpath, "w")
-    ... except IOError as io:
-    ...     raise Exception('File does not exist')
-    Traceback (most recent call last):
-    ...
-    Exception: File does not exist
+    :param str prefix: Optional prefix directory for the temp dir.
+    :yields: Path to the temporary directory.
+
+    Example::
+
+        >>> import os.path
+        >>> fpath = ""
+        >>> with make_tmpdir() as basedir:
+        ...     fpath = os.path.join(basedir, 'temp.txt')
+        ...     with open(fpath, "w") as file:
+        ...         file.write("We expect the file to be deleted when context closes")
+        52
+        >>> try:
+        ...     file = open(fpath, "w")
+        ... except IOError as io:
+        ...     raise Exception('File does not exist')
+        Traceback (most recent call last):
+        ...
+        Exception: File does not exist
     """
     prefix = prefix or tempfile.gettempdir()
     prefix = os.path.join(prefix, '')
@@ -78,19 +89,28 @@ def make_tmpdir(prefix=None) -> Path:
 
 
 def expandabspath(p: str) -> str:
-    """Expand path to absolute path
+    """Expand path to absolute path with environment variables and user expansion.
 
-    >>> import os
-    >>> os.environ['SPAM'] = 'eggs'
-    >>> assert expandabspath('~/$SPAM') == os.path.expanduser('~/eggs')
-    >>> assert expandabspath('/foo') == '/foo'
+    :param str p: Path string to expand.
+    :returns: Absolute path with all expansions applied.
+    :rtype: str
+
+    Example::
+
+        >>> import os
+        >>> os.environ['SPAM'] = 'eggs'
+        >>> assert expandabspath('~/$SPAM') == os.path.expanduser('~/eggs')
+        >>> assert expandabspath('/foo') == '/foo'
     """
     return str(Path(Path(os.path.expandvars(p)).expanduser()).resolve())
 
 
 def get_directory_structure(rootdir):
-    """Creates a nested dictionary that represents the folder structure
-    of rootdir
+    """Create a nested dictionary representing the folder structure.
+
+    :param str rootdir: Root directory to traverse.
+    :returns: Nested dictionary of the directory structure.
+    :rtype: dict
     """
     dir = {}
     rootdir = rootdir.rstrip(os.sep)
@@ -104,7 +124,12 @@ def get_directory_structure(rootdir):
 
 
 def search(rootdir: str, name : str = None, extension: str = None) -> list:
-    """Search for file name, extension, or both (or neither) in directory
+    """Search for files by name, extension, or both in directory.
+
+    :param str rootdir: Root directory to search.
+    :param str name: Optional file name pattern to match.
+    :param str extension: Optional file extension to match.
+    :yields: Full path to each matching file.
     """
     def match(file, s):
         return re.match(fr'.*{s}({Path(file).suffix})?$', file)
@@ -118,7 +143,14 @@ def search(rootdir: str, name : str = None, extension: str = None) -> list:
 
 
 def safe_move(source, target, hard_remove=False):
-    """Move a file to a new location, optionally deleting anything in the way"""
+    """Move a file to a new location, optionally deleting anything in the way.
+
+    :param str source: Source file path.
+    :param str target: Target file path.
+    :param bool hard_remove: If True, delete existing file at target first.
+    :returns: Final target path (may differ if conflict occurred).
+    :rtype: str
+    """
     if hard_remove:
         if not Path(target).exists():
             logger.info(f'There is no file to remove at target: {target}')
@@ -138,15 +170,22 @@ def safe_move(source, target, hard_remove=False):
 
 
 def _append_date(pattern, thedate):
-    """Replace date in glob directory match function
+    """Replace date in glob directory match function.
 
-    >>> import datetime
-    >>> _append_date("{:%Y%m%d}_Foobar.txt", datetime.date(2018,1,1))
-    '20180101_Foobar.txt'
-    >>> _append_date("Foobar*.txt", datetime.date(2018,1,1))
-    'Foobar*_20180101.txt'
-    >>> _append_date("Foobar", datetime.date(2018,1,1))
-    'Foobar_20180101'
+    :param str pattern: File pattern string.
+    :param thedate: Date to append/substitute.
+    :returns: Pattern with date incorporated.
+    :rtype: str
+
+    Example::
+
+        >>> import datetime
+        >>> _append_date("{:%Y%m%d}_Foobar.txt", datetime.date(2018,1,1))
+        '20180101_Foobar.txt'
+        >>> _append_date("Foobar*.txt", datetime.date(2018,1,1))
+        'Foobar*_20180101.txt'
+        >>> _append_date("Foobar", datetime.date(2018,1,1))
+        'Foobar_20180101'
     """
     match = re.search(r':%Y%m%d', pattern)
     if match:
@@ -161,11 +200,18 @@ def _append_date(pattern, thedate):
 
 
 def save_file_tmpdir(fname, content, thedate=None, **kw):
-    """Save a document to the specified temp directory, save with date
+    """Save a document to the specified temp directory, optionally with date.
 
-    >>> import datetime
-    >>> content = "</html>...</html>"
-    >>> save_file_tmpdir("Foobar.txt", content, thedate=datetime.date.today())
+    :param str fname: Filename pattern.
+    :param str content: Content to write.
+    :param thedate: Optional date to append to filename.
+    :param kw: Keyword arguments (``tmpdir`` to specify custom temp directory).
+
+    Example::
+
+        >>> import datetime
+        >>> content = "</html>...</html>"
+        >>> save_file_tmpdir("Foobar.txt", content, thedate=datetime.date.today())
     """
     tmpdir = kw.pop('tmpdir', tempfile.gettempdir())
     if thedate:
@@ -177,8 +223,14 @@ def save_file_tmpdir(fname, content, thedate=None, **kw):
 
 
 def get_dir_match(dir_pattern, thedate=None):
-    """Get path of existing files matching each `glob` pattern, filter zero sizes,
-    return warnings
+    """Get paths of existing files matching each glob pattern.
+
+    Filters zero-size files and returns warnings for missing patterns.
+
+    :param dir_pattern: List of (directory, pattern) tuples.
+    :param thedate: Optional date to append to patterns.
+    :returns: Tuple of (results list, warnings list).
+    :rtype: tuple
     """
     results = []
     warnings = []
@@ -203,6 +255,13 @@ def get_dir_match(dir_pattern, thedate=None):
 
 
 def load_files(directory, pattern='*', thedate=None):
+    """Load file contents from directory matching pattern.
+
+    :param str directory: Directory to search.
+    :param str pattern: Glob pattern to match files.
+    :param thedate: Optional date to append to pattern.
+    :yields: File contents as strings.
+    """
     files, _ = get_dir_match([(directory, pattern)], thedate)
     logger.info(f'Found {len(files)} matching files in {directory}')
     for pathname in files:
@@ -215,13 +274,19 @@ def load_files(directory, pattern='*', thedate=None):
 
 
 def load_files_tmpdir(patterns='*', thedate=None):
-    """Get document from temp local store by identifier and date
+    """Load files from temp directory matching patterns.
 
-    >>> import datetime
-    >>> patterns = ("nonexistent_pattern_*.txt",)
-    >>> results = load_files_tmpdir(patterns, datetime.date.today())
-    >>> next(results, None) is None
-    True
+    :param patterns: Glob pattern(s) to match files.
+    :param thedate: Optional date to append to patterns.
+    :returns: Iterator of file contents.
+
+    Example::
+
+        >>> import datetime
+        >>> patterns = ("nonexistent_pattern_*.txt",)
+        >>> results = load_files_tmpdir(patterns, datetime.date.today())
+        >>> next(results, None) is None
+        True
     """
     tmpdir = tempfile.gettempdir()
     if not isinstance(patterns, list | tuple):
@@ -231,7 +296,11 @@ def load_files_tmpdir(patterns='*', thedate=None):
 
 
 def dir_to_dict(path):
-    """Convert directory to dict (needs work)
+    """Convert directory structure to a dictionary.
+
+    :param str path: Directory path to convert.
+    :returns: Dictionary with subdirectories as nested dicts and ``.files`` key for files.
+    :rtype: dict
     """
     d = {}
     path = expandabspath(path)
@@ -243,7 +312,13 @@ def dir_to_dict(path):
 
 @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_time=30)
 def download_file(url, save_path: str | Path = None) -> Path:
-    """Better file download from url
+    """Download file from URL with progress bar and retry logic.
+
+    :param str url: URL to download from.
+    :param save_path: Optional path to save file (defaults to temp directory).
+    :type save_path: str or Path
+    :returns: Path to downloaded file.
+    :rtype: Path
     """
     if not save_path:
         name = Path(urlparse(unquote(url)).path).name
@@ -267,33 +342,41 @@ def download_file(url, save_path: str | Path = None) -> Path:
 
 
 def splitall(path):
-    r"""Split path into all its components
+    r"""Split path into all its components.
 
-    >>> splitall('a/b/c')
-    ['a', 'b', 'c']
-    >>> splitall('/a/b/c/')
-    ['/', 'a', 'b', 'c', '']
-    >>> splitall('/')
-    ['/']
-    >>> splitall('C:')
-    ['C:']
-    >>> splitall('C:\\')
-    ['C:\\']
-    >>> splitall('C:\\a')
-    ['C:\\', 'a']
-    >>> splitall('C:\\a\\')
-    ['C:\\', 'a', '']
-    >>> splitall('C:\\a\\b')
-    ['C:\\', 'a', 'b']
-    >>> splitall('a\\\\b')
-    ['a', 'b']
+    Works with both Unix and Windows paths.
+
+    :param str path: Path string to split.
+    :returns: List of path components.
+    :rtype: list
+    :raises TypeError: If path is not a string.
+
+    Example::
+
+        >>> splitall('a/b/c')
+        ['a', 'b', 'c']
+        >>> splitall('/a/b/c/')
+        ['/', 'a', 'b', 'c', '']
+        >>> splitall('/')
+        ['/']
+        >>> splitall('C:')
+        ['C:']
+        >>> splitall('C:\\')
+        ['C:\\']
+        >>> splitall('C:\\a')
+        ['C:\\', 'a']
+        >>> splitall('C:\\a\\')
+        ['C:\\', 'a', '']
+        >>> splitall('C:\\a\\b')
+        ['C:\\', 'a', 'b']
+        >>> splitall('a\\\\b')
+        ['a', 'b']
     """
     if not isinstance(path, str):
         raise TypeError('Path must be a string')
     if not path:
         return []
 
-    # Handle a possible Windows drive
     drive = ''
     if len(path) >= 2 and path[1] == ':':
         if len(path) == 2:
@@ -304,41 +387,38 @@ def splitall(path):
             # e.g. "C:\" with nothing else
             return [drive + '\\']
 
-    # Convert backslashes to forward slashes for splitting
     path = path.replace('\\', '/')
     path = re.sub(r'/+', '/', path)  # Remove consecutive slashes
 
-    # If the entire path is just "/", return ["/"]
     if path == '/':
         return ['/']
 
-    # Check if it's absolute (leading slash)
     is_absolute = path.startswith('/')
 
-    # Remove leading/trailing slashes for split, then add back empty parts if needed
     core = path.strip('/')
     parts = core.split('/') if core else []
     if path.endswith('/'):
         parts.append('')
 
-    # If it's a drive path, reattach drive
     if drive:
         return [drive + '\\'] + parts
 
-    # If it was absolute (Unix style), prepend "/"
     if is_absolute:
         return ['/'] + parts
 
-    # Otherwise, it's just relative parts
     return parts
 
 
 def resplit(path, *args):
-    r"""Split path by multiple args
-    >> path = "/First/Second/Third\\Fourth\\Fifth\\Sixth.txt"
-    >> resplit(path, '/', '/', '\\')
+    r"""Split path by multiple separators.
 
-    TODO: tests pass on Windows, not on nix, better way? Not safe to use!
+    :param str path: Path to split.
+    :param args: Separator characters to split on.
+    :returns: List of path components.
+    :rtype: list
+
+    .. warning::
+        Tests pass on Windows, not on nix. Not safe to use!
     """
     return re.split('|'.join(re.escape(a) for a in args), path)
 

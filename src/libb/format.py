@@ -24,28 +24,30 @@ __all__ = [
 
 
 def format(value, style):
-    """Format a numeric value supporting things
-    like commas, parens for negative values and
-    special cases for zeros.
+    """Format a numeric value with various formatting options.
 
-    Style is:
+    Supports commas, parens for negative values, and special cases for zeros.
 
-    'n[cpzZkKmMbBsS%#]/[kmb]'  ex: '2c', '0cpz', '1%', '1s'
+    :param value: Numeric value to format.
+    :param str style: Format specification string.
+    :returns: Formatted string.
+    :rtype: str
 
-    n   - number of decimals
-    c   - use commas
-    p   - wrap negative numbers in parenthesis
-    z   - use a ' ' for zero values
-    Z   - use a '-' for zero values
-    K/k - convert to thousands and add 'K' suffix
-    M/m - convert to millions and add 'M' suffix
-    B/b - convert to billions and add 'B' suffix
-    S/s - convert to shorter of KMB formats
-    %   - scale by 100 and add a percent sign at the end (unless z/Z)
-    #   - scale by 10000 and add 'bps' at the end
+    Style format: ``n[cpzZkKmMbBsS%#]/[kmb]`` (e.g., ``'2c'``, ``'0cpz'``, ``'1%'``, ``'1s'``)
 
-    /x  - divide the number by 1e3 (k), 1e6 (m), 1e9 (b) first
-          (does not append the units like KMB do)
+    - **n** - number of decimals
+    - **c** - use commas
+    - **p** - wrap negative numbers in parenthesis
+    - **z** - use a ' ' for zero values
+    - **Z** - use a '-' for zero values
+    - **K/k** - convert to thousands and add 'K' suffix
+    - **M/m** - convert to millions and add 'M' suffix
+    - **B/b** - convert to billions and add 'B' suffix
+    - **S/s** - convert to shorter of KMB formats
+    - **%** - scale by 100 and add a percent sign at the end (unless z/Z)
+    - **#** - scale by 10000 and add 'bps' at the end
+    - **/x** - divide the number by 1e3 (k), 1e6 (m), 1e9 (b) first
+      (does not append the units like KMB do)
     """
     if isinstance(value, str):
         value = value.strip()
@@ -152,6 +154,13 @@ fmt = format
 
 
 def format_timeinterval(start, end=None):
+    """Format a time interval as human-readable string.
+
+    :param datetime start: Start datetime.
+    :param datetime end: End datetime (defaults to now).
+    :returns: Human-readable time interval string.
+    :rtype: str
+    """
     if not end:
         end = datetime.datetime.now()
 
@@ -159,11 +168,22 @@ def format_timeinterval(start, end=None):
 
 
 def format_secondsdelta(seconds):
-    """Useful for database time differences"""
+    """Format seconds as human-readable time delta.
+
+    :param float seconds: Number of seconds.
+    :returns: Human-readable time string.
+    :rtype: str
+    """
     return format_timedelta(datetime.timedelta(0, seconds, 0))
 
 
 def format_timedelta(td):
+    """Format a timedelta as human-readable string.
+
+    :param timedelta td: Time delta to format.
+    :returns: Human-readable string (e.g., '2 hrs', '30 min').
+    :rtype: str
+    """
     def fmt_num(val, units):
         s = f'{val:.1f} {units}'
         # HACK works but ugly
@@ -187,28 +207,34 @@ def format_timedelta(td):
 
 
 def commafy(n):
-    """Add commas to an integer `n`.
+    """Add commas to a numeric value.
 
-    >>> commafy(1)
-    '1'
-    >>> commafy(123)
-    '123'
-    >>> commafy(-123)
-    '-123'
-    >>> commafy(1234)
-    '1,234'
-    >>> commafy(1234567890)
-    '1,234,567,890'
-    >>> commafy(123.0)
-    '123.0'
-    >>> commafy(1234.5)
-    '1,234.5'
-    >>> commafy(1234.56789)
-    '1,234.56789'
-    >>> commafy(f'{-1234.5:.2f}')
-    '-1,234.50'
-    >>> commafy(None)
-    >>>
+    :param n: Number or string to add commas to.
+    :returns: String with comma separators.
+    :rtype: str or None
+
+    Example::
+
+        >>> commafy(1)
+        '1'
+        >>> commafy(123)
+        '123'
+        >>> commafy(-123)
+        '-123'
+        >>> commafy(1234)
+        '1,234'
+        >>> commafy(1234567890)
+        '1,234,567,890'
+        >>> commafy(123.0)
+        '123.0'
+        >>> commafy(1234.5)
+        '1,234.5'
+        >>> commafy(1234.56789)
+        '1,234.56789'
+        >>> commafy(f'{-1234.5:.2f}')
+        '-1,234.50'
+        >>> commafy(None)
+        >>>
     """
     if n is None:
         return None
@@ -234,12 +260,19 @@ def commafy(n):
 
 
 def splitcap(s, delim=None):
-    """Split and capitalize string by delimiter (or camelcase)
+    """Split and capitalize string by delimiter (or camelcase).
 
-    >>> splitcap("foo_bar")
-    'Foo Bar'
-    >>> splitcap("fooBar")
-    'Foo Bar'
+    :param str s: String to split and capitalize.
+    :param str delim: Delimiter to split on (auto-detected if None).
+    :returns: Title-cased string with spaces.
+    :rtype: str
+
+    Example::
+
+        >>> splitcap("foo_bar")
+        'Foo Bar'
+        >>> splitcap("fooBar")
+        'Foo Bar'
     """
     if not delim:
         if '_' in s:
@@ -254,14 +287,20 @@ def splitcap(s, delim=None):
 
 
 def capwords(s):
-    """Capitelize words in a string, accomodates acronyms
+    """Capitalize words in a string, accommodating acronyms.
 
-    >>> capwords("f.o.o")
-    'F.O.O'
-    >>> capwords("bar")
-    'Bar'
-    >>> capwords("foo bar")
-    'Foo Bar'
+    :param str s: String to capitalize.
+    :returns: Capitalized string.
+    :rtype: str
+
+    Example::
+
+        >>> capwords("f.o.o")
+        'F.O.O'
+        >>> capwords("bar")
+        'Bar'
+        >>> capwords("foo bar")
+        'Foo Bar'
     """
 
     def _callback(match):
@@ -274,14 +313,20 @@ def capwords(s):
 
 
 def capitalize(s):
-    """Special capitalization
+    """Capitalize with special handling for known abbreviations.
 
-    >>> capitalize('goo')
-    'Goo'
-    >>> capitalize('mv')
-    'MV'
-    >>> capitalize('pct')
-    '%'
+    :param str s: String to capitalize.
+    :returns: Capitalized string or known abbreviation.
+    :rtype: str
+
+    Example::
+
+        >>> capitalize('goo')
+        'Goo'
+        >>> capitalize('mv')
+        'MV'
+        >>> capitalize('pct')
+        '%'
     """
     KNOWN = {
         'mtd': 'MTD',
@@ -305,13 +350,17 @@ def capitalize(s):
 
 
 def titlecase(s):
-    """Wrapper around python-titlecase"""
+    """Convert string to title case using python-titlecase library.
+
+    :param str s: String to convert.
+    :returns: Title-cased string.
+    :rtype: str
+    """
     return _titlecase(s)
 
 
 class Percent(float):
-    """A haq to format as percentages pivoted display tables
-    """
+    """Float subclass that marks values for percentage formatting in display tables."""
 
     def __new__(cls, val):
         p = float.__new__(cls, val)
@@ -320,10 +369,16 @@ class Percent(float):
 
 
 def format_phone(phone):
-    """Reformat phone numbers for display
+    """Reformat phone numbers for display.
 
-    >>> format_phone('6877995559')
-    '687-799-5559'
+    :param phone: Phone number as string or integer.
+    :returns: Formatted phone number with dashes.
+    :rtype: str
+
+    Example::
+
+        >>> format_phone('6877995559')
+        '687-799-5559'
     """
     pstr = str(phone)
     parr = [pstr[-10:-7], pstr[-7:-4], pstr[-4:]]

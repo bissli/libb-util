@@ -17,63 +17,66 @@ class attrdict(dict):
     This is a dictionary that allows access to its keys as attributes
     (using dot notation) in addition to standard dictionary access methods.
 
-    Examples
+    Basic Usage::
 
-    >>> import copy
-    >>> d = attrdict(x=10, y='foo')
-    >>> d.x
-    10
-    >>> d['x']
-    10
-    >>> d.y = 'baa'
-    >>> d['y']
-    'baa'
-    >>> g = d.copy()
-    >>> g.x = 11
-    >>> d.x
-    10
-    >>> d.z = 1
-    >>> d.z
-    1
-    >>> 'x' in d
-    True
-    >>> 'w' in d
-    False
-    >>> d.get('x')
-    10
-    >>> d.get('w')
-    >>> tricky = [d, g]
-    >>> tricky2 = copy.copy(tricky)
-    >>> tricky2[1].x
-    11
-    >>> tricky2[1].x = 12
-    >>> tricky[1].x
-    12
-    >>> righty = copy.deepcopy(tricky)
-    >>> righty[1].x
-    12
-    >>> righty[1].x = 13
-    >>> tricky[1].x
-    12
+        >>> import copy
+        >>> d = attrdict(x=10, y='foo')
+        >>> d.x
+        10
+        >>> d['x']
+        10
+        >>> d.y = 'baa'
+        >>> d['y']
+        'baa'
+        >>> g = d.copy()
+        >>> g.x = 11
+        >>> d.x
+        10
+        >>> d.z = 1
+        >>> d.z
+        1
+        >>> 'x' in d
+        True
+        >>> 'w' in d
+        False
+        >>> d.get('x')
+        10
+        >>> d.get('w')
 
-    Access methods:
-    Handles obj.get('attr'), obj['attr'], and obj.attr
-    >>> class A(attrdict):
-    ...     @property
-    ...     def x(self):
-    ...         return 1
-    >>> a = A()
-    >>> a['x'] == a.x == a.get('x')
-    True
-    >>> a.get('b')
-    >>> a['b']
-    Traceback (most recent call last):
-        ...
-    KeyError: 'b'
-    >>> a.b
-    Traceback (most recent call last):
-        ...
-    AttributeError: b
+    Deep Copy Behavior::
+
+        >>> tricky = [d, g]
+        >>> tricky2 = copy.copy(tricky)
+        >>> tricky2[1].x
+        11
+        >>> tricky2[1].x = 12
+        >>> tricky[1].x
+        12
+        >>> righty = copy.deepcopy(tricky)
+        >>> righty[1].x
+        12
+        >>> righty[1].x = 13
+        >>> tricky[1].x
+        12
+
+    Access Methods (handles ``obj.get('attr')``, ``obj['attr']``, and ``obj.attr``)::
+
+        >>> class A(attrdict):
+        ...     @property
+        ...     def x(self):
+        ...         return 1
+        >>> a = A()
+        >>> a['x'] == a.x == a.get('x')
+        True
+        >>> a.get('b')
+        >>> a['b']
+        Traceback (most recent call last):
+            ...
+        KeyError: 'b'
+        >>> a.b
+        Traceback (most recent call last):
+            ...
+        AttributeError: b
     """
 
     __slots__ = ()
@@ -122,38 +125,35 @@ class lazydict(attrdict):
     Functions stored as values are called with the dictionary as argument
     when the key is accessed, making them behave like computed properties.
 
-    Examples
+    Basic Usage::
 
-    >>> a = lazydict(a=1, b=2, c=lambda x: x.a+x.b)
-    >>> a.c
-    3
-    >>> a.a = 99
-    >>> a.c  # Recalculated with new value
-    101
-    >>> a.z = 1
-    >>> a.z
-    1
+        >>> a = lazydict(a=1, b=2, c=lambda x: x.a+x.b)
+        >>> a.c
+        3
+        >>> a.a = 99
+        >>> a.c  # Recalculated with new value
+        101
+        >>> a.z = 1
+        >>> a.z
+        1
 
-    Ensure we don't share descriptors between instancess
+    Instance Isolation (descriptors are not shared between instances)::
 
-    >>> z = lazydict(a=2, y=4, f=lambda x: x.a*x.y)
-    >>> z.b
-    Traceback (most recent call last):
-        ...
-    AttributeError: b
-    >>> z.c
-    Traceback (most recent call last):
-        ...
-    AttributeError: c
-    >>> z.f
-    8
-
-    Verify instance isolation
-
-    >>> a.f
-    Traceback (most recent call last):
-        ...
-    AttributeError: f
+        >>> z = lazydict(a=2, y=4, f=lambda x: x.a*x.y)
+        >>> z.b
+        Traceback (most recent call last):
+            ...
+        AttributeError: b
+        >>> z.c
+        Traceback (most recent call last):
+            ...
+        AttributeError: c
+        >>> z.f
+        8
+        >>> a.f
+        Traceback (most recent call last):
+            ...
+        AttributeError: f
     """
 
     __slots__ = ()
@@ -173,22 +173,22 @@ class emptydict(attrdict):
     Similar to attrdict but returns None instead of raising KeyError or AttributeError
     when accessing non-existing keys.
 
-    Examples
+    Basic Usage::
 
-    >>> a = emptydict(a=1, b=2)
-    >>> a.c == None
-    True
-    >>> a.b
-    2
-    >>> a['b']
-    2
-    >>> 'c' in a
-    False
-    >>> 'b' in a
-    True
-    >>> a.get('b')
-    2
-    >>> a.get('c')
+        >>> a = emptydict(a=1, b=2)
+        >>> a.c == None
+        True
+        >>> a.b
+        2
+        >>> a['b']
+        2
+        >>> 'c' in a
+        False
+        >>> 'b' in a
+        True
+        >>> a.get('b')
+        2
+        >>> a.get('c')
     """
 
     __slots__ = ()
@@ -212,42 +212,42 @@ class bidict(dict):
     Maintains an inverse mapping from values to lists of keys that enables
     bidirectional lookup.
 
-    Examples
+    Basic Usage::
 
-    >>> bd = bidict({'a': 1, 'b': 2})
-    >>> bd
-    {'a': 1, 'b': 2}
-    >>> bd.inverse
-    {1: ['a'], 2: ['b']}
+        >>> bd = bidict({'a': 1, 'b': 2})
+        >>> bd
+        {'a': 1, 'b': 2}
+        >>> bd.inverse
+        {1: ['a'], 2: ['b']}
 
-    Multiple keys can have the same value
+    Multiple Keys with Same Value::
 
-    >>> bd['c'] = 1
-    >>> bd
-    {'a': 1, 'b': 2, 'c': 1}
-    >>> bd.inverse
-    {1: ['a', 'c'], 2: ['b']}
+        >>> bd['c'] = 1
+        >>> bd
+        {'a': 1, 'b': 2, 'c': 1}
+        >>> bd.inverse
+        {1: ['a', 'c'], 2: ['b']}
 
-    Removing keys updates inverse mapping
+    Removing Keys Updates Inverse::
 
-    >>> del bd['c']
-    >>> bd
-    {'a': 1, 'b': 2}
-    >>> bd.inverse
-    {1: ['a'], 2: ['b']}
-    >>> del bd['a']
-    >>> bd
-    {'b': 2}
-    >>> bd.inverse
-    {2: ['b']}
+        >>> del bd['c']
+        >>> bd
+        {'a': 1, 'b': 2}
+        >>> bd.inverse
+        {1: ['a'], 2: ['b']}
+        >>> del bd['a']
+        >>> bd
+        {'b': 2}
+        >>> bd.inverse
+        {2: ['b']}
 
-    Changing values updates inverse mapping
+    Changing Values Updates Inverse::
 
-    >>> bd['b'] = 3
-    >>> bd
-    {'b': 3}
-    >>> bd.inverse
-    {2: [], 3: ['b']}
+        >>> bd['b'] = 3
+        >>> bd
+        {'b': 3}
+        >>> bd.inverse
+        {2: [], 3: ['b']}
     """
 
     __slots__ = ('inverse',)

@@ -70,8 +70,10 @@ __all__ = [
 
 
 def npfunc(nargs=1):
-    """Convert input args into numpy input format, then convert result back to
-    standard Python
+    """Decorator to convert args to numpy format and results back to Python.
+
+    :param int nargs: Number of arguments to convert to numpy arrays.
+    :returns: Decorator function.
     """
     def wrapper(fn):
         @wraps(fn)
@@ -109,27 +111,35 @@ def _topy(x):
 @suppresswarning
 @npfunc(1)
 def avg(x: Iterable):
-    """Average of array x
+    """Compute average of array, ignoring None/NaN values.
 
-    >>> avg((-1.5, 2,))
-    0.25
-    >>> avg((None, 2,))
-    2.0
-    >>> avg((None, None,)) is None
-    True
+    :param Iterable x: Array of values.
+    :returns: Average or None if all values are NaN.
+
+    Example::
+
+        >>> avg((-1.5, 2,))
+        0.25
+        >>> avg((None, 2,))
+        2.0
+        >>> avg((None, None,)) is None
+        True
     """
     return np.nanmean([_ for _ in x if not np.isnan(_)])
 
 
 @npfunc(1)
 def pct_change(x: Iterable):
-    """Percent change of elements in array x
+    """Compute percent change between consecutive elements.
 
-    Should allow args or array
+    :param Iterable x: Array of values.
+    :returns: Array of percent changes (first element is None).
 
-    >>> a = [1, 1, 1.5, 1, 2, 1.11, -1]
-    >>> [f"{_:.2f}" if _ else _ for _ in pct_change(a)]
-    [None, 0.0, '0.50', '-0.33', '1.00', '-0.44', '-1.90']
+    Example::
+
+        >>> a = [1, 1, 1.5, 1, 2, 1.11, -1]
+        >>> [f"{_:.2f}" if _ else _ for _ in pct_change(a)]
+        [None, 0.0, '0.50', '-0.33', '1.00', '-0.44', '-1.90']
     """
     onep = np.array([np.nan])
     pchg = np.diff(x) / np.abs(x[:-1])
@@ -138,10 +148,15 @@ def pct_change(x: Iterable):
 
 @npfunc(1)
 def diff(x: Iterable):
-    """One period diff function
+    """Compute one-period difference between consecutive elements.
 
-    >>> [_ for _ in diff((0, 1, 3, 2, 1, 5, 4))]
-    [None, 1.0, 2.0, -1.0, -1.0, 4.0, -1.0]
+    :param Iterable x: Array of values.
+    :returns: Array of differences (first element is None).
+
+    Example::
+
+        >>> [_ for _ in diff((0, 1, 3, 2, 1, 5, 4))]
+        [None, 1.0, 2.0, -1.0, -1.0, 4.0, -1.0]
     """
     onep = np.array([np.nan])
     return np.concatenate((onep, np.diff(x)), axis=0)
@@ -152,28 +167,33 @@ def diff(x: Iterable):
 #
 
 
-# move out
 def thresh(x, thresh=0.0):
-    """Rounding function that rounds up or down by to nearest whole number
-    if the number is within a threshold distance
+    """Round to nearest integer if within threshold distance.
 
-    Positive numbers
-    >>> thresh(74.9888, 0.05)
-    75
-    >>> thresh(75.01, 0.05)
-    75
+    :param float x: Number to potentially round.
+    :param float thresh: Distance threshold for rounding.
+    :returns: Rounded integer or original value.
 
-    Negative numbers
-    >>> thresh(-74.988, 0.05)
-    -75
-    >>> thresh(-75.01, 0.05)
-    -75
+    Positive Numbers::
 
-    Return original
-    >>> thresh(74.90, 0.05)
-    74.9
-    >>> thresh(75.06, 0.05)
-    75.06
+        >>> thresh(74.9888, 0.05)
+        75
+        >>> thresh(75.01, 0.05)
+        75
+
+    Negative Numbers::
+
+        >>> thresh(-74.988, 0.05)
+        -75
+        >>> thresh(-75.01, 0.05)
+        -75
+
+    Return Original::
+
+        >>> thresh(74.90, 0.05)
+        74.9
+        >>> thresh(75.06, 0.05)
+        75.06
     """
     assert thresh >= 0.0
     f, c = floor(x), ceil(x)
@@ -185,39 +205,47 @@ def thresh(x, thresh=0.0):
 
 
 def isnumeric(x):
+    """Check if value is a numeric type.
+
+    :param x: Value to check.
+    :returns: True if numeric (int, float, or numpy numeric).
+    :rtype: bool
+    """
     return np.issubdtype(x, np.integer) or np.issubdtype(x, np.floating) or isinstance(x, int | float)
 
 
-# move out
 def digits(n):
-    """Number of digits
+    """Count number of integer digits in a number.
 
-    >>> digits(6e6)
-    7
-    >>> digits(100.01)
-    3
-    >>> digits(-6e5)==digits(-600000)==6
-    True
-    >>> digits(-100.)==digits(100)==3
-    True
+    :param n: Number to count digits of.
+    :returns: Number of integer digits.
+    :rtype: int
+
+    Example::
+
+        >>> digits(6e6)
+        7
+        >>> digits(100.01)
+        3
+        >>> digits(-6e5)==digits(-600000)==6
+        True
+        >>> digits(-100.)==digits(100)==3
+        True
     """
     if n == 0:
         return 1
     return int(log10(abs(n))) + 1
 
 
-# move out
 def numify(val, to=float):
     """Convert value to numeric type, handling common formatting.
 
-    Handles:
-    - None values (returns None)
-    - Already numeric (int/float)
-    - String formatting: whitespace, commas, parentheses (negative), percentages
-    - Invalid values (returns None)
+    Handles None values, already numeric values, and string formatting
+    including whitespace, commas, parentheses (negative), and percentages.
 
-    Returns
-        Converted value of type 'to', or None if conversion fails
+    :param val: Value to convert.
+    :param type to: Target type (default: float).
+    :returns: Converted value or None if conversion fails.
     """
     # Handle None input
     if val is None:
@@ -280,23 +308,27 @@ def numify(val, to=float):
         return None
 
 
-# move out
 def parse(s):
-    """Extract number from string
+    """Extract number from string.
 
-    >>> parse('1,200m')
-    1200
-    >>> parse('100.0')
-    100.0
-    >>> parse('100')
-    100
-    >>> parse('0.002k')
-    0.002
-    >>> parse('-1')==parse('(1)')==-1
-    True
-    >>> parse('-100.0')==parse('(100.)')==-100.0
-    True
-    >>> parse('')
+    :param s: String to parse.
+    :returns: Parsed int or float, or None if parsing fails.
+
+    Example::
+
+        >>> parse('1,200m')
+        1200
+        >>> parse('100.0')
+        100.0
+        >>> parse('100')
+        100
+        >>> parse('0.002k')
+        0.002
+        >>> parse('-1')==parse('(1)')==-1
+        True
+        >>> parse('-100.0')==parse('(100.)')==-100.0
+        True
+        >>> parse('')
     """
     try:
         num = ''.join(re.findall(r'[\(-\d\.\)]+', str(s)))
@@ -307,16 +339,22 @@ def parse(s):
         pass
 
 
-# move out
 def nearest(num, decimals):
-    """Given a number, round it to the nearest tick. Very useful for sussing
-    float error out of numbers. Use this after adding/subtracting/multiplying
-    numbers.
+    """Round number to the nearest tick value.
 
-    >>> nearest(401.4601, 0.01)
-    401.46
-    >>> nearest(401.46001, 0.0000000001)
-    401.46001
+    Useful for eliminating float errors after arithmetic operations.
+
+    :param float num: Number to round.
+    :param float decimals: Tick size to round to.
+    :returns: Rounded number.
+    :rtype: float
+
+    Example::
+
+        >>> nearest(401.4601, 0.01)
+        401.46
+        >>> nearest(401.46001, 0.0000000001)
+        401.46001
     """
     if not num:
         return num
@@ -326,12 +364,19 @@ def nearest(num, decimals):
 
 @npfunc(2)
 def covarp(x, y):
-    """Population covariance between x and y (n)
+    """Compute population covariance between x and y.
 
-    >>> x = [3, 2, 4, 5, 6]
-    >>> y = [9, 7, 12, 15, 17]
-    >>> "{:.5}".format(covarp(x, y))
-    '5.2'
+    :param x: First array.
+    :param y: Second array (same length as x).
+    :returns: Population covariance.
+    :rtype: float
+
+    Example::
+
+        >>> x = [3, 2, 4, 5, 6]
+        >>> y = [9, 7, 12, 15, 17]
+        >>> "{:.5}".format(covarp(x, y))
+        '5.2'
     """
     assert len(x) == len(y)
     assert len(x) > 0
@@ -340,12 +385,19 @@ def covarp(x, y):
 
 @npfunc(2)
 def covars(x, y):
-    """Sample covariance between x and y (n)
+    """Compute sample covariance between x and y.
 
-    >>> x = [3, 2, 4, 5, 6]
-    >>> y = [9, 7, 12, 15, 17]
-    >>> "{:.5}".format(covars(x, y))
-    '6.5'
+    :param x: First array.
+    :param y: Second array (same length as x).
+    :returns: Sample covariance.
+    :rtype: float
+
+    Example::
+
+        >>> x = [3, 2, 4, 5, 6]
+        >>> y = [9, 7, 12, 15, 17]
+        >>> "{:.5}".format(covars(x, y))
+        '6.5'
     """
     assert len(x) == len(y)
     assert len(x) > 0
@@ -357,11 +409,17 @@ covar = covarp  # default, like Excel
 
 @npfunc(1)
 def varp(x):
-    """Population variance of x (n)
+    """Compute population variance of x.
 
-    >>> x = [1345, 1301, 1368, 1322, 1310, 1370, 1318, 1350, 1303, 1299]
-    >>> "{:.5}".format(varp(x))
-    '678.84'
+    :param x: Array of values.
+    :returns: Population variance.
+    :rtype: float
+
+    Example::
+
+        >>> x = [1345, 1301, 1368, 1322, 1310, 1370, 1318, 1350, 1303, 1299]
+        >>> "{:.5}".format(varp(x))
+        '678.84'
     """
     assert len(x) > 0
     return np.var(x, ddof=0)
@@ -369,11 +427,17 @@ def varp(x):
 
 @npfunc(1)
 def vars(x):
-    """Sample variance of x (n)
+    """Compute sample variance of x.
 
-    >>> x = [1345, 1301, 1368, 1322, 1310, 1370, 1318, 1350, 1303, 1299]
-    >>> "{:.5}".format(vars(x))
-    '754.27'
+    :param x: Array of values.
+    :returns: Sample variance.
+    :rtype: float
+
+    Example::
+
+        >>> x = [1345, 1301, 1368, 1322, 1310, 1370, 1318, 1350, 1303, 1299]
+        >>> "{:.5}".format(vars(x))
+        '754.27'
     """
     assert len(x) > 0
     return np.var(x, ddof=1)
@@ -384,20 +448,34 @@ var = vars  # default, like Excel
 
 @npfunc(1)
 def stddevp(x):
-    """
-    >>> x = [1345, 1301, 1368, 1322, 1310, 1370, 1318, 1350, 1303, 1299]
-    >>> "{:.5}".format(stddevp(x))
-    '26.055'
+    """Compute population standard deviation.
+
+    :param x: Array of values.
+    :returns: Population standard deviation.
+    :rtype: float
+
+    Example::
+
+        >>> x = [1345, 1301, 1368, 1322, 1310, 1370, 1318, 1350, 1303, 1299]
+        >>> "{:.5}".format(stddevp(x))
+        '26.055'
     """
     return np.nanstd(x, ddof=0)
 
 
 @npfunc(1)
 def stddevs(x):
-    """
-    >>> x = [1345, 1301, 1368, 1322, 1310, 1370, 1318, 1350, 1303, 1299]
-    >>> "{:.5}".format(stddevs(x))
-    '27.464'
+    """Compute sample standard deviation.
+
+    :param x: Array of values.
+    :returns: Sample standard deviation.
+    :rtype: float
+
+    Example::
+
+        >>> x = [1345, 1301, 1368, 1322, 1310, 1370, 1318, 1350, 1303, 1299]
+        >>> "{:.5}".format(stddevs(x))
+        '27.464'
     """
     return np.nanstd(x, ddof=1)
 
@@ -407,24 +485,38 @@ stddev = stddevs  # default, like Excel
 
 @npfunc(2)
 def beta(x, index):
-    """Beta of x with respect to index, generally over returns
+    """Compute beta of x with respect to index (typically over returns).
 
-    >>> x = [0.10, 0.18, -0.15, 0.18]
-    >>> y = [0.10, 0.17, -0.17, 0.17]
-    >>> '{:.2}'.format(beta(x, y))
-    '0.97'
+    :param x: Asset returns.
+    :param index: Index returns.
+    :returns: Beta coefficient.
+    :rtype: float
+
+    Example::
+
+        >>> x = [0.10, 0.18, -0.15, 0.18]
+        >>> y = [0.10, 0.17, -0.17, 0.17]
+        >>> '{:.2}'.format(beta(x, y))
+        '0.97'
     """
     return covarp(x, index) / varp(index)
 
 
 @npfunc(2)
 def correl(x, y):
-    """Correlation between x and y
+    """Compute correlation between x and y.
 
-    >>> x = [3, 2, 4, 5, 6]
-    >>> y = [9, 7, 12, 15, 17]
-    >>> "{:.3}".format(correl(x, y))
-    '0.997'
+    :param x: First array.
+    :param y: Second array.
+    :returns: Correlation coefficient.
+    :rtype: float
+
+    Example::
+
+        >>> x = [3, 2, 4, 5, 6]
+        >>> y = [9, 7, 12, 15, 17]
+        >>> "{:.3}".format(correl(x, y))
+        '0.997'
     """
     assert len(x) == len(y)
     return np.corrcoef(x, y)[0, 1]
@@ -432,12 +524,19 @@ def correl(x, y):
 
 @npfunc(2)
 def rsq(x, y):
-    """Correlation coefficient between x and y
+    """Compute R-squared (coefficient of determination) between x and y.
 
-    >>> x = [ 6, 5, 11, 7, 5, 4, 4]
-    >>> y = [ 2, 3,  9, 1, 8, 7, 5]
-    >>> "{:.5}".format(rsq(x, y))
-    '0.05795'
+    :param x: First array.
+    :param y: Second array.
+    :returns: R-squared value.
+    :rtype: float
+
+    Example::
+
+        >>> x = [ 6, 5, 11, 7, 5, 4, 4]
+        >>> y = [ 2, 3,  9, 1, 8, 7, 5]
+        >>> "{:.5}".format(rsq(x, y))
+        '0.05795'
     """
     assert len(x) == len(y)
     return np.corrcoef(x, y)[0, 1] ** 2
@@ -445,11 +544,16 @@ def rsq(x, y):
 
 @npfunc(1)
 def rtns(x):
-    """Returns between consecutive values in x
+    """Compute simple returns between consecutive values.
 
-    >>> pp = rtns([1., 1.1, 1.3, 1.1, 1.3])
-    >>> [f'{x:0.2f}' for x in pp]
-    ['0.10', '0.18', '-0.15', '0.18']
+    :param x: Array of prices.
+    :returns: Array of returns (one fewer element than input).
+
+    Example::
+
+        >>> pp = rtns([1., 1.1, 1.3, 1.1, 1.3])
+        >>> [f'{x:0.2f}' for x in pp]
+        ['0.10', '0.18', '-0.15', '0.18']
     """
     assert len(x) > 1
     return np.diff(x) / x[:-1]
@@ -457,11 +561,16 @@ def rtns(x):
 
 @npfunc(1)
 def logrtns(x):
-    """Natural logarithm of returns between consecurive values in x
+    """Compute log returns between consecutive values.
 
-    >>> pp = logrtns([1., 1.1, 1.3, 1.1, 1.3])
-    >>> [f'{x:0.2f}' for x in pp]
-    ['0.10', '0.17', '-0.17', '0.17']
+    :param x: Array of prices.
+    :returns: Array of log returns (one fewer element than input).
+
+    Example::
+
+        >>> pp = logrtns([1., 1.1, 1.3, 1.1, 1.3])
+        >>> [f'{x:0.2f}' for x in pp]
+        ['0.10', '0.17', '-0.17', '0.17']
     """
     assert len(x) > 1
     return np.diff(np.log(x))
@@ -512,11 +621,22 @@ def distance_from_line(m, b, x, y):
 
 
 def linterp(x0, x1, x, y0, y1):
-    """Linearly interpolate y between y0 and y1 based on x's distance between x0 and x1
-    >>> linterp(1, 3, 2, 2, 4)
-    3.0
-    >>> linterp(1, float('inf'), 2, 2, 4)
-    2.0
+    """Linearly interpolate y between y0 and y1 based on x's position.
+
+    :param x0: Start of x range.
+    :param x1: End of x range.
+    :param x: Value to interpolate at.
+    :param y0: Y value at x0.
+    :param y1: Y value at x1.
+    :returns: Interpolated y value.
+    :rtype: float
+
+    Example::
+
+        >>> linterp(1, 3, 2, 2, 4)
+        3.0
+        >>> linterp(1, float('inf'), 2, 2, 4)
+        2.0
     """
     return float(np.interp(x, [x0, x1], [y0, y1]))
 
@@ -543,14 +663,21 @@ def safe_diff(*args):
 
 
 def safe_divide(*args, **kwargs):
-    """
-    >>> '{:.2f}'.format(safe_divide(10, 5))
-    '2.00'
-    >>> '{:.2f}'.format(safe_divide(10, 1.5, 1))
-    '6.67'
-    >>> safe_divide(1, 0)
-    inf
-    >>> safe_divide(10, 1, None)
+    """Safely divide numbers, returning None if any arg is None.
+
+    :param args: Numbers to divide sequentially.
+    :param kwargs: Optional 'infinity' for division by zero result.
+    :returns: Result or None if any arg is None, inf on division by zero.
+
+    Example::
+
+        >>> '{:.2f}'.format(safe_divide(10, 5))
+        '2.00'
+        >>> '{:.2f}'.format(safe_divide(10, 1.5, 1))
+        '6.67'
+        >>> safe_divide(1, 0)
+        inf
+        >>> safe_divide(10, 1, None)
     """
     if not args:
         return None
@@ -653,34 +780,47 @@ _MIXED_NUMBER_FORMAT = re.compile(
 
 
 def convert_mixed_numeral_to_fraction(num: str):
-    """Basic reverse operation of `convert_to_mixed_numeral`"""
+    """Convert mixed numeral string to decimal fraction.
+
+    :param str num: Mixed numeral (e.g., '1 7/8').
+    :returns: Decimal equivalent.
+    :rtype: float
+    """
     return sum(float(Fraction(x)) for x in num.split(' '))
 
 
 def convert_to_mixed_numeral(num, force_sign=False):
-    """
-    >>> convert_to_mixed_numeral(1.875, True)
-    '+1 7/8'
-    >>> convert_to_mixed_numeral(-1.875)
-    '-1 7/8'
-    >>> convert_to_mixed_numeral(-.875)
-    '-7/8'
-    >>> convert_to_mixed_numeral('-1.875')
-    '-1 7/8'
-    >>> convert_to_mixed_numeral('1 7/8', False)
-    '1 7/8'
-    >>> convert_to_mixed_numeral('1-7/8', True)
-    '+1 7/8'
-    >>> convert_to_mixed_numeral('-1.5')
-    '-1 1/2'
-    >>> convert_to_mixed_numeral('6/7', True)
-    '+6/7'
-    >>> convert_to_mixed_numeral('1 6/7', False)
-    '1 6/7'
-    >>> convert_to_mixed_numeral(0)
-    '0'
-    >>> convert_to_mixed_numeral('0')
-    '0'
+    """Convert decimal or fraction to mixed numeral string.
+
+    :param num: Number or string to convert.
+    :param bool force_sign: Force '+' prefix on positive numbers.
+    :returns: Mixed numeral string (e.g., '1 7/8') or None on error.
+    :rtype: str
+
+    Example::
+
+        >>> convert_to_mixed_numeral(1.875, True)
+        '+1 7/8'
+        >>> convert_to_mixed_numeral(-1.875)
+        '-1 7/8'
+        >>> convert_to_mixed_numeral(-.875)
+        '-7/8'
+        >>> convert_to_mixed_numeral('-1.875')
+        '-1 7/8'
+        >>> convert_to_mixed_numeral('1 7/8', False)
+        '1 7/8'
+        >>> convert_to_mixed_numeral('1-7/8', True)
+        '+1 7/8'
+        >>> convert_to_mixed_numeral('-1.5')
+        '-1 1/2'
+        >>> convert_to_mixed_numeral('6/7', True)
+        '+6/7'
+        >>> convert_to_mixed_numeral('1 6/7', False)
+        '1 6/7'
+        >>> convert_to_mixed_numeral(0)
+        '0'
+        >>> convert_to_mixed_numeral('0')
+        '0'
     """
     try:
         num = float(num)
@@ -718,13 +858,19 @@ def convert_to_mixed_numeral(num, force_sign=False):
 
 
 def round_to_nearest(value: float, base) -> float:
-    """Simple function to round to nearest base
+    """Round value to nearest multiple of base.
 
-    >>> round_to_nearest(12, 25)
-    0
-    >>> round_to_nearest(26, 25)
-    25
+    :param float value: Value to round.
+    :param base: Base multiple to round to (must be >= 1).
+    :returns: Rounded value.
+    :rtype: float
 
+    Example::
+
+        >>> round_to_nearest(12, 25)
+        0
+        >>> round_to_nearest(26, 25)
+        25
     """
     assert base >= 1, 'This function is for base >= 1'
     if not value:
@@ -733,7 +879,7 @@ def round_to_nearest(value: float, base) -> float:
 
 
 class BBox:
-    """Bounding box for use with `overlaps` and `push_apart` functions"""
+    """Bounding box for use with :func:`overlaps` and :func:`push_apart`."""
 
     def __init__(self, x_coord, y_coord, width, height, name=''):
         self.x = float(x_coord)
@@ -790,22 +936,28 @@ def overlaps(*boxes):
 
 
 def push_apart(*boxes):
-    """Push apart bounding boxes until they do not overlap
+    """Push apart bounding boxes until they do not overlap.
 
-    From idea for https://stackoverflow.com/a/10739207
+    :param boxes: BBox objects to separate.
+    :raises AssertionError: If boxes cannot be separated in 100 tries.
 
-    >>> a = BBox(1, 1, 4, 2, 'a')
-    >>> a
-    BBox(a(1.000,1.000), -1.000:3.000, 0.000:2.000)
-    >>> b = BBox(1, 2, 3, 3, 'b')
-    >>> b
-    BBox(b(1.000,2.000), -0.500:2.500, 0.500:3.500)
+    .. note::
+        Based on idea from https://stackoverflow.com/a/10739207
 
-    >>> push_apart(a, b)
-    >>> a
-    BBox(a(4.045,-2.045), 2.045:6.045, -3.045:-1.045)
-    >>> b
-    BBox(b(0.067,5.225), -1.433:1.567, 3.725:6.725)
+    Example::
+
+        >>> a = BBox(1, 1, 4, 2, 'a')
+        >>> a
+        BBox(a(1.000,1.000), -1.000:3.000, 0.000:2.000)
+        >>> b = BBox(1, 2, 3, 3, 'b')
+        >>> b
+        BBox(b(1.000,2.000), -0.500:2.500, 0.500:3.500)
+
+        >>> push_apart(a, b)
+        >>> a
+        BBox(a(4.045,-2.045), 2.045:6.045, -3.045:-1.045)
+        >>> b
+        BBox(b(0.067,5.225), -1.433:1.567, 3.725:6.725)
     """
     tries = 0
     max_tries = 100
@@ -873,10 +1025,17 @@ def numpy_smooth(x: 'np.ndarray', window_len=11, window='hanning'):
 
 
 def choose(n, k):
-    """Simple implementation of n choose k (combinatorics)
+    """Compute binomial coefficient (n choose k).
 
-    >>> choose(10, 3)
-    120
+    :param int n: Total items.
+    :param int k: Items to choose.
+    :returns: Number of combinations.
+    :rtype: int
+
+    Example::
+
+        >>> choose(10, 3)
+        120
     """
     return int(round(reduce(operator.mul, (float(n - i) / (i + 1) for i in range(k)), 1)))
 

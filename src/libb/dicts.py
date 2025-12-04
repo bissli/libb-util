@@ -36,41 +36,72 @@ __all__ = [
 
 
 def ismapping(something):
-    """Does this look kinda sorta like a dict?
+    """Check if something is a mapping (dict-like).
 
-    >>> ismapping(dict())
-    True
+    :param something: Object to check.
+    :returns: True if the object is a mapping.
+    :rtype: bool
+
+    Example::
+
+        >>> ismapping(dict())
+        True
     """
     return isinstance(something, Mapping)
 
 
 def invert(dct):
+    """Invert a dictionary, swapping keys and values.
+
+    :param dict dct: Dictionary to invert.
+    :returns: New dictionary with keys and values swapped.
+    :rtype: dict
+    """
     return {v: k for k, v in list(dct.items())}
 
 
 def mapkeys(func, dct):
+    """Apply a function to all keys in a dictionary.
+
+    :param func: Function to apply to each key.
+    :param dict dct: Dictionary to transform.
+    :returns: New dictionary with transformed keys.
+    :rtype: dict
+    """
     return {func(key): val for key, val in list(dct.items())}
 
 
 def mapvals(func, dct):
+    """Apply a function to all values in a dictionary.
+
+    :param func: Function to apply to each value.
+    :param dict dct: Dictionary to transform.
+    :returns: New dictionary with transformed values.
+    :rtype: dict
+    """
     return {key: func(val) for key, val in list(dct.items())}
 
 
 def flatten(kv, prefix=None):
-    """Flatten list of dictionaries, recursively flattening nested ones
+    """Flatten a dictionary, recursively flattening nested dicts.
 
-    >>> data = [
-    ...     {'event': 'User Clicked', 'properties': {'user_id': '123', 'page_visited': 'contact_us'}},
-    ...     {'event': 'User Clicked', 'properties': {'user_id': '456', 'page_visited': 'homepage'}},
-    ...     {'event': 'User Clicked', 'properties': {'user_id': '789', 'page_visited': 'restaurant'}}
-    ... ]
+    :param dict kv: Dictionary to flatten.
+    :param list prefix: Internal prefix list for recursion (do not set manually).
+    :yields: Tuples of (flattened_key, value).
 
-    >>> from pandas import DataFrame
-    >>> df = DataFrame({k:v for k,v in flatten(kv)} for kv in data)
-    >>> list(df)
-    ['event', 'properties_user_id', 'properties_page_visited']
-    >>> len(df)
-    3
+    Example::
+
+        >>> data = [
+        ...     {'event': 'User Clicked', 'properties': {'user_id': '123', 'page_visited': 'contact_us'}},
+        ...     {'event': 'User Clicked', 'properties': {'user_id': '456', 'page_visited': 'homepage'}},
+        ...     {'event': 'User Clicked', 'properties': {'user_id': '789', 'page_visited': 'restaurant'}}
+        ... ]
+        >>> from pandas import DataFrame
+        >>> df = DataFrame({k:v for k,v in flatten(kv)} for kv in data)
+        >>> list(df)
+        ['event', 'properties_user_id', 'properties_page_visited']
+        >>> len(df)
+        3
     """
     if prefix is None:
         prefix = []
@@ -84,7 +115,12 @@ def flatten(kv, prefix=None):
 
 
 def unnest(d, keys=None):
-    """Recursively convert dict into list of tuples
+    """Recursively convert dict into list of tuples.
+
+    :param dict d: Dictionary to unnest.
+    :param list keys: Internal key accumulator (do not set manually).
+    :returns: List of tuples representing paths to leaf values.
+    :rtype: list
     """
     if keys is None:
         keys = []
@@ -99,23 +135,30 @@ def unnest(d, keys=None):
 
 @contextmanager
 def replacekey(d, key, newval):
-    """Handy bugger for temporarily patching a dict
+    """Context manager for temporarily patching a dictionary value.
 
-    >>> f = dict(x=13)
-    >>> with replacekey(f, 'x', 'pho'):
-    ...     f['x']
-    'pho'
-    >>> f['x']
-    13
+    :param dict d: Dictionary to patch.
+    :param key: Key to temporarily replace.
+    :param newval: Temporary value to set.
 
-    if the dict does not have the key set before, we return to that state
-    >>> import os, sys
-    >>> rand_key = str(int.from_bytes(os.urandom(10), sys.byteorder))
-    >>> with replacekey(os.environ, rand_key, '22'):
-    ...     os.environ[rand_key]=='22'
-    True
-    >>> rand_key in os.environ
-    False
+    Basic Usage::
+
+        >>> f = dict(x=13)
+        >>> with replacekey(f, 'x', 'pho'):
+        ...     f['x']
+        'pho'
+        >>> f['x']
+        13
+
+    If the dict does not have the key set before, we return to that state::
+
+        >>> import os, sys
+        >>> rand_key = str(int.from_bytes(os.urandom(10), sys.byteorder))
+        >>> with replacekey(os.environ, rand_key, '22'):
+        ...     os.environ[rand_key]=='22'
+        True
+        >>> rand_key in os.environ
+        False
     """
     wasset = key in d
     oldval = d.get(key)
@@ -129,23 +172,30 @@ def replacekey(d, key, newval):
 
 @contextmanager
 def replaceattr(obj, attrname, newval):
-    """Handy bugger for temporarily monkey patching an object
+    """Context manager for temporarily monkey patching an object attribute.
 
-    >>> class Foo: pass
-    >>> f = Foo()
-    >>> f.x = 13
-    >>> with replaceattr(f, 'x', 'pho'):
-    ...     f.x
-    'pho'
-    >>> f.x
-    13
+    :param obj: Object to patch.
+    :param str attrname: Attribute name to temporarily replace.
+    :param newval: Temporary value to set.
 
-    if the obj did not have the attr set, we remove it
-    >>> with replaceattr(f, 'y', 'boo'):
-    ...     f.y=='boo'
-    True
-    >>> hasattr(f, 'y')
-    False
+    Basic Usage::
+
+        >>> class Foo: pass
+        >>> f = Foo()
+        >>> f.x = 13
+        >>> with replaceattr(f, 'x', 'pho'):
+        ...     f.x
+        'pho'
+        >>> f.x
+        13
+
+    If the obj did not have the attr set, we remove it::
+
+        >>> with replaceattr(f, 'y', 'boo'):
+        ...     f.y=='boo'
+        True
+        >>> hasattr(f, 'y')
+        False
     """
     wasset = hasattr(obj, attrname)
     oldval = getattr(obj, attrname, None)
@@ -158,19 +208,27 @@ def replaceattr(obj, attrname, newval):
 
 
 def cmp(left, right):
-    """Python 2 cmp function.
-    - Handle null values gracefully in sort comparisons
+    """Python 2 style cmp function with null value handling.
 
-    >>> cmp(None, 2)
-    -1
-    >>> cmp(2, None)
-    1
-    >>> cmp(-1, 2)
-    -1
-    >>> cmp(2, -1)
-    1
-    >>> cmp(1, 1)
-    0
+    Handles null values gracefully in sort comparisons.
+
+    :param left: First value to compare.
+    :param right: Second value to compare.
+    :returns: -1 if left < right, 0 if equal, 1 if left > right.
+    :rtype: int
+
+    Example::
+
+        >>> cmp(None, 2)
+        -1
+        >>> cmp(2, None)
+        1
+        >>> cmp(-1, 2)
+        -1
+        >>> cmp(2, -1)
+        1
+        >>> cmp(1, 1)
+        0
     """
     _cmp = lambda a, b: (a > b) - (a < b)
     try:
@@ -195,41 +253,57 @@ def cmp(left, right):
 
 
 def multikeysort(items: list[dict], columns, _cmp=cmp, inplace=False):
-    """Sort list of dictionaries by list of keys
-    https://stackoverflow.com/a/1144405
+    """Sort list of dictionaries by list of keys.
 
-    equivalent to sql `sort by` order, map no sign to asc, - to desc
-    >>> ds = [
-    ...     {'category': 'c1', 'total': 96.0},
-    ...     {'category': 'c2', 'total': 96.0},
-    ...     {'category': 'c3', 'total': 80.0},
-    ...     {'category': 'c4', 'total': None},
-    ...     {'category': 'c5', 'total': 80.0},
-    ... ]
+    Equivalent to SQL ``ORDER BY`` - use no prefix for ascending, ``-`` prefix for descending.
 
-    >>> asc = multikeysort(ds, ['total', 'category'])
-    >>> total = [_['total'] for _ in asc]
-    >>> assert all([cmp(total[i], total[i+1]) in (0,-1,)
-    ...             for i in range(len(total)-1)])
+    :param list items: List of dictionaries to sort.
+    :param columns: List of column names to sort by (prefix with ``-`` for descending).
+    :param _cmp: Comparison function (default: cmp).
+    :param bool inplace: If True, sort in place; otherwise return new sorted list.
+    :returns: Sorted list if inplace=False, otherwise None.
 
-    >>> us = multikeysort(ds, ['missing',])
-    >>> assert us[0]['total'] == 96.0
-    >>> assert us[1]['total'] == 96.0
-    >>> assert us[2]['total'] == 80.0
-    >>> assert us[3]['total'] == None
-    >>> assert us[4]['total'] == 80.0
+    .. note::
+        Algorithm from https://stackoverflow.com/a/1144405
 
-    >>> us = multikeysort(ds, None)
-    >>> assert us[0]['total'] == 96.0
-    >>> assert us[1]['total'] == 96.0
-    >>> assert us[2]['total'] == 80.0
-    >>> assert us[3]['total'] == None
-    >>> assert us[4]['total'] == 80.0
+    Basic Usage::
 
-    >>> multikeysort(ds, ['-total', 'category'], inplace=True) # desc
-    >>> total = [_['total'] for _ in ds]
-    >>> assert all([cmp(total[i], total[i+1]) in (0, 1,)
-    ...             for i in range(len(total)-1)])
+        >>> ds = [
+        ...     {'category': 'c1', 'total': 96.0},
+        ...     {'category': 'c2', 'total': 96.0},
+        ...     {'category': 'c3', 'total': 80.0},
+        ...     {'category': 'c4', 'total': None},
+        ...     {'category': 'c5', 'total': 80.0},
+        ... ]
+        >>> asc = multikeysort(ds, ['total', 'category'])
+        >>> total = [_['total'] for _ in asc]
+        >>> assert all([cmp(total[i], total[i+1]) in (0,-1,)
+        ...             for i in range(len(total)-1)])
+
+    Missing Columns are Ignored::
+
+        >>> us = multikeysort(ds, ['missing',])
+        >>> assert us[0]['total'] == 96.0
+        >>> assert us[1]['total'] == 96.0
+        >>> assert us[2]['total'] == 80.0
+        >>> assert us[3]['total'] == None
+        >>> assert us[4]['total'] == 80.0
+
+    None Columns are Handled::
+
+        >>> us = multikeysort(ds, None)
+        >>> assert us[0]['total'] == 96.0
+        >>> assert us[1]['total'] == 96.0
+        >>> assert us[2]['total'] == 80.0
+        >>> assert us[3]['total'] == None
+        >>> assert us[4]['total'] == 80.0
+
+    Descending Order with Inplace::
+
+        >>> multikeysort(ds, ['-total', 'category'], inplace=True) # desc
+        >>> total = [_['total'] for _ in ds]
+        >>> assert all([cmp(total[i], total[i+1]) in (0, 1,)
+        ...             for i in range(len(total)-1)])
     """
     if not isinstance(columns, list | tuple):
         columns = (columns,)
@@ -254,15 +328,23 @@ def multikeysort(items: list[dict], columns, _cmp=cmp, inplace=False):
 
 
 def map(func, *iterables):
-    """Simulate a Python2-like map, which continues until the longest of the
-    argument iterables is exhausted, extending the other arguments with None
+    """Simulate a Python 2-like map with longest iterable behavior.
 
-    >>> def foo(a, b):
-    ...     if b is not None:
-    ...         return a - b
-    ...     return -a
-    >>> list(map(foo, range(5), [3,2,1]))
-    [-3, -1, 1, -3, -4]
+    Continues until the longest of the argument iterables is exhausted,
+    extending the other arguments with None.
+
+    :param func: Function to apply (or None for tuple aggregation).
+    :param iterables: Iterables to map over.
+    :returns: Iterator of mapped results.
+
+    Example::
+
+        >>> def foo(a, b):
+        ...     if b is not None:
+        ...         return a - b
+        ...     return -a
+        >>> list(map(foo, range(5), [3,2,1]))
+        [-3, -1, 1, -3, -4]
     """
     zipped = itertools.zip_longest(*iterables)
     if func is None:
@@ -271,37 +353,53 @@ def map(func, *iterables):
 
 
 def get_attrs(klazz):
-    """Get class attributes
+    """Get class attributes (excluding methods and dunders).
 
-    >>> class MyClass(object):
-    ...     a = '12'
-    ...     b = '34'
-    ...     def myfunc(self):
-    ...         return self.a
-    >>> get_attrs(MyClass)
-    [('a', '12'), ('b', '34')]
+    :param type klazz: Class to inspect.
+    :returns: List of (name, value) tuples for class attributes.
+    :rtype: list
+
+    Example::
+
+        >>> class MyClass(object):
+        ...     a = '12'
+        ...     b = '34'
+        ...     def myfunc(self):
+        ...         return self.a
+        >>> get_attrs(MyClass)
+        [('a', '12'), ('b', '34')]
     """
     attrs = inspect.getmembers(klazz, lambda a: not (inspect.isroutine(a)))
     return [a for a in attrs if not (a[0].startswith('__') and a[0].endswith('__'))]
 
 
 def trace_key(d, attrname) -> list[list]:
-    """Trace dictionary key in nested dictionary
+    """Trace dictionary key in nested dictionary.
 
-    >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))))
-    >>> trace_key(l,'f')
-    [['a', 'b', 'c', 'd', 'e', 'f']]
+    :param dict d: Dictionary to search.
+    :param str attrname: Key name to find.
+    :returns: List of paths (as lists) to the key.
+    :rtype: list[list]
+    :raises AttributeError: If key is not found.
 
-    Multiple locations
-    >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))), f=2)
-    >>> trace_key(l,'f')
-    [['a', 'b', 'c', 'd', 'e', 'f'], ['f']]
+    Basic Usage::
 
-    With missing key
-    >>> trace_key(l, 'g')
-    Traceback (most recent call last):
-    ...
-    AttributeError: g
+        >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))))
+        >>> trace_key(l,'f')
+        [['a', 'b', 'c', 'd', 'e', 'f']]
+
+    Multiple Locations::
+
+        >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))), f=2)
+        >>> trace_key(l,'f')
+        [['a', 'b', 'c', 'd', 'e', 'f'], ['f']]
+
+    With Missing Key::
+
+        >>> trace_key(l, 'g')
+        Traceback (most recent call last):
+        ...
+        AttributeError: g
     """
     t = trace(d, attrname)
     if not t:
@@ -310,22 +408,32 @@ def trace_key(d, attrname) -> list[list]:
 
 
 def trace_value(d, attrname) -> list:
-    """Trace values returned by `trace key`
+    """Get values at all locations of a key in nested dictionary.
 
-    >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))))
-    >>> trace_value(l, 'f')
-    [1]
+    :param dict d: Dictionary to search.
+    :param str attrname: Key name to find.
+    :returns: List of values found at each key location.
+    :rtype: list
+    :raises AttributeError: If key is not found.
 
-    Multiple locations
-    >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))), f=2)
-    >>> trace_value(l,'f')
-    [1, 2]
+    Basic Usage::
 
-    With missing key
-    >>> trace_value(l, 'g')
-    Traceback (most recent call last):
-    ...
-    AttributeError: g
+        >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))))
+        >>> trace_value(l, 'f')
+        [1]
+
+    Multiple Locations::
+
+        >>> l=dict(a=dict(b=dict(c=dict(d=dict(e=dict(f=1))))), f=2)
+        >>> trace_value(l,'f')
+        [1, 2]
+
+    With Missing Key::
+
+        >>> trace_value(l, 'g')
+        Traceback (most recent call last):
+        ...
+        AttributeError: g
     """
     values = []
     t = trace_key(d, attrname)
@@ -339,51 +447,49 @@ def trace_value(d, attrname) -> list:
 
 
 def add_branch(tree, vector, value):
-    """
+    """Insert a value into a dict at the path specified by vector.
+
     Given a dict, a vector, and a value, insert the value into the dict
-    at the tree leaf specified by the vector.  Recursive!
+    at the tree leaf specified by the vector. Recursive!
 
-    Params:
-        data (dict): The data structure to insert the vector into.
-        vector (list): A list of values representing the path to the leaf node.
-        value (object): The object to be inserted at the leaf
+    :param dict tree: The data structure to insert the vector into.
+    :param list vector: A list of values representing the path to the leaf node.
+    :param value: The object to be inserted at the leaf.
+    :returns: The dict with the value placed at the path specified.
+    :rtype: dict
 
-    Returns
-        dict: The dict with the value placed at the path specified.
+    .. note::
+        Algorithm from https://stackoverflow.com/a/47276490
 
     Algorithm:
-        If we're at the leaf, add it as key/value to the tree
-        Else: If the subtree doesn't exist, create it.
-              Recurse with the subtree and the left shifted vector.
-        Return the tree.
+        - If we're at the leaf, add it as key/value to the tree
+        - Else: If the subtree doesn't exist, create it.
+        - Recurse with the subtree and the left shifted vector.
+        - Return the tree.
 
-    from https://stackoverflow.com/a/47276490
+    Useful for parsing ini files with dot-delimited keys::
 
-    For example for parsing ini files with dot-delimited keys in different
-    sections:
+        [app]
+        site1.ftp.host = hostname
+        site1.ftp.username = username
+        site1.database.hostname = db_host
 
-    [app]
-    site1.ftp.host = hostname
-    site1.ftp.username = username
-    site1.database.hostname = db_host
-    ; etc..
+    Example 1::
 
-    >>> tree = {'a': 'apple'}
+        >>> tree = {'a': 'apple'}
+        >>> vector = ['b', 'c', 'd']
+        >>> value = 'dog'
+        >>> tree = add_branch(tree, vector, value)
+        >>> unnest(tree)
+        [('a', 'apple'), ('b', 'c', 'd', 'dog')]
 
-    Example 1:
-    >>> vector = ['b', 'c', 'd']
-    >>> value = 'dog'
-    >>> tree = add_branch(tree, vector, value)
-    >>> unnest(tree)
-    [('a', 'apple'), ('b', 'c', 'd', 'dog')]
+    Example 2::
 
-    Example 2:
-    >>> vector2 = ['b', 'c', 'e']
-    >>> value2 = 'egg'
-    >>> tree = add_branch(tree, vector2, value2)
-    >>> unnest(tree)
-    [('a', 'apple'), ('b', 'c', 'd', 'dog'), ('b', 'c', 'e', 'egg')]
-
+        >>> vector2 = ['b', 'c', 'e']
+        >>> value2 = 'egg'
+        >>> tree = add_branch(tree, vector2, value2)
+        >>> unnest(tree)
+        [('a', 'apple'), ('b', 'c', 'd', 'dog'), ('b', 'c', 'e', 'egg')]
     """
     key = vector[0]
     tree[key] = value \
@@ -401,70 +507,71 @@ DictType = dict[str, Any]
 def merge_dict(old: DictType, new: DictType, inplace: bool = True) -> DictType | None:
     """Recursively merge two dictionaries, including nested dictionaries and iterables.
 
-    This function performs a deep merge of `new` into `old`, handling nested
+    This function performs a deep merge of ``new`` into ``old``, handling nested
     dictionaries, iterables (like lists and tuples), and type mismatches gracefully.
 
-    Parameters
-        old: The dictionary to merge into (will be modified if inplace=True)
-        new: The dictionary to merge from (remains unchanged)
-        inplace: If True, modifies old in place; if False, returns a new merged dict
+    :param dict old: The dictionary to merge into (will be modified if inplace=True).
+    :param dict new: The dictionary to merge from (remains unchanged).
+    :param bool inplace: If True, modifies old in place; if False, returns a new merged dict.
+    :returns: If inplace=False, returns the merged dictionary. Otherwise, returns None.
 
-    Returns
-        If inplace=False, returns the merged dictionary. Otherwise, returns None.
+    Basic Nested Merge::
 
-    Examples
+        >>> l1 = {'a': {'b': 1, 'c': 2}, 'b': 2}
+        >>> l2 = {'a': {'a': 9}, 'c': 3}
+        >>> merge_dict(l1, l2, inplace=False)
+        {'a': {'b': 1, 'c': 2, 'a': 9}, 'b': 2, 'c': 3}
+        >>> l1=={'a': {'b': 1, 'c': 2}, 'b': 2}
+        True
+        >>> l2=={'a': {'a': 9}, 'c': 3}
+        True
 
-    Basic nested merge:
-    >>> l1 = {'a': {'b': 1, 'c': 2}, 'b': 2}
-    >>> l2 = {'a': {'a': 9}, 'c': 3}
-    >>> merge_dict(l1, l2, inplace=False)
-    {'a': {'b': 1, 'c': 2, 'a': 9}, 'b': 2, 'c': 3}
-    >>> l1=={'a': {'b': 1, 'c': 2}, 'b': 2}
-    True
-    >>> l2=={'a': {'a': 9}, 'c': 3}
-    True
+    Multilevel Merging::
 
-    Multilevel merging:
-    >>> xx = {'a': {'b': 1, 'c': 2}, 'b': 2}
-    >>> nice = {'a': {'a': 9}, 'c': 3}
-    >>> merge_dict(xx, nice)
-    >>> 'a' in xx['a']
-    True
-    >>> 'c' in xx
-    True
+        >>> xx = {'a': {'b': 1, 'c': 2}, 'b': 2}
+        >>> nice = {'a': {'a': 9}, 'c': 3}
+        >>> merge_dict(xx, nice)
+        >>> 'a' in xx['a']
+        True
+        >>> 'c' in xx
+        True
 
-    Values get overwritten:
-    >>> warn = {'a': {'c': 9}, 'b': 3}
-    >>> merge_dict(xx, warn)
-    >>> xx['a']['c']
-    9
-    >>> xx['b']
-    3
+    Values Get Overwritten::
 
-    Merges iterables, preserving types when possible:
-    >>> l1 = {'a': {'c': [5, 2]}, 'b': 1}
-    >>> l2 = {'a': {'c': [1, 2]}, 'b': 3}
-    >>> merge_dict(l1, l2)
-    >>> len(l1['a']['c'])
-    4
-    >>> l1['b']
-    3
+        >>> warn = {'a': {'c': 9}, 'b': 3}
+        >>> merge_dict(xx, warn)
+        >>> xx['a']['c']
+        9
+        >>> xx['b']
+        3
 
-    Handles type mismatches by converting to lists:
-    >>> l1 = {'a': {'c': [5, 2]}, 'b': 1}
-    >>> l3 = {'a': {'c': (1, 2,)}, 'b': 3}
-    >>> merge_dict(l1, l3)
-    >>> len(l1['a']['c'])
-    4
-    >>> isinstance(l1['a']['c'], list)
-    True
+    Merges Iterables (preserving types when possible)::
 
-    Handles None values:
-    >>> l1 = {'a': {'c': None}, 'b': 1}
-    >>> l2 = {'a': {'c': [1, 2]}, 'b': 3}
-    >>> merge_dict(l1, l2)
-    >>> l1['a']['c']
-    [1, 2]
+        >>> l1 = {'a': {'c': [5, 2]}, 'b': 1}
+        >>> l2 = {'a': {'c': [1, 2]}, 'b': 3}
+        >>> merge_dict(l1, l2)
+        >>> len(l1['a']['c'])
+        4
+        >>> l1['b']
+        3
+
+    Handles Type Mismatches (converts to lists)::
+
+        >>> l1 = {'a': {'c': [5, 2]}, 'b': 1}
+        >>> l3 = {'a': {'c': (1, 2,)}, 'b': 3}
+        >>> merge_dict(l1, l3)
+        >>> len(l1['a']['c'])
+        4
+        >>> isinstance(l1['a']['c'], list)
+        True
+
+    Handles None Values::
+
+        >>> l1 = {'a': {'c': None}, 'b': 1}
+        >>> l2 = {'a': {'c': [1, 2]}, 'b': 3}
+        >>> merge_dict(l1, l2)
+        >>> l1['a']['c']
+        [1, 2]
     """
     from libb.iter import isiterable
 

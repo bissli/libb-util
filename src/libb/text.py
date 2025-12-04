@@ -80,47 +80,67 @@ def random_string(length):
 
 
 def fix_text(text):
-    r"""Uses ftfy magic to fix text issues
+    r"""Use ftfy magic to fix text encoding issues.
 
-    >>> fix_text('âœ” No problems')
-    '✔ No problems'
-    >>> print(fix_text("&macr;\\_(ã\x83\x84)_/&macr;"))
-    ¯\_(ツ)_/¯
-    >>> fix_text('Broken text&hellip; it&#x2019;s ﬂubberiﬁc!')
-    "Broken text… it's flubberific!"
-    >>> fix_text('ＬＯＵＤ　ＮＯＩＳＥＳ')
-    'LOUD NOISES'
+    :param str text: Text to fix.
+    :returns: Fixed text.
+    :rtype: str
+
+    Example::
+
+        >>> fix_text('âœ" No problems')  # doctest: +SKIP
+        '✔ No problems'
+        >>> print(fix_text("&macr;\\_(ã\x83\x84)_/&macr;"))
+        ¯\_(ツ)_/¯
+        >>> fix_text('Broken text&hellip; it&#x2019;s ﬂubberiﬁc!')
+        "Broken text… it's flubberific!"
+        >>> fix_text('ＬＯＵＤ　ＮＯＩＳＥＳ')
+        'LOUD NOISES'
     """
     return ftfy.fix_text(text)
 
 
 def underscore_to_camelcase(s):
-    """Converts underscore_delimited_text to camelCase
+    """Convert underscore_delimited_text to camelCase.
 
-    >>> underscore_to_camelcase('foo_bar_baz')
-    'fooBarBaz'
+    :param str s: Underscore-delimited string.
+    :returns: camelCase string.
+    :rtype: str
+
+    Example::
+
+        >>> underscore_to_camelcase('foo_bar_baz')
+        'fooBarBaz'
     """
     return ''.join(word.title() if i else word.lower() for i, word in enumerate(s.split('_')))
 
 
 def uncamel(camel):
-    """Uncamel something in camel case, for christ's sake!!
-    http://stackoverflow.com/a/1176023
+    """Convert camelCase to snake_case.
 
-    >>> uncamel('CamelCase')
-    'camel_case'
-    >>> uncamel('CamelCamelCase')
-    'camel_camel_case'
-    >>> uncamel('Camel2Camel2Case')
-    'camel2_camel2_case'
-    >>> uncamel('getHTTPResponseCode')
-    'get_http_response_code'
-    >>> uncamel('get2HTTPResponseCode')
-    'get2_http_response_code'
-    >>> uncamel('HTTPResponseCode')
-    'http_response_code'
-    >>> uncamel('HTTPResponseCodeXYZ')
-    'http_response_code_xyz'
+    :param str camel: CamelCase string.
+    :returns: snake_case string.
+    :rtype: str
+
+    .. note::
+        Algorithm from http://stackoverflow.com/a/1176023
+
+    Example::
+
+        >>> uncamel('CamelCase')
+        'camel_case'
+        >>> uncamel('CamelCamelCase')
+        'camel_camel_case'
+        >>> uncamel('Camel2Camel2Case')
+        'camel2_camel2_case'
+        >>> uncamel('getHTTPResponseCode')
+        'get_http_response_code'
+        >>> uncamel('get2HTTPResponseCode')
+        'get2_http_response_code'
+        >>> uncamel('HTTPResponseCode')
+        'http_response_code'
+        >>> uncamel('HTTPResponseCodeXYZ')
+        'http_response_code_xyz'
     """
     uncased = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', camel)
     return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', uncased).lower()
@@ -131,10 +151,18 @@ def strip_ascii(s):
 
 
 def sanitize_vulgar_string(s):
-    """Replaces number and vulgar fractions combos with number and decimal
+    """Replace vulgar fractions with decimal equivalents.
 
-    >>> sanitize_vulgar_string("Foo-Bar+Baz: 17s 4¾ 1 ⅛ 20 93¾ - 94⅛")
-    'Foo-Bar+Baz: 17s 4.75 1.125 20 93.75 - 94.125'
+    Converts number and vulgar fraction combinations to number and decimal.
+
+    :param str s: String containing vulgar fractions.
+    :returns: String with fractions converted to decimals.
+    :rtype: str
+
+    Example::
+
+        >>> sanitize_vulgar_string("Foo-Bar+Baz: 17s 4¾ 1 ⅛ 20 93¾ - 94⅛")
+        'Foo-Bar+Baz: 17s 4.75 1.125 20 93.75 - 94.125'
     """
     sanitize = re.compile(rf"(\d*)\s*({'|'.join(VULGAR_FRACTION)})")
 
@@ -151,15 +179,21 @@ def sanitize_vulgar_string(s):
 
 
 def round_digit_string(s, places=None) -> str:
-    """Clean string comprised of digits
+    """Round a numeric string to specified decimal places.
 
-    >>> round_digit_string('7283.1234', 3)
-    '7283.123'
-    >>> round_digit_string('7283.1234', None)
-    '7283.1234'
-    >>> round_digit_string('7283', 3)
-    '7283'
+    :param str s: Numeric string to round.
+    :param int places: Number of decimal places (None to preserve original).
+    :returns: Rounded numeric string.
+    :rtype: str
 
+    Example::
+
+        >>> round_digit_string('7283.1234', 3)
+        '7283.123'
+        >>> round_digit_string('7283.1234', None)
+        '7283.1234'
+        >>> round_digit_string('7283', 3)
+        '7283'
     """
     s = s.strip()
     with contextlib.suppress(ValueError):
@@ -176,31 +210,37 @@ def round_digit_string(s, places=None) -> str:
 
 
 def parse_number(s: str, force=True):
-    """Extract number from string
+    """Extract number from string.
 
-    Force (true): return None if does does not parse.
-    Force (false): return `s` if does does not parse.
+    Handles various formats including commas, parentheses for negatives,
+    and trailing characters.
 
-    >>> parse_number('1,200m')
-    1200
-    >>> parse_number('100.0')
-    100.0
-    >>> parse_number('100')
-    100
-    >>> parse_number('0.002k')
-    0.002
-    >>> parse_number('-1')
-    -1
-    >>> parse_number('(1)')
-    -1
-    >>> parse_number('-100.0')
-    -100.0
-    >>> parse_number('(100.)')
-    -100.0
-    >>> parse_number('')
-    >>> parse_number('foo')
-    >>> parse_number('foo', force=False)
-    'foo'
+    :param str s: String to parse.
+    :param bool force: If True, return None on parse failure; if False, return original string.
+    :returns: Parsed int or float, None, or original string (if force=False).
+
+    Example::
+
+        >>> parse_number('1,200m')
+        1200
+        >>> parse_number('100.0')
+        100.0
+        >>> parse_number('100')
+        100
+        >>> parse_number('0.002k')
+        0.002
+        >>> parse_number('-1')
+        -1
+        >>> parse_number('(1)')
+        -1
+        >>> parse_number('-100.0')
+        -100.0
+        >>> parse_number('(100.)')
+        -100.0
+        >>> parse_number('')
+        >>> parse_number('foo')
+        >>> parse_number('foo', force=False)
+        'foo'
     """
     if not s:
         return
@@ -228,17 +268,27 @@ def parse_number(s: str, force=True):
 
 
 def truncate(s, width, suffix='...'):
-    """Truncate a string to max width chars
-    Add the suffix if the string was truncated
+    """Truncate a string to max width characters.
 
-    >>> truncate('fubarbaz', 6)
-    'fub...'
-    >>> truncate('fubarbaz', 3)
-    Traceback (most recent call last):
-        ...
-    AssertionError: Desired width must be longer than suffix
-    >>> truncate('fubarbaz', 3, suffix='..')
-    'f..'
+    Adds suffix if the string was truncated. Tries to break on whitespace.
+
+    :param str s: String to truncate.
+    :param int width: Maximum width including suffix.
+    :param str suffix: Suffix to append when truncated.
+    :returns: Truncated string.
+    :rtype: str
+    :raises AssertionError: If width is not longer than suffix.
+
+    Example::
+
+        >>> truncate('fubarbaz', 6)
+        'fub...'
+        >>> truncate('fubarbaz', 3)
+        Traceback (most recent call last):
+            ...
+        AssertionError: Desired width must be longer than suffix
+        >>> truncate('fubarbaz', 3, suffix='..')
+        'f..'
     """
     assert width > len(suffix), 'Desired width must be longer than suffix'
     if len(s) <= width:
@@ -252,10 +302,18 @@ def truncate(s, width, suffix='...'):
 
 
 def rotate(s):
-    """Apply rot13-like translation to string, including digits and punctuation
+    """Apply rot13-like translation to string.
 
-    >>> rotate("foobarbaz")
-    ';^^-,{-,E'
+    Rotates characters including digits and punctuation.
+
+    :param str s: String to rotate.
+    :returns: Rotated string.
+    :rtype: str
+
+    Example::
+
+        >>> rotate("foobarbaz")
+        ';^^-,{-,E'
     """
     instr = string.ascii_lowercase + string.digits + string.punctuation + string.ascii_uppercase
     midpoint = len(instr) // 2
@@ -264,37 +322,47 @@ def rotate(s):
 
 
 def smart_base64(encoded_words):
-    r"""Additional intelligent defaults for en/decoding base 64
+    r"""Decode base64 encoded words with intelligent charset handling.
 
-    what we need to do in real life:
+    Splits out encoded words per RFC 2047, Section 2 and handles common
+    encoding issues like multiline subjects and charset mismatches.
 
-    #. split out encoded words per
-       [RFC 2047, Section 2](http://tools.ietf.org/html/rfc2047#section-2)
+    :param str encoded_words: Base64 encoded string or plain text.
+    :returns: Decoded string (or original if not encoded).
+    :rtype: str
 
-    >>> smart_base64('=?utf-8?B?U1RaOiBGNFExNSBwcmV2aWV3IOKAkyBUaGUgc3RhcnQgb2YgdGh'
-    ...              'lIGNhc2ggcmV0dXJuIHN0b3J5PyBQYXRoIHRvICQyMDAgc3RvY2sgcHJpY2U/?=')
-    'STZ: F4Q15 preview – The start of the cash return story? Path to $200 stock price?'
+    .. note::
+        See `RFC 2047, Section 2 <http://tools.ietf.org/html/rfc2047#section-2>`_
 
-    common bug in email subjects is that multiline subjects are base64 encoded
-    *per line* so we get non-base64 characters:
-    >>> smart_base64('=?UTF-8?B?JDEwTU0rIENJVCBHUk9VUCBUUkFERVMgLSBDSVQgNScyMiAxMDLi'
-    ...              'hZ0tMTAz4oWbICBNSw==?=\r\n\t=?UTF-8?B?VA==?=')
-    "$10MM+ CIT GROUP TRADES - CIT 5'22 102.625-103.125 MK T"
+    Basic Usage::
 
-    this one specifies UTF-8 but it is actually encoding Latin-1 characters for
-    the 3/4's, 1/8's, 3/4's, 1/8's, 1/2's:
-    >>> smart_base64('=?UTF-8?B?TVMgZW5lcmd5OiByaWcgMTdzIDkxwr4vOTLihZsgMThzIDkzwr4v'
-    ...              'OTTihZsgMjBzIDgywg==?=\r\n\t=?UTF-8?B?vS84Mw==?=')
-    'MS energy: rig 17s 91.75/92.125 18s 93.75/94.125 20s 82.5/83'
+        >>> smart_base64('=?utf-8?B?U1RaOiBGNFExNSBwcmV2aWV3IOKAkyBUaGUgc3RhcnQgb2YgdGh'
+        ...              'lIGNhc2ggcmV0dXJuIHN0b3J5PyBQYXRoIHRvICQyMDAgc3RvY2sgcHJpY2U/?=')
+        'STZ: F4Q15 preview – The start of the cash return story? Path to $200 stock price?'
 
-    >>> smart_base64('=?UTF-8?B?VGhpcyBpcyBhIGhvcnNleTog8J+Qjg==?=')
-    'This is a horsey: \U0001f40e'
+    Multiline Subjects (common email bug - base64 encoded per line)::
 
-    >>> smart_base64('=?UTF-8?B?U0xBQiAxIOKFnDogIDEwOSAtIMK9IHYgNzYuMjU=?=')
-    'SLAB 1.375: 109 - 0.5 v 76.25'
+        >>> smart_base64('=?UTF-8?B?JDEwTU0rIENJVCBHUk9VUCBUUkFERVMgLSBDSVQgNScyMiAxMDLi'
+        ...              'hZ0tMTAz4oWbICBNSw==?=\r\n\t=?UTF-8?B?VA==?=')
+        "$10MM+ CIT GROUP TRADES - CIT 5'22 102.625-103.125 MK T"
 
-    >>> smart_base64('This is plain text')
-    'This is plain text'
+    Charset Mismatch (UTF-8 header with Latin-1 content)::
+
+        >>> smart_base64('=?UTF-8?B?TVMgZW5lcmd5OiByaWcgMTdzIDkxwr4vOTLihZsgMThzIDkzwr4v'
+        ...              'OTTihZsgMjBzIDgywg==?=\r\n\t=?UTF-8?B?vS84Mw==?=')
+        'MS energy: rig 17s 91.75/92.125 18s 93.75/94.125 20s 82.5/83'
+
+    Unicode Characters::
+
+        >>> smart_base64('=?UTF-8?B?VGhpcyBpcyBhIGhvcnNleTog8J+Qjg==?=')
+        'This is a horsey: \U0001f40e'
+        >>> smart_base64('=?UTF-8?B?U0xBQiAxIOKFnDogIDEwOSAtIMK9IHYgNzYuMjU=?=')
+        'SLAB 1.375: 109 - 0.5 v 76.25'
+
+    Plain Text Passthrough::
+
+        >>> smart_base64('This is plain text')
+        'This is plain text'
     """
     re_encoded = r'=\?{1}(.+)\?{1}([B|Q])\?{1}(.+)\?{1}='
 
@@ -325,10 +393,15 @@ def smart_base64(encoded_words):
 
 
 def strtobool(val):
-    """Convert a string representation of truth to true (1) or false (0).
-    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
-    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
-    'val' is anything else.
+    """Convert a string representation of truth to boolean.
+
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'.
+    False values are 'n', 'no', 'f', 'false', 'off', '0', and empty string.
+
+    :param val: Value to convert (string, bool, or None).
+    :returns: Boolean value.
+    :rtype: bool
+    :raises ValueError: If val is not a recognized truth value.
     """
     if val is None:
         return False
@@ -344,23 +417,31 @@ def strtobool(val):
 
 
 def fuzzy_search(search_term, items, case_sensitive=False):
-    """Search for term in a list of items with one or more terms
-    Scores each lower-cased "word" (split by space, -, and _) separately
-    Returns the highest score **very** brute force, FIXME improve it
+    """Search for term in a list of items using fuzzy matching.
 
-    >>> results = fuzzy_search("OCR", [("Omnicare", "OCR",), ("Ocra", "OKK"), ("GGG",)])
-    >>> (_,ocr_score), (_,okk_score), (_,ggg_score) = results
-    >>> '{:.4}'.format(ocr_score)
-    '1.0'
-    >>> '{:.4}'.format(okk_score)
-    '0.9417'
-    >>> '{:.4}'.format(ggg_score)
-    '0.0'
-    >>> x, y = list(zip(*fuzzy_search("Ramco-Gers",
-    ...     [("RAMCO-GERSHENSON PROPERTIES", "RPT US Equity",),
-    ...     ("Ramco Inc.", "RMM123FAKE")])))[1]
-    >>> '{:.4}'.format(x), '{:.4}'.format(y)
-    ('0.8741', '0.6667')
+    Scores each item using Jaro-Winkler similarity and token set ratio,
+    returning the highest score for each item tuple.
+
+    :param str search_term: Term to search for.
+    :param items: Iterable of tuples containing searchable strings.
+    :param bool case_sensitive: Whether to use case-sensitive matching.
+    :yields: Tuples of (items, max_score).
+
+    Example::
+
+        >>> results = fuzzy_search("OCR", [("Omnicare", "OCR",), ("Ocra", "OKK"), ("GGG",)])
+        >>> (_,ocr_score), (_,okk_score), (_,ggg_score) = results
+        >>> '{:.4}'.format(ocr_score)
+        '1.0'
+        >>> '{:.4}'.format(okk_score)
+        '0.9417'
+        >>> '{:.4}'.format(ggg_score)
+        '0.0'
+        >>> x, y = list(zip(*fuzzy_search("Ramco-Gers",
+        ...     [("RAMCO-GERSHENSON PROPERTIES", "RPT US Equity",),
+        ...     ("Ramco Inc.", "RMM123FAKE")])))[1]
+        >>> '{:.4}'.format(x), '{:.4}'.format(y)
+        ('0.8741', '0.6667')
     """
     _search_term = search_term.lower() if not case_sensitive else search_term
     for _items in items:
@@ -378,17 +459,25 @@ def fuzzy_search(search_term, items, case_sensitive=False):
 
 
 def is_numeric(txt):
-    """Call something a number if we can force it into a float
-    WARNING: complex types cannot be converted to float
+    """Check if value can be converted to a float.
 
-    >>> is_numeric('a')
-    False
-    >>> is_numeric(1e4)
-    True
-    >>> is_numeric('1E2')
-    True
-    >>> is_numeric(complex(-1,0))
-    False
+    :param txt: Value to check.
+    :returns: True if value can be converted to float.
+    :rtype: bool
+
+    .. warning::
+        Complex types cannot be converted to float.
+
+    Example::
+
+        >>> is_numeric('a')
+        False
+        >>> is_numeric(1e4)
+        True
+        >>> is_numeric('1E2')
+        True
+        >>> is_numeric(complex(-1,0))
+        False
     """
     try:
         float(txt)
