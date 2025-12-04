@@ -1,8 +1,8 @@
 """Sphinx configuration for libb-util documentation."""
 
+import pathlib
 import sys
 from datetime import datetime
-import pathlib
 
 sys.path.insert(0, pathlib.Path('../../src').resolve())
 
