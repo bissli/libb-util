@@ -45,6 +45,7 @@ autodoc_default_options = {
 autodoc_typehints = 'description'
 autodoc_typehints_description_target = 'documented'
 autodoc_inherit_docstrings = False
+add_module_names = False
 
 autosummary_generate = True
 # Handle case conflicts for Dropbox filesystem (MultiMethod vs multimethod)
@@ -80,6 +81,7 @@ html_theme_options = {
 
 html_static_path = ['_static']
 html_css_files = ['custom.css']
+html_js_files = ['strip-module-prefix.js']
 
 suppress_warnings = ['autodoc.import_cycle']
 
