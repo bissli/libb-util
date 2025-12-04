@@ -57,37 +57,14 @@ With pip:
 Environment Variables
 ---------------------
 
-The ``config`` module supports various environment variables for configuration:
+The ``config`` module supports the following environment variables:
 
-**Configuration Files**::
+**Directory Settings**::
 
-    CONFIG_PROD    # Production config file path
-    CONFIG_DEV     # Development config file path
-    CONFIG_QA      # QA config file path
-    CONFIG_UAT     # UAT config file path
+    CONFIG_TMPDIR_DIR   # Temporary directory path (used by get_tempdir)
+    CONFIG_VENDOR_DIR   # Vendor directory path (used by get_vendordir)
+    CONFIG_OUTPUT_DIR   # Output directory path (used by get_outputdir)
 
-**Application Type**::
-
-    CONFIG_WEBAPP     # Web application mode
-    CONFIG_CHECKTTY   # Check TTY mode
-
-**Mail Settings**::
-
-    CONFIG_MAIL_DOMAIN
-    CONFIG_MAIL_SERVER
-    CONFIG_MAIL_FROMEMAIL
-    CONFIG_MAIL_TOEMAIL
-    CONFIG_MAIL_ADMINEMAIL
-    CONFIG_MANDRILL_APIKEY
-
-**Logging**::
-
-    CONFIG_SYSLOG_HOST
-    CONFIG_SYSLOG_PORT
-    CONFIG_LOG_MODULES_EXTRA
-    CONFIG_LOG_MODULES_IGNORE
-
-**Other**::
-
-    CONFIG_TMPDIR   # Temporary directory path
-    CONFIG_GPG_DIR  # GPG directory path
+If not set, these fall back to the system temporary directory. The local
+data directory (via ``get_localdir``) uses ``platformdirs`` to determine
+the appropriate location for the current operating system.
