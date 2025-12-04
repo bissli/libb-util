@@ -26,17 +26,6 @@ covariance, beta, combinatorics (choose), number parsing, threshold operations.
    :undoc-members:
    :show-inheritance:
 
-matrix
-------
-
-Matrix operations: dot product, transpose, matrix multiplication,
-Gauss-Jordan inversion, QR decomposition, linear regression.
-
-.. automodule:: libb.matrix
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 sync
 ----
 
@@ -65,17 +54,6 @@ Geographic utilities: Mercator projection coordinate transformations
 (merc_x, merc_y) for mapping applications.
 
 .. automodule:: libb.geo
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-montecarlo
-----------
-
-Monte Carlo simulation: random number generation, normal distributions,
-correlation matrices, Cholesky decomposition for simulations.
-
-.. automodule:: libb.montecarlo
    :members:
    :undoc-members:
    :show-inheritance:

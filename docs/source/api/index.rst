@@ -32,7 +32,7 @@ Module Categories
     process management, and signal handling.
 
 :doc:`specialized`
-    Domain-specific utilities for web applications, statistics, matrix operations,
+    Domain-specific utilities for web applications, statistics,
     threading, cryptography, geographic calculations, and more.
 
 .. toctree::

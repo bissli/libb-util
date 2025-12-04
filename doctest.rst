@@ -14,7 +14,7 @@
    libb modules
    >>> import sys
    >>> from libb import attrdict, classes, config, dicts, dir, exception, format, func
-   >>> from libb import future, geo, heap, iolib, iter, matrix, module, montecarlo
+   >>> from libb import future, geo, heap, iolib, iter, module
    >>> from libb import orderedset, pandasutils, path, stats, text, thread, webapp
    >>> _ = testmod(sys.modules['libb.attrdict'])
    >>> _ = testmod(sys.modules['libb.classes'])
@@ -29,9 +29,7 @@
    >>> _ = testmod(sys.modules['libb.heap'])
    >>> _ = testmod(sys.modules['libb.iolib'])
    >>> _ = testmod(sys.modules['libb.iter'])
-   >>> _ = testmod(sys.modules['libb.matrix'])
    >>> _ = testmod(sys.modules['libb.module'])
-   >>> _ = testmod(sys.modules['libb.montecarlo'])
    >>> _ = testmod(sys.modules['libb.orderedset'])
    >>> _ = testmod(sys.modules['libb.pandasutils'])
    >>> _ = testmod(sys.modules['libb.path'])

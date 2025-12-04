@@ -103,9 +103,6 @@ Web utilities: CORS (Flask/web.py), XSRF protection, authentication decorators, 
 #### `stats.py`
 Mathematical/statistical functions: average, variance, standard deviation, covariance, beta, combinatorics (choose), number parsing, threshold operations.
 
-#### `matrix.py`
-Matrix operations: dot product, transpose, matrix multiplication, Gauss-Jordan inversion, QR decomposition, linear regression.
-
 #### `sync.py`
 Synchronization primitives: timeout decorator/context manager for thread/async operations.
 
@@ -117,9 +114,6 @@ Geographic utilities: Mercator projection coordinate transformations (merc_x, me
 
 #### `chart.py`
 Plotting utilities for creating charts, particularly time series visualizations.
-
-#### `montecarlo.py`
-Monte Carlo simulation: random number generation, normal distributions, correlation matrices, Cholesky decomposition.
 
 #### `dir.py`
 Directory operations: recursive creation, temporary directories, file searching, safe moving, directory structure inspection, file downloading.
