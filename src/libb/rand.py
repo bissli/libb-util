@@ -1,12 +1,7 @@
-import contextlib
 import logging
 import os
 import random
 from functools import wraps
-
-with contextlib.suppress(ImportError, ModuleNotFoundError):
-    import numpy as np
-
 
 logger = logging.getLogger(__name__)
 
@@ -95,4 +90,5 @@ def random_sample(arr: 'np.array', size: int = 1) -> 'np.array':
     :returns: Array of sampled elements.
     :rtype: np.array
     """
+    import numpy as np
     return arr[np.random.choice(len(arr), size=size, replace=False)]

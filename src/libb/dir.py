@@ -18,7 +18,6 @@ from urllib.parse import unquote, urlparse
 import backoff
 import regex as re
 import requests
-import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -365,6 +364,8 @@ def download_file(url, save_path: str | Path = None) -> Path:
     .. seealso::
         See ``tests/test_dir.py`` for usage examples.
     """
+    import tqdm
+
     if not save_path:
         name = Path(urlparse(unquote(url)).path).name
         save_path = Path(tempfile.gettempdir()) / name

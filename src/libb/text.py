@@ -17,11 +17,6 @@ with contextlib.suppress(ImportError):
 with contextlib.suppress(ImportError):
     import ftfy
 
-with contextlib.suppress(ImportError):
-    from rapidfuzz.distance import JaroWinkler
-    from rapidfuzz.fuzz import token_set_ratio
-    from rapidfuzz.process import extract
-
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -455,6 +450,10 @@ def fuzzy_search(search_term, items, case_sensitive=False):
         >>> '{:.4}'.format(x), '{:.4}'.format(y)
         ('0.8741', '0.6667')
     """
+    from rapidfuzz.distance import JaroWinkler
+    from rapidfuzz.fuzz import token_set_ratio
+    from rapidfuzz.process import extract
+
     _search_term = search_term.lower() if not case_sensitive else search_term
     for _items in items:
         max_score = 0.0

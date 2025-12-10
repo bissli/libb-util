@@ -1,4 +1,3 @@
-import contextlib
 import logging
 import operator
 import types
@@ -7,10 +6,6 @@ from decimal import Decimal
 from fractions import Fraction
 from functools import reduce, wraps
 from math import ceil, floor, isnan, log10, sqrt
-
-with contextlib.suppress(ImportError, ModuleNotFoundError):
-    import numpy as np
-    np.set_printoptions(linewidth=np.inf)
 
 import regex as re
 
@@ -86,12 +81,14 @@ def npfunc(nargs=1):
 
 def _tonp(x):
     """Handle None to NaN conversion"""
+    import numpy as np
     if isinstance(x, list | tuple):
         return np.array([np.nan if k is None else k for k in x])
     return x
 
 
 def _nptonumber(x):
+    import numpy as np
     if isinstance(x, np.floating):
         return float(x)
     if isinstance(x, np.integer):
@@ -101,6 +98,7 @@ def _nptonumber(x):
 
 def _topy(x):
     """Replace np.nan with Python None"""
+    import numpy as np
     if isinstance(x, np.ndarray | types.GeneratorType):
         return [_nptonumber(k) if not isnan(k) else None for k in x]  # keep None
     if isnan(x):
@@ -125,6 +123,7 @@ def avg(x: Iterable):
         >>> avg((None, None,)) is None
         True
     """
+    import numpy as np
     return np.nanmean([_ for _ in x if not np.isnan(_)])
 
 
@@ -141,6 +140,7 @@ def pct_change(x: Iterable):
         >>> [f"{_:.2f}" if _ else _ for _ in pct_change(a)]
         [None, 0.0, '0.50', '-0.33', '1.00', '-0.44', '-1.90']
     """
+    import numpy as np
     onep = np.array([np.nan])
     pchg = np.diff(x) / np.abs(x[:-1])
     return np.concatenate((onep, pchg), axis=0)
@@ -158,6 +158,7 @@ def diff(x: Iterable):
         >>> [_ for _ in diff((0, 1, 3, 2, 1, 5, 4))]
         [None, 1.0, 2.0, -1.0, -1.0, 4.0, -1.0]
     """
+    import numpy as np
     onep = np.array([np.nan])
     return np.concatenate((onep, np.diff(x)), axis=0)
 
@@ -211,6 +212,7 @@ def isnumeric(x):
     :returns: True if numeric (int, float, or numpy numeric).
     :rtype: bool
     """
+    import numpy as np
     return np.issubdtype(x, np.integer) or np.issubdtype(x, np.floating) or isinstance(x, int | float)
 
 
@@ -246,27 +248,32 @@ def numify(val, to=float):
     :param val: Value to convert.
     :param type to: Target type (default: float).
     :returns: Converted value or None if conversion fails.
+
+    Example::
+
+        >>> numify('1,234.56')
+        1234.56
+        >>> numify('(100)', to=int)
+        -100
+        >>> numify('50%')
+        50.0
+        >>> numify(None)
+        >>> numify('')
     """
-    # Handle None input
     if val is None:
         return None
 
-    # Handle already-numeric values
-    if isinstance(val, int):
-        return to(val)
-    if isinstance(val, float):
-        return to(val)
+    if isinstance(val, (int, float)):
+        try:
+            return to(val)
+        except (ValueError, OverflowError):
+            return None
 
-    # Handle string values
     if isinstance(val, str):
-        # Remove leading/trailing whitespace
         val = val.strip()
-
-        # Empty string after stripping
         if not val:
             return None
 
-        # Check for parentheses notation (negative numbers in accounting format)
         is_negative = False
         if val.startswith('(') and val.endswith(')'):
             val = val[1:-1].strip()
@@ -274,37 +281,24 @@ def numify(val, to=float):
                 return None
             is_negative = True
 
-        # Remove thousand separators (commas)
         val = val.replace(',', '')
 
-        # Handle percentage notation
         if val.endswith('%'):
             val = val[:-1].strip()
             if not val:
                 return None
 
-        # Apply negative sign if found parentheses earlier
         if is_negative:
             val = f'-{val}'
 
-        # Try to convert to target type
         try:
             return to(val)
-        except ValueError:
-            # String contains non-numeric characters
-            return None
-        except OverflowError:
-            # Number too large for target type
+        except (ValueError, OverflowError):
             return None
 
-    # Handle other types (try conversion anyway)
     try:
         return to(val)
-    except ValueError:
-        return None
-    except TypeError:
-        return None
-    except OverflowError:
+    except (ValueError, TypeError, OverflowError):
         return None
 
 
@@ -378,6 +372,7 @@ def covarp(x, y):
         >>> "{:.5}".format(covarp(x, y))
         '5.2'
     """
+    import numpy as np
     assert len(x) == len(y)
     assert len(x) > 0
     return np.cov(x, y, ddof=0)[0, 1]
@@ -399,6 +394,7 @@ def covars(x, y):
         >>> "{:.5}".format(covars(x, y))
         '6.5'
     """
+    import numpy as np
     assert len(x) == len(y)
     assert len(x) > 0
     return np.cov(x, y, ddof=1)[0, 1]
@@ -421,6 +417,7 @@ def varp(x):
         >>> "{:.5}".format(varp(x))
         '678.84'
     """
+    import numpy as np
     assert len(x) > 0
     return np.var(x, ddof=0)
 
@@ -439,6 +436,7 @@ def vars(x):
         >>> "{:.5}".format(vars(x))
         '754.27'
     """
+    import numpy as np
     assert len(x) > 0
     return np.var(x, ddof=1)
 
@@ -460,6 +458,7 @@ def stddevp(x):
         >>> "{:.5}".format(stddevp(x))
         '26.055'
     """
+    import numpy as np
     return np.nanstd(x, ddof=0)
 
 
@@ -477,6 +476,7 @@ def stddevs(x):
         >>> "{:.5}".format(stddevs(x))
         '27.464'
     """
+    import numpy as np
     return np.nanstd(x, ddof=1)
 
 
@@ -518,6 +518,7 @@ def correl(x, y):
         >>> "{:.3}".format(correl(x, y))
         '0.997'
     """
+    import numpy as np
     assert len(x) == len(y)
     return np.corrcoef(x, y)[0, 1]
 
@@ -538,6 +539,7 @@ def rsq(x, y):
         >>> "{:.5}".format(rsq(x, y))
         '0.05795'
     """
+    import numpy as np
     assert len(x) == len(y)
     return np.corrcoef(x, y)[0, 1] ** 2
 
@@ -555,6 +557,7 @@ def rtns(x):
         >>> [f'{x:0.2f}' for x in pp]
         ['0.10', '0.18', '-0.15', '0.18']
     """
+    import numpy as np
     assert len(x) > 1
     return np.diff(x) / x[:-1]
 
@@ -572,6 +575,7 @@ def logrtns(x):
         >>> [f'{x:0.2f}' for x in pp]
         ['0.10', '0.17', '-0.17', '0.17']
     """
+    import numpy as np
     assert len(x) > 1
     return np.diff(np.log(x))
 
@@ -608,6 +612,7 @@ def linear_regression(x, y):
     """Compute the least-squares linear regression line for the set
     of points. Returns the slope and y-intercept.
     """
+    import numpy as np
     A = np.vstack([x, np.ones(len(x))]).T
     m, b = np.linalg.lstsq(A, y)[0]
     return m, b
@@ -615,6 +620,7 @@ def linear_regression(x, y):
 
 def distance_from_line(m, b, x, y):
     """Compute the distance from each point to the line defined by m and b."""
+    import numpy as np
     x = np.array(x)
     y = np.array(y)
     return (-m * x + y - b) / sqrt(m * m + 1)
@@ -638,6 +644,7 @@ def linterp(x0, x1, x, y0, y1):
         >>> linterp(1, float('inf'), 2, 2, 4)
         2.0
     """
+    import numpy as np
     return float(np.interp(x, [x0, x1], [y0, y1]))
 
 
@@ -648,6 +655,7 @@ def np_divide(a, b):
     :param b: Denominator array.
     :returns: Result array with 0 where b was 0.
     """
+    import numpy as np
     return np.divide(a, b, out=np.zeros_like(a), where=b != 0)
 
 
@@ -1041,6 +1049,7 @@ def numpy_smooth(x: 'np.ndarray', window_len=11, window='hanning'):
     TODO: the window parameter could be the window itself if an array instead of a string
     NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
     """
+    import numpy as np
     if x.ndim != 1:
         raise ValueError('Smooth only accepts 1 dimension arrays.')
     if x.size < window_len:

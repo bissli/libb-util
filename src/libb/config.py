@@ -381,15 +381,16 @@ def patch_library_config(library_name: str, config_name:str = 'config', **config
 
     Example::
 
+        >>> import sys
         >>> from libb import create_mock_module
         >>> Setting.unlock()
         >>> api = Setting()
         >>> api.key = 'oldkey'
         >>> Setting.lock()
+        >>> create_mock_module('mylib', {})  # parent module
         >>> create_mock_module('mylib.config', {'api': api})
         >>> patch_library_config('mylib', api_key='newkey')
-        >>> import mylib.config
-        >>> mylib.config.api.key
+        >>> sys.modules['mylib.config'].api.key
         'newkey'
     """
     import sys

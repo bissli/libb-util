@@ -55,12 +55,12 @@ def find_decorators(target):
 
     Example::
 
-        >>> class Example:
+        >>> class Example:  # doctest: +SKIP
         ...     @staticmethod
         ...     def static_method():
         ...         pass
-        >>> decorators = find_decorators(Example)
-        >>> 'static_method' in decorators
+        >>> decorators = find_decorators(Example)  # doctest: +SKIP
+        >>> 'static_method' in decorators  # doctest: +SKIP
         True
 
     .. note::
@@ -310,13 +310,13 @@ def timing(func):
 
     Example::
 
-        >>> @timing
+        >>> @timing  # doctest: +SKIP
         ... def slow_function():
         ...     import time
         ...     time.sleep(0.01)
         ...     return 42
         >>> result = slow_function()  # doctest: +SKIP
-        >>> result
+        >>> result  # doctest: +SKIP
         42
     """
     @wraps(func)

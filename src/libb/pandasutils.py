@@ -5,7 +5,6 @@ including null checking, type downcasting, fuzzy merging, and timezone data.
 """
 from __future__ import annotations
 
-import contextlib
 import gc
 import gzip
 import os
@@ -13,36 +12,6 @@ import shutil
 import tarfile
 import tempfile
 from pathlib import Path
-
-with contextlib.suppress(Exception):
-    from numexpr import evaluate
-
-with contextlib.suppress(Exception):
-    from numpy import amax, tile, where
-
-with contextlib.suppress(Exception):
-    from numpy import linspace, nan, random, uint8  # noqa
-
-with contextlib.suppress(Exception):
-    from pandas import DataFrame, isnull
-
-with contextlib.suppress(Exception):
-    from pandas import concat, read_csv  # noqa
-
-with contextlib.suppress(Exception):
-    from pdcast import downcast as pdc_downcast
-
-with contextlib.suppress(Exception):
-    import pdcast
-
-with contextlib.suppress(Exception):
-    from pyarrow.lib import NullScalar
-
-with contextlib.suppress(Exception):
-    from rapidfuzz.fuzz import partial_ratio  # noqa
-
-with contextlib.suppress(Exception):
-    from rapidfuzz.process import cdist
 
 __all__ = ['is_null', 'download_tzdata', 'downcast', 'fuzzymerge']
 
@@ -63,9 +32,13 @@ def is_null(x):
         >>> assert is_null(np.nan)
         >>> assert not is_null(datetime.date(2000, 1, 1))
     """
-    with contextlib.suppress(Exception):
+    from pandas import isnull
+    try:
+        from pyarrow.lib import NullScalar
         if isinstance(x, NullScalar):
             return True
+    except ImportError:
+        pass
     return isnull(x)
 
 
@@ -115,6 +88,8 @@ def downcast(df: DataFrame, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
 
     Example::
 
+        >>> from numpy import linspace, random
+        >>> from pandas import DataFrame
         >>> data = {
         ... "integers": linspace(1, 100, 100),
         ... "floats": linspace(1, 1000, 100).round(2),
@@ -132,6 +107,8 @@ def downcast(df: DataFrame, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
         dtypes: bool(1), category(1), float32(1), uint8(1)
         memory usage: 964.0 bytes
     """
+    import pdcast
+    from pdcast import downcast as pdc_downcast
     pdcast.options.RTOL = rtol
     pdcast.options.ATOL = atol
     return pdc_downcast(df, numpy_dtypes_only=numpy_dtypes_only)
@@ -168,6 +145,11 @@ def fuzzymerge(df1, df2, right_on, left_on, usedtype='uint8', scorer='WRatio',
         >>> df3 = fuzzymerge(df1, df2, right_on='Name', left_on='Name', usedtype=uint8, scorer=partial_ratio,  # doctest: +SKIP
         ...                         concat_value=True)
     """
+    from numexpr import evaluate
+    from numpy import amax, tile, uint8, where  # noqa: F401 - uint8 used by eval
+    from rapidfuzz.fuzz import partial_ratio  # noqa: F401 - used by eval
+    from rapidfuzz.process import cdist
+
     # Handle string type annotations
     if isinstance(usedtype, str):
         usedtype = eval(usedtype)

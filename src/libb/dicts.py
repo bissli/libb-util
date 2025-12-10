@@ -2,11 +2,8 @@ import copy
 import inspect
 import itertools
 import logging
-import operator
-import re
 from collections.abc import Mapping
 from contextlib import contextmanager
-from functools import cmp_to_key
 from typing import Any
 
 from trace_dkey import trace
@@ -259,7 +256,7 @@ def cmp(left, right):
     """
     _cmp = lambda a, b: (a > b) - (a < b)
     try:
-        _ = all(left) and all(right)  # check if iterable
+        _ = iter(left) and iter(right)
         if None in left and None in right:
             return 0
         if None in left and None not in right:
@@ -332,6 +329,10 @@ def multikeysort(items: list[dict], columns, _cmp=cmp, inplace=False):
         >>> assert all([cmp(total[i], total[i+1]) in (0, 1,)
         ...             for i in range(len(total)-1)])
     """
+    import operator
+    import re
+    from functools import cmp_to_key
+
     if not isinstance(columns, list | tuple):
         columns = (columns,)
 

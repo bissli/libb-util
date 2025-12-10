@@ -8,8 +8,6 @@ from functools import partial, wraps
 from threading import Lock, Thread
 from typing import Any, Self
 
-from tqdm import tqdm
-
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -139,6 +137,8 @@ class RateLimitedExecutor:
         :returns: List of TaskResponse objects in same order as requests.
         :rtype: list[TaskResponse]
         """
+        from tqdm import tqdm
+
         start_time = time.time()
         futures = {}
         for i, request in enumerate(requests):

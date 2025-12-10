@@ -1,13 +1,6 @@
-import contextlib
 import logging
 import math
 from io import BytesIO
-
-with contextlib.suppress(ImportError, ModuleNotFoundError):
-    import matplotlib.pyplot as plt
-    import matplotlib.ticker as mtick
-    import numpy as np
-    from matplotlib import dates as mpl_dates
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +100,11 @@ def numpy_timeseries_plot(title, dates, series=None, labels=None, formats=None):
     :returns: BytesIO buffer containing the PNG image.
     :rtype: BytesIO
     """
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mtick
+    import numpy as np
+    from matplotlib import dates as mpl_dates
+
     if formats is None:
         formats = []
     if labels is None:
