@@ -599,6 +599,63 @@ class TestLogerror:
         result = wrapped()
         assert result == 'original error page'
 
+    def test_logerror_does_not_log_none_when_no_exception(self):
+        """Verify logerror doesn't log 'NoneType: None' when no exception is active."""
+        import logging
+
+        from libb.webapp import logerror
+
+        test_logger = logging.getLogger('test_logerror_none')
+        errors_logged = []
+
+        class MockHandler(logging.Handler):
+            def emit(self, record):
+                errors_logged.append(record.getMessage())
+
+        test_logger.addHandler(MockHandler())
+        test_logger.setLevel(logging.ERROR)
+
+        def original_error():
+            return 'error page'
+
+        wrapped = logerror(original_error, test_logger)
+        result = wrapped()
+
+        assert result == 'error page'
+        assert len(errors_logged) == 0, f'Should not log when no exception, but logged: {errors_logged}'
+
+    def test_logerror_logs_exception_when_present(self):
+        """Verify logerror logs the exception when one is active."""
+        import logging
+        import sys
+
+        from libb.webapp import logerror
+
+        test_logger = logging.getLogger('test_logerror_exc')
+        errors_logged = []
+
+        class MockHandler(logging.Handler):
+            def emit(self, record):
+                errors_logged.append(record.getMessage())
+
+        test_logger.addHandler(MockHandler())
+        test_logger.setLevel(logging.ERROR)
+
+        def original_error():
+            return 'error page'
+
+        wrapped = logerror(original_error, test_logger)
+
+        # Call wrapped within an exception context
+        try:
+            raise ValueError('test error')
+        except ValueError:
+            result = wrapped()
+
+        assert result == 'error page'
+        assert len(errors_logged) == 1
+        assert 'test error' in errors_logged[0]
+
 
 class TestProfileMiddleware:
     """Tests for ProfileMiddleware class."""

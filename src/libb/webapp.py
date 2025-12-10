@@ -904,9 +904,10 @@ def logerror(olderror, logger):
     """
 
     def logerror_fn():
-        theerr = olderror()
         _, exc, _ = sys.exc_info()
-        logger.error(exc)
+        theerr = olderror()
+        if exc is not None:
+            logger.error(exc)
         return theerr
 
     return logerror_fn
