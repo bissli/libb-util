@@ -37,15 +37,20 @@ napoleon_attr_annotations = True
 autodoc_default_options = {
     'members': True,
     'member-order': 'bysource',
-    'special-members': '__init__',
     'undoc-members': True,
-    'exclude-members': '__weakref__',
+    'exclude-members': '__weakref__, __init__',
     'show-inheritance': True,
 }
 autodoc_typehints = 'description'
 autodoc_typehints_description_target = 'documented'
 autodoc_inherit_docstrings = False
 add_module_names = False
+
+# Type aliases for third-party types that may not be importable
+autodoc_type_aliases = {
+    'numpy.ndarray': 'numpy.ndarray',
+    'pandas.DataFrame': 'pandas.DataFrame',
+}
 
 autosummary_generate = True
 # Handle case conflicts for Dropbox filesystem (MultiMethod vs multimethod)
@@ -79,11 +84,24 @@ html_theme_options = {
     'logo_only': False,
 }
 
+templates_path = ['_templates']
 html_static_path = ['_static']
 html_css_files = ['custom.css']
 html_js_files = ['strip-module-prefix.js']
 
-suppress_warnings = ['autodoc.import_cycle']
+suppress_warnings = [
+    'autodoc.import_cycle',
+    'autosummary',
+    'ref.doc',
+]
+
+# Nitpicky mode settings - ignore unresolved references to numpy/pandas types
+nitpick_ignore = [
+    ('py:class', 'numpy.ndarray'),
+    ('py:class', 'pandas.DataFrame'),
+    ('py:class', 'numpy'),
+    ('py:class', 'pandas'),
+]
 
 autodoc_mock_imports = [
     'flask',

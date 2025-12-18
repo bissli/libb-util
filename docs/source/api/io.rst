@@ -13,6 +13,8 @@ conversion, JSON byteification, print suppression.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
+   :exclude-members: extract, extractall, read, write, writestr, close, open, getinfo, infolist, namelist, printdir, setpassword, testzip, mkdir, comment, fp
 
 stream
 ------
@@ -24,6 +26,7 @@ checksum calculation, stream decorators.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 proc
 ----
@@ -35,6 +38,7 @@ process management.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 signals
 -------
@@ -46,6 +50,7 @@ deferring Ctrl+C during critical sections, signal translation map.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 mime
 ----
@@ -56,3 +61,4 @@ MIME type utilities for guessing file extensions and content types.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:

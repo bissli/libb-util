@@ -82,7 +82,7 @@ def random_random():
 
 
 @rseed
-def random_sample(arr: 'np.array', size: int = 1) -> 'np.array':
+def random_sample(arr, size: int = 1):
     """Random sample of N elements from numpy array.
 
     :param np.array arr: Array to sample from.

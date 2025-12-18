@@ -15,6 +15,7 @@ configuration loading.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 classes
 -------
@@ -26,6 +27,7 @@ metaclass resolution, and dynamic instance extension.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 func
 ----
@@ -37,6 +39,7 @@ delay, suppresswarning, MultiMethod dispatch.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 iter
 ----
@@ -48,6 +51,7 @@ flattening, grouping, and sequence operations.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 text
 ----
@@ -59,6 +63,7 @@ number parsing, truncation, base64 encoding, strtobool.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 format
 ------
@@ -70,6 +75,7 @@ phone numbers, capitalization, and custom number formats.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 path
 ----
@@ -81,6 +87,7 @@ for directory changes, script name extraction.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 dicts
 -----
@@ -92,6 +99,7 @@ multikey sorting, comparison, tree operations.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 module
 ------
@@ -103,6 +111,7 @@ virtual modules, package discovery.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 typedefs
 --------
@@ -114,3 +123,4 @@ used across the library.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:

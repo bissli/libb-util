@@ -352,7 +352,7 @@ class CaseInsensitiveDict(MutableMapping):
 
     Note:
         If the constructor, ``.update``, or equality comparison
-        operations are given keys that have equal ``.lower()``s, the
+        operations are given keys that have equal ``.lower()`` values, the
         behavior is undefined.
     """
 

@@ -208,6 +208,7 @@ Core Utilities
    libb.FileLike
    libb.Attachable
    libb.Dimension
+
 Collections
 ~~~~~~~~~~~
 
@@ -239,6 +240,7 @@ Collections
    :toctree: generated
 
    libb.ComparableHeap
+
 Input/Output
 ~~~~~~~~~~~~
 
@@ -315,6 +317,7 @@ Input/Output
    libb.download_file
    libb.splitall
    libb.resplit
+
 Specialized
 ~~~~~~~~~~~
 
@@ -513,6 +516,7 @@ Specialized
    libb.mount_file_share
    libb.parse_wmic_output
    libb.exit_cmd
+
 ----
 
 Design Philosophy

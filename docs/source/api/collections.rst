@@ -20,6 +20,7 @@ Six dictionary classes with special behaviors:
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 orderedset
 ----------
@@ -31,6 +32,8 @@ Combines the uniqueness guarantee of sets with the ordering of lists.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
+   :exclude-members: __init__
 
 heap
 ----
@@ -42,3 +45,4 @@ Useful when you need priority queue behavior with custom ordering.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:

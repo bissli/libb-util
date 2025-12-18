@@ -368,8 +368,8 @@ def xsrf_token():
     :returns: XSRF token string.
     :rtype: str
 
-    .. todo::
-        Add the xsrf tokens to forms.
+    .. note::
+        TODO: Add the xsrf tokens to forms.
     """
     if 'xsrf' not in web.ctx.session:
         web.ctx.session.xsrf = uuid.uuid4().hex  # better use sha?
@@ -382,8 +382,8 @@ def xsrf_protected(fn):
     :param fn: Function to protect.
     :returns: Wrapped function.
 
-    .. todo::
-        Decorate controllers for xsrf protected forms.
+    .. note::
+        TODO: Decorate controllers for xsrf protected forms.
     """
 
     def dec_fn(*args, **kwargs):

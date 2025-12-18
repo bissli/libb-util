@@ -9,6 +9,7 @@ from math import ceil, floor, isnan, log10, sqrt
 
 import regex as re
 
+from libb._libb import parse as _parse_rust
 from libb.dicts import cmp
 from libb.func import suppresswarning
 
@@ -324,13 +325,7 @@ def parse(s):
         True
         >>> parse('')
     """
-    try:
-        num = ''.join(re.findall(r'[\(-\d\.\)]+', str(s)))
-        if re.sub(r'[-\(\)]', '', num).isdigit():
-            return numify(num, int)
-        return numify(num, float)
-    except:
-        pass
+    return _parse_rust(str(s))
 
 
 def nearest(num, decimals):
@@ -589,10 +584,13 @@ def weighted_average(rows, field, predicate, weight_field):
     This handles long/short cases correctly, although they can give surprising results.
 
     Consider two "trades" BL 5000 at a delta of 50% and SS -4000 at a delta of 30%.
-    If you didn't use abs() you'd get:
-       (5000 * 50 - 4000 * 30) / (5000 - 4000) = 130
-    Using abs() you get:
-       (5000 * 50 - 4000 * 30) / (5000 + 4000) = 14.4
+    If you didn't use abs() you'd get::
+
+        (5000 * 50 - 4000 * 30) / (5000 - 4000) = 130
+
+    Using abs() you get::
+
+        (5000 * 50 - 4000 * 30) / (5000 + 4000) = 14.4
 
     This is really equivalent to saying you bought another 4000 at a delta of -30 (because
     the short position has a negative delta effect) which then makes more sense: combining
@@ -1016,7 +1014,7 @@ def push_apart(*boxes):
             raise AssertionError('Exceeded 100 tries to push apart')
 
 
-def numpy_smooth(x: 'np.ndarray', window_len=11, window='hanning'):
+def numpy_smooth(x, window_len=11, window='hanning'):
     """Smooth the data using a window with requested size.
 
     https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
@@ -1026,28 +1024,26 @@ def numpy_smooth(x: 'np.ndarray', window_len=11, window='hanning'):
     (with the window size) in both ends so that transient parts are minimized
     in the begining and end part of the output signal.
 
-    input:
-        x: the input signal
-        window_len: the dimension of the smoothing window; should be an odd integer
-        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
-            flat window will produce a moving average smoothing.
+    :param x: the input signal
+    :param window_len: the dimension of the smoothing window; should be an odd integer
+    :param window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'.
+        Flat window will produce a moving average smoothing.
+    :returns: the smoothed signal
 
-    output:
-        the smoothed signal
+    Example::
 
-    example:
+        t=linspace(-2,2,0.1)
+        x=sin(t)+randn(len(t))*0.1
+        y=smooth(x)
 
-    t=linspace(-2,2,0.1)
-    x=sin(t)+randn(len(t))*0.1
-    y=smooth(x)
+    .. seealso::
+        numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve,
+        scipy.signal.lfilter
 
-    See Also
-
-    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
-    scipy.signal.lfilter
-
-    TODO: the window parameter could be the window itself if an array instead of a string
-    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    .. note::
+        The window parameter could be the window itself if an array instead of a string.
+        length(output) != length(input), to correct this: return
+        y[(window_len/2-1):-(window_len/2)] instead of just y.
     """
     import numpy as np
     if x.ndim != 1:

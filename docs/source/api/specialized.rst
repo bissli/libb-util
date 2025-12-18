@@ -14,6 +14,7 @@ HTML escaping, JSON encoders with ISO date support.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 stats
 -----
@@ -25,6 +26,7 @@ covariance, beta, combinatorics (choose), number parsing, threshold operations.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 sync
 ----
@@ -36,6 +38,7 @@ for thread/async operations with configurable timeout handling.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 crypto
 ------
@@ -46,6 +49,7 @@ Cryptography and encoding utilities: base64 file encoding, hashing.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 geo
 ---
@@ -57,6 +61,7 @@ Geographic utilities: Mercator projection coordinate transformations
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 dir
 ---
@@ -68,6 +73,7 @@ file searching, safe moving, directory structure inspection, file downloading.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 exception
 ---------
@@ -79,6 +85,7 @@ Exception handling: print exceptions with traceback control,
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 future
 ------
@@ -90,6 +97,7 @@ in separate threads with result retrieval.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 pandasutils
 -----------
@@ -102,6 +110,7 @@ Re-exports all pandas functionality.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 rand
 ----
@@ -113,6 +122,7 @@ and distribution functions.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 thread
 ------
@@ -124,6 +134,8 @@ Threading utilities: ``asyncd`` decorator for async-style syntax,
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
+   :exclude-members: __init__
 
 chart
 -----
@@ -135,6 +147,7 @@ visualizations using matplotlib.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 win
 ---
@@ -146,3 +159,4 @@ file share mounting, WMIC output parsing.
    :members:
    :undoc-members:
    :show-inheritance:
+   :no-index:

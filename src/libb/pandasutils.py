@@ -70,7 +70,7 @@ def download_tzdata():
     shutil.copy(zoneB, base / 'windowsZones.xml')
 
 
-def downcast(df: DataFrame, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
+def downcast(df, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
     """Downcast DataFrame to minimum viable type for each column.
 
     Ensures resulting values are within tolerance of original values.
