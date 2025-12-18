@@ -9,7 +9,7 @@ from math import ceil, floor, isnan, log10, sqrt
 
 import regex as re
 
-from libb._libb import parse as _parse_rust
+from libb._rust import parse as _parse_impl
 from libb.dicts import cmp
 from libb.func import suppresswarning
 
@@ -325,7 +325,7 @@ def parse(s):
         True
         >>> parse('')
     """
-    return _parse_rust(str(s))
+    return _parse_impl(str(s))
 
 
 def nearest(num, decimals):

@@ -8,8 +8,7 @@ from typing import Any
 
 from trace_dkey import trace
 
-from libb.iter import collapse
-from libb._libb import multikeysort as _multikeysort_rust
+from libb._rust import multikeysort as _multikeysort_impl
 
 logger = logging.getLogger(__name__)
 
@@ -326,7 +325,7 @@ def multikeysort(items: list[dict], columns, inplace=False):
         >>> assert all([cmp(total[i], total[i+1]) in (0, 1,)
         ...             for i in range(len(total)-1)])
     """
-    return _multikeysort_rust(items, columns, inplace)
+    return _multikeysort_impl(items, columns, inplace)
 
 
 def map(func, *iterables):
