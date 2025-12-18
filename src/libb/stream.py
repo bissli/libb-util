@@ -24,15 +24,16 @@ def stream_is_tty(somestream):
 
 
 def is_tty():
-    """Check if running in development/interactive mode.
+    """Check if running in a terminal.
 
     Returns True if:
-    - Running under pytest (always development mode)
-    - Both stdin and stderr are TTYs (interactive terminal)
+    - Running under pytest (always True for testing)
+    - stdin is a TTY (interactive input)
+    - stderr is a TTY (logger output visible in terminal)
 
-    :returns: True if in development/interactive mode.
+    :returns: True if in a terminal environment.
     :rtype: bool
     """
     if 'pytest' in sys.modules:
         return True
-    return sys.stdin.isatty() and sys.stderr.isatty()
+    return stream_is_tty(sys.stdin) and stream_is_tty(sys.stderr)
