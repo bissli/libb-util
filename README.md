@@ -4,7 +4,7 @@
 
 ![libb](https://raw.githubusercontent.com/bissli/libb-util/refs/heads/master/bissli.jpg "Bissli - via wikipedia https://en.wikipedia.org/wiki/Bissli")
 
-Python utility library with Rust-accelerated functions for dictionary sorting and number parsing.
+Python utility library with Rust-accelerated functions for text processing, iteration, dictionary sorting, and number parsing.
 
 ```bash
 pip install libb-util
@@ -98,24 +98,32 @@ parse('(500)')      # -500  (accounting negative)
 parse('100.5%')     # 100.5
 ```
 
-### Iteration
+### Iteration (Rust-accelerated)
 
 | Function | Description |
 |----------|-------------|
 | `chunked(iterable, n)` | Split into chunks of size n |
-| `flatten(nested)` | Flatten nested iterables |
+| `collapse(*args)` | Recursively flatten nested lists/tuples ⚡ |
+| `backfill(values)` | Fill None values with last non-None ⚡ |
+| `backfill_iterdict(iterdict)` | Back-fill dicts with latest values per key ⚡ |
+| `same_order(ref, comp)` | Check if elements appear in same order ⚡ |
 | `unique(iterable)` | Unique items preserving order |
-| `first(iterable, default)` | First item or default |
-| `last(iterable, default)` | Last item or default |
 
-### Text Processing
+⚡ = Rust-accelerated
+
+### Text Processing (Rust-accelerated)
 
 | Function | Description |
 |----------|-------------|
+| `sanitize_vulgar_string(s)` | Replace vulgar fractions with decimals ⚡ |
+| `uncamel(camel)` | Convert CamelCase to snake_case ⚡ |
+| `underscore_to_camelcase(s)` | Convert snake_case to camelCase ⚡ |
 | `normalize(text)` | Unicode normalization |
 | `slugify(text)` | URL-safe slug |
 | `strip_html(text)` | Remove HTML tags |
 | `truncate(text, length)` | Truncate with ellipsis |
+
+⚡ = Rust-accelerated
 
 ### I/O and Paths
 

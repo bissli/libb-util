@@ -17,3 +17,4 @@ overflow-checks = false
 [dependencies]
 pyo3 = { version = "0.22", features = ["extension-module"] }
 once_cell = "1.19"
+regex = "1.10"

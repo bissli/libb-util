@@ -35,7 +35,7 @@ text = ["ftfy", "rapidfuzz", "chardet"]
 pandas = ["pyarrow", "pandas", "pandas-downcast==1.2.4", "numexpr"]
 web = ["Twisted", "service-identity", "web.py", "Flask"]
 twd = ["Twisted", "service-identity"]
-test = ["asserts", "pytest", "pytest-mock", "pytest-runner", "unittest2", "WebTest", "maturin>=1.0,<2.0", "exceptiongroup"]
+test = ["asserts", "pytest", "pytest-mock", "pytest-runner", "pytest-benchmark", "unittest2", "WebTest", "maturin>=1.0,<2.0", "exceptiongroup"]
 deploy = ["bump2version"]
 docs = ["Sphinx", "sphinx-rtd-theme", "sphinx-autodoc-typehints", "myst-parser", "sphinx-copybutton"]
 
@@ -131,6 +131,7 @@ test = [
   "pytest",
   "pytest-mock",
   "pytest-runner",
+  "pytest-benchmark",
   "unittest2",
   "WebTest",
   "maturin",

@@ -5,11 +5,11 @@ import quopri
 import random
 import string
 import unicodedata
-from functools import reduce
 
 import regex as re
 
-from libb.iter import collapse
+from libb._libb import collapse, sanitize_vulgar_string, uncamel
+from libb._libb import underscore_to_camelcase
 
 with contextlib.suppress(ImportError):
     import chardet
@@ -40,6 +40,7 @@ __all__ = [
 # useful constants for writing unicode-based context-free grammars
 #
 
+# Unicode constants for context-free grammars
 UNI_ALL = ''.join(chr(_) for _ in range(65536))
 UNI_DECIMALS = ''.join(_ for _ in UNI_ALL if unicodedata.category(_) == 'Nd')
 UNI_SLASHES = chr(47) + chr(8260) + chr(8725)
@@ -50,6 +51,7 @@ UNI_VULGAR_FRACTIONS = chr(188) + chr(189) + chr(190) + ''.join(chr(_) for _ in 
 SUPERSCRIPT = dict(list(zip(UNI_SUPERSCRIPTS, list(range(10)))))
 SUBSCRIPT = dict(list(zip(UNI_SUBSCRIPTS, list(range(10)))))
 
+# Vulgar fraction mapping kept for backwards compatibility
 _VULGAR_FRACTIONS = (
     1 / 4.0,
     2 / 4.0,
@@ -101,50 +103,8 @@ def fix_text(text):
     return ftfy.fix_text(text)
 
 
-def underscore_to_camelcase(s):
-    """Convert underscore_delimited_text to camelCase.
-
-    :param str s: Underscore-delimited string.
-    :returns: camelCase string.
-    :rtype: str
-
-    Example::
-
-        >>> underscore_to_camelcase('foo_bar_baz')
-        'fooBarBaz'
-    """
-    return ''.join(word.title() if i else word.lower() for i, word in enumerate(s.split('_')))
-
-
-def uncamel(camel):
-    """Convert camelCase to snake_case.
-
-    :param str camel: CamelCase string.
-    :returns: snake_case string.
-    :rtype: str
-
-    .. note::
-        Algorithm from http://stackoverflow.com/a/1176023
-
-    Example::
-
-        >>> uncamel('CamelCase')
-        'camel_case'
-        >>> uncamel('CamelCamelCase')
-        'camel_camel_case'
-        >>> uncamel('Camel2Camel2Case')
-        'camel2_camel2_case'
-        >>> uncamel('getHTTPResponseCode')
-        'get_http_response_code'
-        >>> uncamel('get2HTTPResponseCode')
-        'get2_http_response_code'
-        >>> uncamel('HTTPResponseCode')
-        'http_response_code'
-        >>> uncamel('HTTPResponseCodeXYZ')
-        'http_response_code_xyz'
-    """
-    uncased = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', camel)
-    return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', uncased).lower()
+# underscore_to_camelcase and uncamel are now implemented in Rust
+# See libb._libb for the implementations
 
 
 def strip_ascii(s):
@@ -157,32 +117,8 @@ def strip_ascii(s):
     return s.encode('ascii', errors='ignore').decode()
 
 
-def sanitize_vulgar_string(s):
-    """Replace vulgar fractions with decimal equivalents.
-
-    Converts number and vulgar fraction combinations to number and decimal.
-
-    :param str s: String containing vulgar fractions.
-    :returns: String with fractions converted to decimals.
-    :rtype: str
-
-    Example::
-
-        >>> sanitize_vulgar_string("Foo-Bar+Baz: 17s 4¾ 1 ⅛ 20 93¾ - 94⅛")
-        'Foo-Bar+Baz: 17s 4.75 1.125 20 93.75 - 94.125'
-    """
-    sanitize = re.compile(rf"(\d*)\s*({'|'.join(VULGAR_FRACTION)})")
-
-    def _sum(val, el, lookup=VULGAR_FRACTION.get):
-        # lookup always succeeds since regex only matches VULGAR_FRACTION keys
-        frac = lookup(el)
-        return str(float(val) + frac) if val else ' ' + str(frac)
-
-    for f in sanitize.finditer(s):
-        m, it = f.group(), f.groups()
-        s = s.replace(m, reduce(_sum, it))
-
-    return s
+# sanitize_vulgar_string is now implemented in Rust
+# See libb._libb for the implementation
 
 
 def round_digit_string(s, places=None) -> str:

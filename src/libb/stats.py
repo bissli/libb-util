@@ -55,9 +55,6 @@ __all__ = [
     'convert_mixed_numeral_to_fraction',
     'convert_to_mixed_numeral',
     'round_to_nearest',
-    'BBox',
-    'overlaps',
-    'push_apart',
     'numpy_smooth',
     'choose',
 ]
@@ -912,108 +909,6 @@ def round_to_nearest(value: float, base) -> float:
     if not value:
         return value
     return round(value / base) * base
-
-
-class BBox:
-    """Bounding box for use with :func:`overlaps` and :func:`push_apart`."""
-
-    def __init__(self, x_coord, y_coord, width, height, name=''):
-        self.x = float(x_coord)
-        self.y = float(y_coord)
-        self.w = float(width)
-        self.h = float(height)
-        self.name = name
-
-    def __repr__(self):
-        return f'BBox({self.name}({self.x:.3f},{self.y:.3f}), '\
-               f'{self.x_min:.3f}:{self.x_max:.3f}, '\
-               f'{self.y_min:.3f}:{self.y_max:.3f})'
-
-    @property
-    def a(self):
-        return self.w * self.h
-
-    @property
-    def d(self):
-        """Diagonal, longest part of the box"""
-        return sqrt((self.rx**2) + (self.ry**2))
-
-    @property
-    def rx(self):
-        return self.w / 2.0
-
-    @property
-    def ry(self):
-        return self.h / 2.0
-
-    @property
-    def x_min(self):
-        return self.x - self.rx
-
-    @property
-    def y_min(self):
-        return self.y - self.ry
-
-    @property
-    def x_max(self):
-        return self.x + self.rx
-
-    @property
-    def y_max(self):
-        return self.y + self.ry
-
-
-def overlaps(*boxes):
-    """Check if any bounding boxes overlap.
-
-    :param boxes: BBox instances to check.
-    :returns: True if any boxes overlap.
-    :rtype: bool
-    """
-    x_min = min(boxes, key=lambda c: c.x)
-    y_min = min(boxes, key=lambda c: c.y)
-    x_max = max(boxes, key=lambda c: c.x)
-    y_max = max(boxes, key=lambda c: c.y)
-    return (x_min.x + x_min.rx) >= (x_max.x - x_max.rx) or (y_min.y + y_min.ry) >= (y_max.y - y_max.ry)
-
-
-def push_apart(*boxes):
-    """Push apart bounding boxes until they do not overlap.
-
-    :param boxes: BBox objects to separate.
-    :raises AssertionError: If boxes cannot be separated in 100 tries.
-
-    .. note::
-        Based on idea from https://stackoverflow.com/a/10739207
-
-    Example::
-
-        >>> a = BBox(1, 1, 4, 2, 'a')
-        >>> a
-        BBox(a(1.000,1.000), -1.000:3.000, 0.000:2.000)
-        >>> b = BBox(1, 2, 3, 3, 'b')
-        >>> b
-        BBox(b(1.000,2.000), -0.500:2.500, 0.500:3.500)
-
-        >>> push_apart(a, b)
-        >>> a
-        BBox(a(4.045,-2.045), 2.045:6.045, -3.045:-1.045)
-        >>> b
-        BBox(b(0.067,5.225), -1.433:1.567, 3.725:6.725)
-    """
-    tries = 0
-    max_tries = 100
-    while overlaps(*boxes):
-        centroid_x = avg([x.x for x in boxes])
-        centroid_y = avg([x.y for x in boxes])
-        for box in boxes:
-            dist = sqrt(((centroid_x - box.x) ** 2) + ((centroid_y - box.y) ** 2))
-            move = sqrt(((box.d - dist) ** 2) / 2.0)  # move by same x and y
-            box.x += -1.0 * move if box.x < centroid_x else move
-            box.y += -1.0 * move if box.y < centroid_y else move
-        tries += 1
-        if tries > max_tries:
-            raise AssertionError('Exceeded 100 tries to push apart')
 
 
 def numpy_smooth(x, window_len=11, window='hanning'):

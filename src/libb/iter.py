@@ -6,6 +6,8 @@ from collections.abc import Iterable, Sequence
 
 import more_itertools as _more_itertools
 
+from libb._libb import backfill, backfill_iterdict, collapse, same_order
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -241,36 +243,8 @@ def infinite_iterator(iterable):
     return next()
 
 
-def collapse(*args, base_type=(tuple, list)):
-    """Recursively flatten nested lists/tuples into a single generator.
-
-    Unlike `more_itertools.collapse <https://more-itertools.readthedocs.io/en/
-    stable/api.html#more_itertools.collapse>`_, this function takes variadic
-    ``*args`` instead of a single iterable, and ``base_type`` specifies which
-    types TO flatten (default: tuple, list) rather than which types to exclude.
-    Also does not support a ``levels`` parameter.
-
-    :param args: Items to collapse.
-    :param base_type: Types to recursively expand (default: tuple, list).
-    :returns: Generator of flattened items.
-
-    Example::
-
-        >>> l1 = ['a', ['b', ('c', 'd')]]
-        >>> l2 = [0, 1, (2, 3), [[4, 5, (6, 7, (8,), [9]), 10]], (11,)]
-        >>> list(collapse([l1, -2, -1, l2]))
-        ['a', 'b', 'c', 'd', -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-        >>> iterable = [(1, 2), ([3, 4], [[5], [6]])]
-        >>> list(collapse(iterable))
-        [1, 2, 3, 4, 5, 6]
-        >>> iterable = [('a', ['b']), ('c', ['d'])]
-        >>> list(collapse(iterable))
-        ['a', 'b', 'c', 'd']
-        >>> iterable = (({'a': 'foo', 'b': 'bar', 'c': 'baz'},),)
-        >>> list(collapse(iterable))
-        [{'a': 'foo', 'b': 'bar', 'c': 'baz'}]
-    """
-    return (e for a in args for e in (collapse(*a) if isinstance(a, base_type) else (a,)))
+# collapse is now implemented in Rust
+# See libb._libb for the implementation
 
 
 def peel(str_or_iter):
@@ -309,28 +283,8 @@ def rpeel(str_or_iter):
             yield this
 
 
-def same_order(ref, comp):
-    """Compare two lists and assert that the elements in the reference list
-    appear in the same order in the comp list, regardless of comp list size
-
-    >>> r = ['x', 'y', 'z']
-    >>> c = ['x', 'a', 'b', 'c', 'y', 'd', 'e', 'f', 'z', 'h']
-    >>> same_order(r, c)
-    True
-
-    >>> c = ['x', 'a', 'b', 'c', 'z', 'd', 'e', 'f', 'y', 'h']
-    >>> same_order(r, c)
-    False
-    """
-    if len(comp) < len(ref):
-        return False
-    order = []
-    for r in ref:
-        try:
-            order.append(comp.index(r))
-        except ValueError:
-            return False
-    return sorted(order) == order
+# same_order is now implemented in Rust
+# See libb._libb for the implementation
 
 
 def coalesce(*args):
@@ -366,73 +320,12 @@ def getitem(sequence, index, default=None):
         return default
 
 
-def backfill(values):
-    """Back-fill a sorted array with the latest value
-
-    >>> backfill([None, None, 1, 2, 3, None, 4])
-    [1, 1, 1, 2, 3, 3, 4]
-    >>> backfill([1,2,3])
-    [1, 2, 3]
-    >>> backfill([None, None, None])
-    [None, None, None]
-    >>> backfill([])
-    []
-    >>> backfill([1, 2, 3, None])
-    [1, 2, 3, 3]
-    """
-    latest = None
-    missing = 0  # at start
-    filled = []
-    for val in values:
-        if val is not None:
-            latest = val
-            if missing:
-                filled = [latest] * missing
-                missing = 0
-            filled.append(val)
-        elif latest is None:
-            missing += 1
-        else:
-            filled.append(latest)
-    return filled or values
+# backfill is now implemented in Rust
+# See libb._libb for the implementation
 
 
-def backfill_iterdict(iterdict):
-    """Back-fill a sorted iterdict with the latest value
-
-    >>> backfill_iterdict([
-    ...     {'a': 1, 'b': None},
-    ...     {'a': 4, 'b': 2},
-    ...     {'a': None, 'b': None},
-    ...     {'a': 3, 'b': None}])
-    [{'a': 1, 'b': 2}, {'a': 4, 'b': 2}, {'a': 4, 'b': 2}, {'a': 3, 'b': 2}]
-    >>> backfill_iterdict([])
-    []
-    >>> backfill_iterdict([
-    ...     {'a': 9, 'b': 2},
-    ...     {'a': 4, 'b': 1},
-    ...     {'a': 3, 'b': 4},
-    ...     {'a': 3, 'b': 3}])
-    [{'a': 9, 'b': 2}, {'a': 4, 'b': 1}, {'a': 3, 'b': 4}, {'a': 3, 'b': 3}]
-    """
-    latest = {}
-    missing = {}  # front-fill w first value
-    filled = []
-    for _dict in iterdict:
-        this = {}
-        for k, v in list(_dict.items()):
-            if v is not None:
-                latest[k] = v
-                if k in missing:
-                    for j in range(missing[k]):
-                        filled[j][k] = latest[k]
-                this[k] = v
-            elif latest.get(k) is None:
-                missing[k] = (missing.get(k) or 0) + 1
-            else:
-                this[k] = latest[k]
-        filled.append(this)
-    return filled
+# backfill_iterdict is now implemented in Rust
+# See libb._libb for the implementation
 
 
 def align_iterdict(iterdict_a, iterdict_b, **kw):

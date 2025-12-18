@@ -52,3 +52,6 @@ docs/source/generated/
 rust/target/
 rust/Cargo.lock
 *.so
+
+# Benchmark tests (not checked in)
+tests/test_benchmarks.py

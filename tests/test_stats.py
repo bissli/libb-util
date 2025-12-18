@@ -9,10 +9,9 @@ from libb import linterp, logrtns, nearest, numify, parse, pct_change
 from libb import round_to_nearest, rsq, rtns, safe_add, safe_cmp, safe_diff
 from libb import safe_divide, safe_max, safe_min, safe_mult, safe_round
 from libb import stddevp, stddevs, thresh, varp, vars
-from libb.stats import BBox, convert_mixed_numeral_to_fraction
+from libb.stats import convert_mixed_numeral_to_fraction
 from libb.stats import convert_to_mixed_numeral, distance_from_line, isnumeric
-from libb.stats import np_divide, numpy_smooth, overlaps
-from libb.stats import push_apart, weighted_average
+from libb.stats import np_divide, numpy_smooth, weighted_average
 
 
 class TestAvg:
@@ -535,70 +534,6 @@ class TestConvertMixedNumeral:
     def test_convert_to_mixed_numeral_invalid(self):
         # Invalid input that can't be parsed
         assert convert_to_mixed_numeral(None) is None
-
-
-class TestBBox:
-    """Tests for BBox class."""
-
-    def test_bbox_creation(self):
-        box = BBox(1, 2, 4, 6, 'test')
-        assert box.x == 1.0
-        assert box.y == 2.0
-        assert box.w == 4.0
-        assert box.h == 6.0
-        assert box.name == 'test'
-
-    def test_bbox_properties(self):
-        box = BBox(0, 0, 4, 6)
-        assert box.rx == 2.0
-        assert box.ry == 3.0
-        assert box.x_min == -2.0
-        assert box.x_max == 2.0
-        assert box.y_min == -3.0
-        assert box.y_max == 3.0
-        assert box.a == 24.0
-        assert abs(box.d - math.sqrt(4 + 9)) < 0.01
-
-    def test_bbox_repr(self):
-        box = BBox(1, 2, 4, 6, 'test')
-        repr_str = repr(box)
-        assert 'BBox' in repr_str
-        assert 'test' in repr_str
-
-
-class TestOverlaps:
-    """Tests for overlaps function."""
-
-    def test_overlaps_true(self):
-        a = BBox(0, 0, 4, 4)
-        b = BBox(1, 1, 4, 4)
-        assert overlaps(a, b) is True
-
-    def test_overlaps_false(self):
-        a = BBox(0, 0, 2, 2)
-        b = BBox(10, 10, 2, 2)
-        assert overlaps(a, b) is False
-
-
-class TestPushApart:
-    """Tests for push_apart function."""
-
-    def test_push_apart_basic(self):
-        a = BBox(1, 1, 4, 2, 'a')
-        b = BBox(1, 2, 3, 3, 'b')
-        push_apart(a, b)
-        # After push apart, they should no longer overlap
-        assert overlaps(a, b) is False
-
-    def test_push_apart_already_apart(self):
-        a = BBox(0, 0, 2, 2, 'a')
-        b = BBox(100, 100, 2, 2, 'b')
-        original_ax = a.x
-        original_bx = b.x
-        push_apart(a, b)
-        # Should not have moved
-        assert a.x == original_ax
-        assert b.x == original_bx
 
 
 class TestNumpySmooth:

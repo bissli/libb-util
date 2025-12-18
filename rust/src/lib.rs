@@ -2,7 +2,9 @@
 #![allow(clippy::useless_conversion)]
 
 mod dictsort;
+mod iter;
 mod numparse;
 mod python;
+mod text;
 
 pub use python::_libb;
