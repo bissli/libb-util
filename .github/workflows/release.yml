@@ -48,7 +48,7 @@ jobs:
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           VERSION=${TAG#v}  # Strip 'v' prefix if present
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/libb/$VERSION/json)
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/libb-util/$VERSION/json)
           if [ "$HTTP_STATUS" = "200" ]; then
             echo "Version $VERSION already exists on PyPI, skipping publish"
             echo "should_publish=false" >> $GITHUB_OUTPUT
