@@ -9,6 +9,7 @@ from typing import Any
 from trace_dkey import trace
 
 from libb.iter import collapse
+from libb._libb import multikeysort as _multikeysort_rust
 
 logger = logging.getLogger(__name__)
 
@@ -276,19 +277,15 @@ def cmp(left, right):
     return _cmp(left, right)
 
 
-def multikeysort(items: list[dict], columns, _cmp=cmp, inplace=False):
+def multikeysort(items: list[dict], columns, inplace=False):
     """Sort list of dictionaries by list of keys.
 
     Equivalent to SQL ``ORDER BY`` - use no prefix for ascending, ``-`` prefix for descending.
 
     :param list items: List of dictionaries to sort.
     :param columns: List of column names to sort by (prefix with ``-`` for descending).
-    :param _cmp: Comparison function (default: cmp).
     :param bool inplace: If True, sort in place; otherwise return new sorted list.
     :returns: Sorted list if inplace=False, otherwise None.
-
-    .. note::
-        Algorithm from https://stackoverflow.com/a/1144405
 
     Basic Usage::
 
@@ -329,30 +326,7 @@ def multikeysort(items: list[dict], columns, _cmp=cmp, inplace=False):
         >>> assert all([cmp(total[i], total[i+1]) in (0, 1,)
         ...             for i in range(len(total)-1)])
     """
-    import operator
-    import re
-    from functools import cmp_to_key
-
-    if not isinstance(columns, list | tuple):
-        columns = (columns,)
-
-    m = re.compile(r'^-')
-    known = set(collapse([list(d.keys()) for d in items]))
-    columns = [x for x in columns if x and m.sub('', x) in known]
-
-    i = operator.itemgetter
-    comparers = [(i(m.sub('', col)), -1) if m.match(col) else (i(col), 1)
-                 for col in columns]
-
-    def comparer(left, right):
-        comparer_iter = (_cmp(fn(left), fn(right)) * mult
-                         for fn, mult in comparers)
-        return next((result for result in comparer_iter if result), 0)
-
-    if not inplace:
-        return sorted(items, key=cmp_to_key(comparer))
-
-    items.sort(key=cmp_to_key(comparer))
+    return _multikeysort_rust(items, columns, inplace)
 
 
 def map(func, *iterables):

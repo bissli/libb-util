@@ -1,0 +1,157 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  verify-version:
+    name: Verify version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      should_publish: ${{ steps.check-pypi.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get-version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "version=$TAG" >> $GITHUB_OUTPUT
+          echo "Tag version: $TAG"
+
+      - name: Get version from pyproject.toml
+        id: get-pyproject-version
+        run: |
+          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
+          echo "pyproject_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "pyproject.toml version: $VERSION"
+
+      - name: Verify tag matches pyproject.toml
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          TAG_VERSION=${TAG#v}  # Strip 'v' prefix if present
+          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
+          if [ "$TAG_VERSION" != "$VERSION" ]; then
+            echo "ERROR: Tag ($TAG) does not match pyproject.toml version ($VERSION)"
+            exit 1
+          fi
+          echo "Version verified: $TAG_VERSION"
+
+      - name: Check if version exists on PyPI
+        id: check-pypi
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}  # Strip 'v' prefix if present
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/libb/$VERSION/json)
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "Version $VERSION already exists on PyPI, skipping publish"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+          else
+            echo "Version $VERSION not found on PyPI, will publish"
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: Build on ${{ matrix.os }} (${{ matrix.target }})
+    needs: verify-version
+    if: needs.verify-version.outputs.should_publish == 'true'
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu
+            target: x86_64
+            manylinux: auto
+          # Linux x86_64 musllinux
+          - os: ubuntu
+            target: x86_64
+            manylinux: musllinux_1_1
+          # Linux aarch64
+          - os: ubuntu
+            target: aarch64
+            manylinux: auto
+          # Linux aarch64 musllinux
+          - os: ubuntu
+            target: aarch64
+            manylinux: musllinux_1_1
+          # macOS x86_64
+          - os: macos
+            target: x86_64
+          # macOS Apple Silicon
+          - os: macos
+            target: aarch64
+          # Windows x86_64
+          - os: windows
+            target: x86_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux || 'auto' }}
+          args: --release --out dist --manifest-path rust/Cargo.toml --interpreter 3.9 3.10 3.11 3.12 3.13
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-${{ matrix.target }}-${{ matrix.manylinux || 'auto' }}
+          path: dist/*.whl
+
+  build-sdist:
+    name: Build source distribution
+    needs: verify-version
+    if: needs.verify-version.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist --manifest-path rust/Cargo.toml
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  release:
+    name: Release
+    needs: [verify-version, build, build-sdist]
+    if: needs.verify-version.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List distributions
+        run: ls -la dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

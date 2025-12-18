@@ -6,6 +6,7 @@ description = "libb utility modules for python"
 authors = ["bissli"]
 license = "0BSD"
 packages = [{ include = "libb", from = "src" }]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -111,5 +112,12 @@ exclude_lines = [
 ]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "libb._libb"
+features = ["pyo3/extension-module"]
+python-packages = ["libb"]
+python-source = "src"
+manifest-path = "rust/Cargo.toml"

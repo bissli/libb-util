@@ -4,23 +4,17 @@
 
 ![libb](https://raw.githubusercontent.com/bissli/libb-util/refs/heads/master/bissli.jpg "Bissli - via wikipedia https://en.wikipedia.org/wiki/Bissli")
 
-A comprehensive collection of utility functions and classes for Python.
-
-## Installation
+Python utility library with Rust-accelerated functions for dictionary sorting and number parsing.
 
 ```bash
 pip install libb-util
-
-# Or with extras
-pip install "libb-util[pandas,text,web,math]"
 ```
 
-## Quick Start
-
-Always import from the top-level `libb` package:
+## Quick Reference
 
 ```python
 from libb import Setting, compose, attrdict, timeout
+from libb import multikeysort, numify, parse
 
 # Configuration with dot notation
 config = Setting()
@@ -41,13 +35,163 @@ def slow_function():
     pass
 ```
 
+---
+
+## Installation
+
+```bash
+pip install libb-util
+
+# With extras
+pip install "libb-util[pandas,text,web,math]"
+```
+
+### Available Extras
+
+| Extra | Description |
+|-------|-------------|
+| `pandas` | DataFrame utilities with pyarrow |
+| `text` | Text processing (ftfy, rapidfuzz, chardet) |
+| `web` | Web frameworks (Flask, Twisted, web.py) |
+| `math` | Matplotlib charting |
+| `test` | Testing tools (pytest, asserts, docker) |
+| `docs` | Sphinx documentation |
+
+---
+
+## Core Modules
+
+### Configuration
+
+| Function/Class | Description |
+|----------------|-------------|
+| `Setting()` | Hierarchical config with dot notation and locking |
+| `attrdict(**kw)` | Dict with attribute access |
+| `dictobj(**kw)` | Immutable dict with attribute access |
+
+### Function Utilities
+
+| Function | Description |
+|----------|-------------|
+| `compose(*funcs)` | Right-to-left function composition |
+| `timeout(seconds)` | Decorator to limit function execution time |
+| `retry(tries, delay)` | Decorator for retry with exponential backoff |
+| `memoize(func)` | Cache function results |
+| `once(func)` | Execute function only once |
+
+### Dictionary Operations (Rust-accelerated)
+
+| Function | Description |
+|----------|-------------|
+| `multikeysort(items, columns)` | Sort list of dicts by multiple keys |
+| `numify(val, to=int)` | Convert string to number with format handling |
+| `parse(s)` | Extract number from string |
+
+```python
+# Rust-accelerated sorting
+data = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+multikeysort(data, ['age', '-name'])  # Sort by age asc, name desc
+
+# Number parsing handles accounting formats
+parse('1,200')      # 1200
+parse('(500)')      # -500  (accounting negative)
+parse('100.5%')     # 100.5
+```
+
+### Iteration
+
+| Function | Description |
+|----------|-------------|
+| `chunked(iterable, n)` | Split into chunks of size n |
+| `flatten(nested)` | Flatten nested iterables |
+| `unique(iterable)` | Unique items preserving order |
+| `first(iterable, default)` | First item or default |
+| `last(iterable, default)` | Last item or default |
+
+### Text Processing
+
+| Function | Description |
+|----------|-------------|
+| `normalize(text)` | Unicode normalization |
+| `slugify(text)` | URL-safe slug |
+| `strip_html(text)` | Remove HTML tags |
+| `truncate(text, length)` | Truncate with ellipsis |
+
+### I/O and Paths
+
+| Function | Description |
+|----------|-------------|
+| `ensure_dir(path)` | Create directory if not exists |
+| `safe_filename(name)` | Sanitize filename |
+| `temp_file(**kw)` | Context manager for temp files |
+| `atomic_write(path)` | Atomic file write context |
+
+### Concurrency
+
+| Function | Description |
+|----------|-------------|
+| `threaded(func)` | Run function in thread |
+| `parallel_map(func, items)` | Parallel execution |
+| `Semaphore(n)` | Limit concurrent access |
+
+### Process Management
+
+| Function | Description |
+|----------|-------------|
+| `run_cmd(cmd)` | Execute shell command |
+| `is_running(pid)` | Check if process exists |
+| `kill_tree(pid)` | Kill process and children |
+
+---
+
+## Classes
+
+### OrderedSet
+
+Set that maintains insertion order:
+
+```python
+from libb import OrderedSet
+
+s = OrderedSet([1, 2, 3, 2, 1])
+list(s)  # [1, 2, 3]
+```
+
+### Heap
+
+Min/max heap implementations:
+
+```python
+from libb import MinHeap, MaxHeap
+
+h = MinHeap([3, 1, 4, 1, 5])
+h.pop()  # 1
+```
+
+---
+
 ## Documentation
 
-Full documentation is available at **[bissli.github.io/libb-util](https://bissli.github.io/libb-util/)**:
+Full documentation at **[bissli.github.io/libb-util](https://bissli.github.io/libb-util/)**:
 
 - [Installation](https://bissli.github.io/libb-util/installation.html)
 - [Quick Start Guide](https://bissli.github.io/libb-util/quickstart.html)
 - [API Reference](https://bissli.github.io/libb-util/api/index.html)
+
+---
+
+## Development
+
+```bash
+# Install dev dependencies
+pip install -e ".[test,docs]"
+
+# Build Rust extension
+maturin develop
+
+# Run tests
+pytest
+```
 
 ## License
 
