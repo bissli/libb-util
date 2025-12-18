@@ -28,7 +28,7 @@ jobs:
       - name: Get version from pyproject.toml
         id: get-pyproject-version
         run: |
-          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
+          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml | head -1)
           echo "pyproject_version=$VERSION" >> $GITHUB_OUTPUT
           echo "pyproject.toml version: $VERSION"
 
@@ -36,7 +36,7 @@ jobs:
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           TAG_VERSION=${TAG#v}  # Strip 'v' prefix if present
-          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
+          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml | head -1)
           if [ "$TAG_VERSION" != "$VERSION" ]; then
             echo "ERROR: Tag ($TAG) does not match pyproject.toml version ($VERSION)"
             exit 1
