@@ -17,10 +17,12 @@ logger = logging.getLogger(__name__)
 class TestConfig:
 
     def setup_method(self, test_method):
+        Setting.unlock()
         self.defaultenv = config.ENVIRONMENT
 
     def teardown_method(self, test_method):
         config.environment(self.defaultenv)
+        Setting.unlock()
 
     def test_accessors(self):
         assert config.main.main == config['main'].main
