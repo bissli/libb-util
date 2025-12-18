@@ -54,7 +54,7 @@ pip install "libb-util[pandas,text,web,math]"
 | `text` | Text processing (ftfy, rapidfuzz, chardet) |
 | `web` | Web frameworks (Flask, Twisted, web.py) |
 | `math` | Matplotlib charting |
-| `test` | Testing tools (pytest, asserts, docker) |
+| `test` | Testing tools (pytest, asserts) |
 | `docs` | Sphinx documentation |
 
 ---

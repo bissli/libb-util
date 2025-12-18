@@ -45,7 +45,6 @@ Twisted = { version = "^23.8.0", optional = true }
 service-identity = { version = "*", optional = true }
 # == test
 asserts = { version = "*", optional = true }
-docker = { version = "*", optional = true }
 pytest = { version = "*", optional = true }
 pytest-mock = { version = "*", optional = true }
 pytest-runner = { version = "*", optional = true }
@@ -88,7 +87,6 @@ twd = [
 ]
 test = [
   "asserts",
-  "docker",
   "pytest",
   "pytest-mock",
   "pytest-runner",
