@@ -62,6 +62,8 @@ class OverrideModuleGetattr:
         >>> sys.modules['config'] = original_config
         >>> import config
         >>> assert config.foo.bar == 1
+
+        >>> del sys.modules['config']  # cleanup
     """
 
     def __init__(self, wrapped: ModuleType, override: ModuleType) -> None:
@@ -80,17 +82,21 @@ class OverrideModuleGetattr:
                 pass
 
         if self.override:
-            try:
-                return getattr(getattr(self.override, env), name)
-            except AttributeError:
+            if env is not None:
                 try:
-                    return getattr(self.override, name)
+                    return getattr(getattr(self.override, env), name)
                 except AttributeError:
                     pass
-        try:
-            return getattr(getattr(self.wrapped, env), name)
-        except AttributeError:
-            return getattr(self.wrapped, name)
+            try:
+                return getattr(self.override, name)
+            except AttributeError:
+                pass
+        if env is not None:
+            try:
+                return getattr(getattr(self.wrapped, env), name)
+            except AttributeError:
+                pass
+        return getattr(self.wrapped, name)
 
     def __getitem__(self, name):
         """Allow dynamic module lookups like config['bloomberg.data']."""

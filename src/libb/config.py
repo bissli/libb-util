@@ -77,7 +77,7 @@ class Setting(dict):
         """Create sub-setting fields on the fly"""
         if name not in self:
             if self._locked:
-                raise ValueError('This Setting object is locked from editing')
+                raise AttributeError(f"Setting object has no attribute '{name}' (locked)")
             self[name] = Setting()
         return self[name]
 

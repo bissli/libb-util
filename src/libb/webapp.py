@@ -883,9 +883,7 @@ class ProfileMiddleware:
     def __call__(self, environ, start_response):
         stime = time.time()
         pr = cProfile.Profile()
-        pr.enable()
         result = pr.runcall(self.func, environ, start_response)
-        pr.disable()
         etime = time.time() - stime
         self.log.info(f'Run finished in {etime} seconds')
 

@@ -198,7 +198,7 @@ def format_secondsdelta(seconds):
     Example::
 
         >>> format_secondsdelta(3661)
-        '1 hrs'
+        '1.0 hrs'
         >>> format_secondsdelta(90)
         '1.5 min'
     """
