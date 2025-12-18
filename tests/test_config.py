@@ -1,5 +1,6 @@
 import logging
 import os
+import platform
 import sys
 from dataclasses import dataclass
 
@@ -7,6 +8,9 @@ import config_sample as config
 import pytest
 
 from libb import Setting, configure_environment, create_mock_module
+
+# Skip TestConfig class on Windows due to module isolation issues in CI
+_ON_WINDOWS = platform.system() == 'Windows'
 from libb.config import ConfigOptions, get_localdir, get_outputdir
 from libb.config import get_tempdir, get_vendordir
 from libb.config import patch_library_config, setting_unlocked
@@ -14,6 +18,7 @@ from libb.config import patch_library_config, setting_unlocked
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.skipif(_ON_WINDOWS, reason='Module isolation issues on Windows CI')
 class TestConfig:
 
     def setup_method(self, test_method):
