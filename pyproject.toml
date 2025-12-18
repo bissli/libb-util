@@ -3,9 +3,17 @@ name = "libb-util"
 version = "0.0.13"
 readme = "README.md"
 description = "libb utility modules for python"
-authors = [{name = "bissli"}]
+authors = [{name = "bissli", email = "bissli@xyz.org"}]
 license = {text = "0BSD"}
 requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 
 [tool.poetry]
 name = "libb-util"
