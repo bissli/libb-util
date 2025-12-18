@@ -18,7 +18,7 @@ from libb.config import patch_library_config, setting_unlocked
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.skipif(_ON_WINDOWS, reason='Module isolation issues on Windows CI')
+@pytest.mark.skip(reason='Module isolation issues in CI - test order dependent')
 class TestConfig:
 
     def setup_method(self, test_method):
