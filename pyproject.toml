@@ -1,6 +1,6 @@
 [project]
 name = "libb-util"
-version = "0.0.18"
+version = "0.0.19"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = [{name = "bissli", email = "bissli@xyz.org"}]
@@ -41,7 +41,7 @@ docs = ["Sphinx", "sphinx-rtd-theme", "sphinx-autodoc-typehints", "myst-parser",
 
 [tool.poetry]
 name = "libb-util"
-version = "0.0.18"
+version = "0.0.19"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = ["bissli"]
