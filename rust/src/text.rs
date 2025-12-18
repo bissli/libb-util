@@ -11,25 +11,25 @@ use std::collections::HashMap;
 static VULGAR_FRACTIONS: Lazy<HashMap<char, f64>> = Lazy::new(|| {
     let mut m = HashMap::new();
     // Basic fractions: 1/4, 1/2, 3/4
-    m.insert('\u{00BC}', 0.25); // ¼
-    m.insert('\u{00BD}', 0.5); // ½
-    m.insert('\u{00BE}', 0.75); // ¾
-                               // Thirds
-    m.insert('\u{2153}', 1.0 / 3.0); // ⅓
-    m.insert('\u{2154}', 2.0 / 3.0); // ⅔
-                                     // Fifths
-    m.insert('\u{2155}', 0.2); // ⅕
-    m.insert('\u{2156}', 0.4); // ⅖
-    m.insert('\u{2157}', 0.6); // ⅗
-    m.insert('\u{2158}', 0.8); // ⅘
-                               // Sixths
-    m.insert('\u{2159}', 1.0 / 6.0); // ⅙
-    m.insert('\u{215A}', 5.0 / 6.0); // ⅚
-                                     // Eighths
-    m.insert('\u{215B}', 0.125); // ⅛
-    m.insert('\u{215C}', 0.375); // ⅜
-    m.insert('\u{215D}', 0.625); // ⅝
-    m.insert('\u{215E}', 0.875); // ⅞
+    m.insert('\u{00BC}', 0.25);
+    m.insert('\u{00BD}', 0.5);
+    m.insert('\u{00BE}', 0.75);
+    // Thirds
+    m.insert('\u{2153}', 1.0 / 3.0);
+    m.insert('\u{2154}', 2.0 / 3.0);
+    // Fifths
+    m.insert('\u{2155}', 0.2);
+    m.insert('\u{2156}', 0.4);
+    m.insert('\u{2157}', 0.6);
+    m.insert('\u{2158}', 0.8);
+    // Sixths
+    m.insert('\u{2159}', 1.0 / 6.0);
+    m.insert('\u{215A}', 5.0 / 6.0);
+    // Eighths
+    m.insert('\u{215B}', 0.125);
+    m.insert('\u{215C}', 0.375);
+    m.insert('\u{215D}', 0.625);
+    m.insert('\u{215E}', 0.875);
     m
 });
 
