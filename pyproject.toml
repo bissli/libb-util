@@ -1,6 +1,6 @@
 [project]
 name = "libb-util"
-version = "0.0.9"
+version = "0.0.10"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = [{name = "bissli"}]
@@ -9,7 +9,7 @@ requires-python = ">=3.9"
 
 [tool.poetry]
 name = "libb-util"
-version = "0.0.9"
+version = "0.0.10"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = ["bissli"]
