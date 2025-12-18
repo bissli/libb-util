@@ -29,6 +29,16 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 
+[project.optional-dependencies]
+math = ["matplotlib"]
+text = ["ftfy", "rapidfuzz", "chardet"]
+pandas = ["pyarrow", "pandas", "pandas-downcast==1.2.4", "numexpr"]
+web = ["Twisted", "service-identity", "web.py", "Flask"]
+twd = ["Twisted", "service-identity"]
+test = ["asserts", "pytest", "pytest-mock", "pytest-runner", "unittest2", "WebTest", "maturin>=1.0,<2.0"]
+deploy = ["bump2version"]
+docs = ["Sphinx", "sphinx-rtd-theme", "sphinx-autodoc-typehints", "myst-parser", "sphinx-copybutton"]
+
 [tool.poetry]
 name = "libb-util"
 version = "0.0.15"
