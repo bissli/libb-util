@@ -222,9 +222,9 @@ def format_timedelta(td):
         '45 sec'
     """
     def fmt_num(val, units):
-        s = f'{val:.1f} {units}'
-        # HACK works but ugly
-        return s.replace('.0 ', ' ')
+        if val == int(val):
+            return f'{int(val)} {units}'
+        return f'{val:.1f} {units}'
 
     if td.days > 365:
         return fmt_num(td.days / 365.0, 'yrs')

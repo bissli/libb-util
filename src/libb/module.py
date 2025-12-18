@@ -70,25 +70,26 @@ class OverrideModuleGetattr:
 
     def __getattr__(self, name):
         """Get attribute, checking override module first then wrapped module."""
+        env = None
         try:
             env = self.override.ENVIRONMENT
         except AttributeError:
             try:
                 env = self.wrapped.ENVIRONMENT
-            except:
+            except AttributeError:
                 pass
 
         if self.override:
             try:
                 return getattr(getattr(self.override, env), name)
-            except:
+            except AttributeError:
                 try:
                     return getattr(self.override, name)
-                except:
+                except AttributeError:
                     pass
         try:
             return getattr(getattr(self.wrapped, env), name)
-        except:
+        except AttributeError:
             return getattr(self.wrapped, name)
 
     def __getitem__(self, name):
@@ -159,7 +160,7 @@ def get_subclasses(module: str | ModuleType, parentcls: type) -> list[type]:
         try:
             if issubclass(cls, parentcls):
                 subclasses.append(cls)
-        except:
+        except TypeError:
             pass
     return subclasses
 
