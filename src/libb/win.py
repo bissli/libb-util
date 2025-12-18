@@ -21,8 +21,13 @@ __all__ = [
     'exit_cmd',
 ]
 
+_HAS_WIN32COM = False
 if 'Win' in platform.system():
-    from win32com.client import GetObject
+    try:
+        from win32com.client import GetObject
+        _HAS_WIN32COM = True
+    except ImportError:
+        pass
 
 
 def run_command(cmd, workingdir=None, raise_on_error=True, hidearg=None):
@@ -203,7 +208,12 @@ def parse_wmic_output(output):
 
 
 def exit_cmd():
-    """Kill all running cmd.exe processes via WMI."""
+    """Kill all running cmd.exe processes via WMI.
+
+    Requires pywin32 to be installed on Windows.
+    """
+    if not _HAS_WIN32COM:
+        raise ImportError('exit_cmd requires pywin32: pip install pywin32')
     WMI = GetObject('winmgmts:')
     processes = WMI.InstancesOf('Win32_Process')
     for p in WMI.ExecQuery('select * from Win32_Process where Name="cmd.exe"'):
