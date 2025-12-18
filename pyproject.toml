@@ -13,7 +13,7 @@ python = "^3.9"
 
 numpy = "*"
 backoff = "*"
-matplotlib = { version = "^3.8.3", optional = true }
+matplotlib = { version = "*", optional = true }
 # == text
 regex = "*"
 titlecase = "^2.4.1"
@@ -25,14 +25,15 @@ more-itertools = "*"
 wrapt = "*"
 psutil = "*"
 requests = "*"
-tqdm = "^4.66.2"
+tqdm = "*"
 trace-dkey = "0.0.6"
-platformdirs = "^4.2.0"
+platformdirs = "*"
 typing-extensions = "*"
 # == pandas
 pandas-downcast = { version = "1.2.4", optional = true }
 pyarrow = { version = "*", optional = true }
 pandas = { version = "*", optional = true }
+numexpr = { version = "*", optional = true }
 # == mimetypes
 python-magic = { version = ">=0.4.12", optional = true }
 python-magic-bin = { version = ">=0.4.12", markers = "sys_platform == 'win32'", optional = true }
@@ -50,6 +51,8 @@ pytest-mock = { version = "*", optional = true }
 pytest-runner = { version = "*", optional = true }
 unittest2 = { version = "*", optional = true }
 WebTest = { version = "*", extras = ["web"], optional = true }
+maturin = { version = ">=1.0,<2.0", optional = true }
+exceptiongroup = { version = "*", python = "<3.11", optional = true }
 # == deploy
 bump2version = { version = "^1.0.1", optional = true }
 # == docs
@@ -70,6 +73,8 @@ pandas = [
   "pyarrow",
   "pandas",
   "numpy",
+  "pandas-downcast",
+  "numexpr",
 ]
 web = [
   "Twisted",
@@ -89,6 +94,8 @@ test = [
   "pytest-runner",
   "unittest2",
   "WebTest",
+  "maturin",
+  "exceptiongroup",
 ]
 deploy = ["bump2version"]
 docs = [

@@ -3,6 +3,8 @@
 .. note::
     ``os.walk`` and ``scandir`` were slow over network connections in Python 2.
 """
+from __future__ import annotations
+
 import glob
 import itertools
 import logging
@@ -320,7 +322,7 @@ def load_files_tmpdir(patterns='*', thedate=None):
         True
     """
     tmpdir = tempfile.gettempdir()
-    if not isinstance(patterns, list | tuple):
+    if not isinstance(patterns, (list, tuple)):
         patterns = (patterns,)
     gen = [load_files(tmpdir, pattern, thedate) for pattern in patterns]
     return itertools.chain(*gen)

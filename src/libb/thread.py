@@ -1,12 +1,20 @@
+from __future__ import annotations
+
 import asyncio
 import logging
+import sys
 import time
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from functools import partial, wraps
 from threading import Lock, Thread
-from typing import Any, Self
+from typing import Any
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 

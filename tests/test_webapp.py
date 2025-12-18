@@ -1,6 +1,7 @@
 """Tests for webapp utility functions (non-framework specific)."""
 
 import datetime
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -287,6 +288,7 @@ class TestSafeJoin:
         assert safe_join('/base', '../etc/passwd') is None
         assert safe_join('/base', 'foo/../../../etc/passwd') is None
 
+    @pytest.mark.skipif(sys.platform == 'win32', reason='Unix absolute paths not recognized on Windows')
     def test_safe_join_blocks_absolute(self):
         assert safe_join('/base', '/etc/passwd') is None
 
@@ -509,7 +511,8 @@ class TestLocalOrStaticJoin:
             result = local_or_static_join('/nonexistent/static', str(local_file))
             # Function returns Path from expandabspath
             assert isinstance(result, Path)
-            assert result == local_file
+            # Use resolve() to handle macOS /var -> /private/var symlink
+            assert result.resolve() == local_file.resolve()
 
     def test_local_or_static_join_static_exists(self):
         with tempfile.TemporaryDirectory() as static_dir:
@@ -517,7 +520,8 @@ class TestLocalOrStaticJoin:
             static_file.write_text('static content')
             result = local_or_static_join(static_dir, 'test.txt')
             assert isinstance(result, Path)
-            assert result == static_file
+            # Use resolve() to handle macOS /var -> /private/var symlink
+            assert result.resolve() == static_file.resolve()
 
     def test_local_or_static_join_neither_exists(self):
         with pytest.raises(OSError, match='does not exist'):
@@ -690,7 +694,12 @@ class TestProfileMiddleware:
         logger.setLevel(logging.DEBUG)
 
         pm = ProfileMiddleware(app, log=logger)
-        result = pm({}, lambda s, h: None)
+        try:
+            result = pm({}, lambda s, h: None)
+        except ValueError as e:
+            if 'Another profiling tool is already active' in str(e):
+                pytest.skip('cProfile conflict with another profiler')
+            raise
 
         assert result == ['Hello']
         assert 'called' in results

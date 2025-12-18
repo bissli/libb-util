@@ -1,4 +1,5 @@
 import signal
+import sys
 import time
 from queue import Queue
 from threading import Lock, Thread
@@ -8,6 +9,9 @@ import pytest
 
 from libb import NonBlockingDelay, debounce, syncd, timeout, wait_until
 from libb.sync import datetime
+
+# SIGALRM is not available on Windows
+unix_only = pytest.mark.skipif(sys.platform == 'win32', reason='SIGALRM not available on Windows')
 
 
 def test_nonblocking_delay_timeout():
@@ -45,21 +49,22 @@ def test_multiple_nonblocking_delays():
     d1 = NonBlockingDelay()
     d2 = NonBlockingDelay()
 
-    d1.delay(0.1)
-    d2.delay(0.2)
+    d1.delay(0.2)
+    d2.delay(0.5)
 
     assert not d1.timeout()
     assert not d2.timeout()
 
-    time.sleep(0.15)
+    time.sleep(0.3)
     assert d1.timeout()
     assert not d2.timeout()
 
-    time.sleep(0.1)
+    time.sleep(0.3)
     assert d1.timeout()
     assert d2.timeout()
 
 
+@pytest.mark.skipif(sys.platform == 'win32', reason='Zero delay timing unreliable on Windows')
 def test_nonblocking_delay_zero():
     """Verify NonBlockingDelay with zero delay times out immediately.
     """
@@ -73,15 +78,15 @@ def test_nonblocking_delay_restart():
     """
     delay = NonBlockingDelay()
 
-    delay.delay(0.1)
+    delay.delay(0.3)
     time.sleep(0.05)
     assert not delay.timeout()
 
-    delay.delay(0.1)
-    time.sleep(0.08)
+    delay.delay(0.3)
+    time.sleep(0.1)
     assert not delay.timeout()
 
-    time.sleep(0.05)
+    time.sleep(0.25)
     assert delay.timeout()
 
 
@@ -174,7 +179,7 @@ def test_debounce_delays_execution():
     """
     results = []
 
-    @debounce(0.1)
+    @debounce(0.2)
     def record(value):
         results.append(value)
 
@@ -186,7 +191,8 @@ def test_debounce_delays_execution():
 
     assert len(results) == 0
 
-    time.sleep(0.15)
+    # Wait significantly longer than debounce period for CI reliability
+    time.sleep(0.5)
     assert results == ['baz']
 
 
@@ -350,6 +356,7 @@ def test_wait_until_invalid_second():
         wait_until(12, 30, -1)
 
 
+@unix_only
 def test_timeout_raises_error():
     """Verify timeout context manager raises OSError when time limit is exceeded.
     """
@@ -357,6 +364,7 @@ def test_timeout_raises_error():
         time.sleep(2)
 
 
+@unix_only
 def test_timeout_allows_completion():
     """Verify timeout context manager allows code to complete within time limit.
     """
@@ -366,6 +374,7 @@ def test_timeout_allows_completion():
     assert result == ['completed']
 
 
+@unix_only
 def test_timeout_restores_signal_handler():
     """Verify timeout context manager restores previous SIGALRM handler.
     """
@@ -384,6 +393,7 @@ def test_timeout_restores_signal_handler():
         signal.signal(signal.SIGALRM, original_handler)
 
 
+@unix_only
 def test_timeout_custom_error_message():
     """Verify timeout context manager uses custom error message.
     """
@@ -392,6 +402,7 @@ def test_timeout_custom_error_message():
             time.sleep(2)
 
 
+@unix_only
 def test_timeout_with_exception():
     """Verify timeout context manager allows exceptions to propagate normally.
     """

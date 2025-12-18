@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import operator
 import types
@@ -83,7 +85,7 @@ def npfunc(nargs=1):
 def _tonp(x):
     """Handle None to NaN conversion"""
     import numpy as np
-    if isinstance(x, list | tuple):
+    if isinstance(x, (list, tuple)):
         return np.array([np.nan if k is None else k for k in x])
     return x
 
@@ -100,7 +102,7 @@ def _nptonumber(x):
 def _topy(x):
     """Replace np.nan with Python None"""
     import numpy as np
-    if isinstance(x, np.ndarray | types.GeneratorType):
+    if isinstance(x, (np.ndarray, types.GeneratorType)):
         return [_nptonumber(k) if not isnan(k) else None for k in x]  # keep None
     if isnan(x):
         return None
@@ -214,7 +216,7 @@ def isnumeric(x):
     :rtype: bool
     """
     import numpy as np
-    return np.issubdtype(x, np.integer) or np.issubdtype(x, np.floating) or isinstance(x, int | float)
+    return np.issubdtype(x, np.integer) or np.issubdtype(x, np.floating) or isinstance(x, (int, float))
 
 
 def digits(n):

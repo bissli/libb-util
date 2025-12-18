@@ -36,9 +36,7 @@ impl Clone for SortValue {
             SortValue::Int(v) => SortValue::Int(*v),
             SortValue::Float(v) => SortValue::Float(*v),
             SortValue::Str(v) => SortValue::Str(v.clone()),
-            SortValue::Other(v) => {
-                Python::with_gil(|py| SortValue::Other(v.clone_ref(py)))
-            }
+            SortValue::Other(v) => Python::with_gil(|py| SortValue::Other(v.clone_ref(py))),
         }
     }
 }
@@ -71,12 +69,18 @@ impl SortValue {
 
             // Same type comparisons (fast path)
             (SortValue::Int(a), SortValue::Int(b)) => a.cmp(b),
-            (SortValue::Float(a), SortValue::Float(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
+            (SortValue::Float(a), SortValue::Float(b)) => {
+                a.partial_cmp(b).unwrap_or(Ordering::Equal)
+            }
             (SortValue::Str(a), SortValue::Str(b)) => a.cmp(b),
 
             // Mixed numeric types
-            (SortValue::Int(a), SortValue::Float(b)) => (*a as f64).partial_cmp(b).unwrap_or(Ordering::Equal),
-            (SortValue::Float(a), SortValue::Int(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(Ordering::Equal),
+            (SortValue::Int(a), SortValue::Float(b)) => {
+                (*a as f64).partial_cmp(b).unwrap_or(Ordering::Equal)
+            }
+            (SortValue::Float(a), SortValue::Int(b)) => {
+                a.partial_cmp(&(*b as f64)).unwrap_or(Ordering::Equal)
+            }
 
             // Fallback to Python comparison for Other or mixed types
             (SortValue::Other(a), SortValue::Other(b)) => py_cmp_objects(a, b, py),

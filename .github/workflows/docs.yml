@@ -37,6 +37,9 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Load cached venv
         id: cached-poetry-dependencies
         uses: actions/cache@v4
@@ -45,8 +48,10 @@ jobs:
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock', '**/pyproject.toml') }}
 
       - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install -E docs -E pandas -E text
+        run: |
+          poetry install -E docs -E pandas -E text
+          poetry run pip install maturin
+          poetry run maturin develop --manifest-path rust/Cargo.toml
 
       - name: Build documentation
         run: |

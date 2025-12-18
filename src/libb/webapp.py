@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import contextlib
 import cProfile
@@ -621,7 +623,7 @@ def inject_file(x):
     :returns: File contents.
     :rtype: str
     """
-    with pathlib.Path(x).open(encoding='locale') as f:
+    with pathlib.Path(x).open(encoding=None) as f:
         return f.read()
 
 
@@ -831,7 +833,7 @@ class JSONEncoderISODate(json.JSONEncoder):
     """
 
     def default(self, obj):
-        if isinstance(obj, datetime.date | datetime.datetime):
+        if isinstance(obj, (datetime.date, datetime.datetime)):
             return obj.isoformat()
         return super().default(obj)
 

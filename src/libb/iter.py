@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 import logging
 from collections.abc import Iterable, Sequence
@@ -283,7 +285,7 @@ def peel(str_or_iter):
             this = next(things)
         except StopIteration:
             return
-        if isinstance(this, tuple | list):
+        if isinstance(this, (tuple, list)):
             yield this
         else:
             yield this, this
@@ -301,7 +303,7 @@ def rpeel(str_or_iter):
             this = next(things)
         except StopIteration:
             return
-        if isinstance(this, tuple | list):
+        if isinstance(this, (tuple, list)):
             yield this[-1]
         else:
             yield this
