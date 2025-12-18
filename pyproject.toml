@@ -1,6 +1,6 @@
 [project]
 name = "libb-util"
-version = "0.0.13"
+version = "0.0.14"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = [{name = "bissli", email = "bissli@xyz.org"}]
@@ -17,7 +17,7 @@ classifiers = [
 
 [tool.poetry]
 name = "libb-util"
-version = "0.0.13"
+version = "0.0.14"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = ["bissli"]
