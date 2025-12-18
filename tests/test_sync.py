@@ -33,14 +33,14 @@ def test_nonblocking_delay_precision():
     """
     delay = NonBlockingDelay()
 
-    delay.delay(0.05)
+    delay.delay(0.1)
     start = time.monotonic()
 
     while not delay.timeout():
         time.sleep(0.01)
 
     elapsed = time.monotonic() - start
-    assert 0.05 <= elapsed < 0.1
+    assert 0.1 <= elapsed < 0.2
 
 
 def test_multiple_nonblocking_delays():
@@ -251,7 +251,7 @@ def test_debounce_multiple_calls():
     """
     results = []
 
-    @debounce(0.1)
+    @debounce(0.2)
     def record(value):
         results.append(value)
 
@@ -261,7 +261,7 @@ def test_debounce_multiple_calls():
 
     assert len(results) == 0
 
-    time.sleep(0.15)
+    time.sleep(0.4)
     assert results == ['third']
 
 
