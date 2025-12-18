@@ -135,3 +135,4 @@ features = ["pyo3/extension-module"]
 python-packages = ["libb"]
 python-source = "src"
 manifest-path = "rust/Cargo.toml"
+include = ["LICENSE"]
