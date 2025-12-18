@@ -119,7 +119,7 @@ pub fn uncamel(camel: &str) -> String {
                 // 2. Previous char is uppercase AND next char is lowercase (e.g., "HTTPResponse" -> "HTTP_Response")
                 if prev.is_lowercase()
                     || prev.is_ascii_digit()
-                    || (prev.is_uppercase() && next.map_or(false, |n| n.is_lowercase()))
+                    || (prev.is_uppercase() && next.is_some_and(|n| n.is_lowercase()))
                 {
                     result.push('_');
                 }
