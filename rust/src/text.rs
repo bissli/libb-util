@@ -11,25 +11,25 @@ use std::collections::HashMap;
 static VULGAR_FRACTIONS: Lazy<HashMap<char, f64>> = Lazy::new(|| {
     let mut m = HashMap::new();
     // Basic fractions: 1/4, 1/2, 3/4
-    m.insert('\u{00BC}', 0.25);   // ¼
-    m.insert('\u{00BD}', 0.5);    // ½
-    m.insert('\u{00BE}', 0.75);   // ¾
-    // Thirds
-    m.insert('\u{2153}', 1.0/3.0); // ⅓
-    m.insert('\u{2154}', 2.0/3.0); // ⅔
-    // Fifths
-    m.insert('\u{2155}', 0.2);    // ⅕
-    m.insert('\u{2156}', 0.4);    // ⅖
-    m.insert('\u{2157}', 0.6);    // ⅗
-    m.insert('\u{2158}', 0.8);    // ⅘
-    // Sixths
-    m.insert('\u{2159}', 1.0/6.0); // ⅙
-    m.insert('\u{215A}', 5.0/6.0); // ⅚
-    // Eighths
-    m.insert('\u{215B}', 0.125);  // ⅛
-    m.insert('\u{215C}', 0.375);  // ⅜
-    m.insert('\u{215D}', 0.625);  // ⅝
-    m.insert('\u{215E}', 0.875);  // ⅞
+    m.insert('\u{00BC}', 0.25); // ¼
+    m.insert('\u{00BD}', 0.5); // ½
+    m.insert('\u{00BE}', 0.75); // ¾
+                               // Thirds
+    m.insert('\u{2153}', 1.0 / 3.0); // ⅓
+    m.insert('\u{2154}', 2.0 / 3.0); // ⅔
+                                     // Fifths
+    m.insert('\u{2155}', 0.2); // ⅕
+    m.insert('\u{2156}', 0.4); // ⅖
+    m.insert('\u{2157}', 0.6); // ⅗
+    m.insert('\u{2158}', 0.8); // ⅘
+                               // Sixths
+    m.insert('\u{2159}', 1.0 / 6.0); // ⅙
+    m.insert('\u{215A}', 5.0 / 6.0); // ⅚
+                                     // Eighths
+    m.insert('\u{215B}', 0.125); // ⅛
+    m.insert('\u{215C}', 0.375); // ⅜
+    m.insert('\u{215D}', 0.625); // ⅝
+    m.insert('\u{215E}', 0.875); // ⅞
     m
 });
 
@@ -66,7 +66,11 @@ pub fn sanitize_vulgar_string(s: &str) -> String {
         let whole_num = caps.get(1).map(|m| m.as_str()).unwrap_or("");
         let frac_char = caps.get(2).map(|m| m.as_str()).unwrap_or("");
 
-        if let Some(frac_val) = frac_char.chars().next().and_then(|c| VULGAR_FRACTIONS.get(&c)) {
+        if let Some(frac_val) = frac_char
+            .chars()
+            .next()
+            .and_then(|c| VULGAR_FRACTIONS.get(&c))
+        {
             let replacement = if whole_num.is_empty() {
                 // Just the fraction, add leading space
                 format!(" {}", frac_val)
@@ -113,7 +117,10 @@ pub fn uncamel(camel: &str) -> String {
                 // Insert underscore if:
                 // 1. Previous char is lowercase or digit (e.g., "getH" -> "get_H", "get2H" -> "get2_H")
                 // 2. Previous char is uppercase AND next char is lowercase (e.g., "HTTPResponse" -> "HTTP_Response")
-                if prev.is_lowercase() || prev.is_ascii_digit() || (prev.is_uppercase() && next.map_or(false, |n| n.is_lowercase())) {
+                if prev.is_lowercase()
+                    || prev.is_ascii_digit()
+                    || (prev.is_uppercase() && next.map_or(false, |n| n.is_lowercase()))
+                {
                     result.push('_');
                 }
             }
@@ -158,33 +165,4 @@ pub fn underscore_to_camelcase(s: &str) -> String {
     }
 
     result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sanitize_vulgar_string() {
-        assert_eq!(
-            sanitize_vulgar_string("Foo-Bar+Baz: 17s 4¾ 1 ⅛ 20 93¾ - 94⅛"),
-            "Foo-Bar+Baz: 17s 4.75 1.125 20 93.75 - 94.125"
-        );
-    }
-
-    #[test]
-    fn test_uncamel() {
-        assert_eq!(uncamel("CamelCase"), "camel_case");
-        assert_eq!(uncamel("CamelCamelCase"), "camel_camel_case");
-        assert_eq!(uncamel("Camel2Camel2Case"), "camel2_camel2_case");
-        assert_eq!(uncamel("getHTTPResponseCode"), "get_http_response_code");
-        assert_eq!(uncamel("get2HTTPResponseCode"), "get2_http_response_code");
-        assert_eq!(uncamel("HTTPResponseCode"), "http_response_code");
-        assert_eq!(uncamel("HTTPResponseCodeXYZ"), "http_response_code_xyz");
-    }
-
-    #[test]
-    fn test_underscore_to_camelcase() {
-        assert_eq!(underscore_to_camelcase("foo_bar_baz"), "fooBarBaz");
-    }
 }

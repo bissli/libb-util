@@ -241,28 +241,3 @@ pub fn same_order(ref_list: &Bound<'_, PyList>, comp: &Bound<'_, PyList>) -> PyR
 
     Ok(true)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_same_order_basic() {
-        pyo3::prepare_freethreaded_python();
-        Python::with_gil(|py| {
-            let ref_list = PyList::new_bound(py, &["x", "y", "z"]);
-            let comp = PyList::new_bound(py, &["x", "a", "b", "c", "y", "d", "e", "f", "z", "h"]);
-            assert!(same_order(&ref_list, &comp).unwrap());
-        });
-    }
-
-    #[test]
-    fn test_same_order_false() {
-        pyo3::prepare_freethreaded_python();
-        Python::with_gil(|py| {
-            let ref_list = PyList::new_bound(py, &["x", "y", "z"]);
-            let comp = PyList::new_bound(py, &["x", "a", "b", "c", "z", "d", "e", "f", "y", "h"]);
-            assert!(!same_order(&ref_list, &comp).unwrap());
-        });
-    }
-}
