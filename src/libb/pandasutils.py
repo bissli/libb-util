@@ -19,8 +19,12 @@ __all__ = ['is_null', 'download_tzdata', 'downcast', 'fuzzymerge']
 def is_null(x):
     """Check if value is null/None (pandas required).
 
+    For array-like inputs (list, numpy array), returns True only if ALL
+    elements are null. This avoids the "ambiguous truth value" error that
+    occurs when using pandas.isnull() on arrays in boolean contexts.
+
     :param x: Value to check.
-    :returns: True if value is null/None/NaN.
+    :returns: True if value is null/None/NaN, or if array-like and all elements are null.
     :rtype: bool
 
     Example::
@@ -31,14 +35,30 @@ def is_null(x):
         >>> assert not is_null(0)
         >>> assert is_null(np.nan)
         >>> assert not is_null(datetime.date(2000, 1, 1))
+        >>> assert is_null([])
+        >>> assert is_null([None, None])
+        >>> assert not is_null([1, 2, 3])
+        >>> assert not is_null([None, 1])
     """
+    import numpy as np
     from pandas import isnull
+
     try:
         from pyarrow.lib import NullScalar
         if isinstance(x, NullScalar):
             return True
     except ImportError:
         pass
+
+    if isinstance(x, np.ndarray):
+        if x.size == 0:
+            return True
+        return all(is_null(v) for v in x.flat)
+    if isinstance(x, list):
+        if len(x) == 0:
+            return True
+        return all(is_null(v) for v in x)
+
     return isnull(x)
 
 
@@ -146,7 +166,8 @@ def fuzzymerge(df1, df2, right_on, left_on, usedtype='uint8', scorer='WRatio',
         ...                         concat_value=True)
     """
     from numexpr import evaluate
-    from numpy import amax, tile, uint8, where  # noqa: F401 - uint8 used by eval
+    from numpy import amax, tile, uint8  # noqa: F401 - uint8 used by eval
+    from numpy import where
     from rapidfuzz.fuzz import partial_ratio  # noqa: F401 - used by eval
     from rapidfuzz.process import cdist
 

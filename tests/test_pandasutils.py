@@ -37,6 +37,44 @@ class TestIsNull:
             # pa.NULL is the singleton NullScalar
             assert is_null(pa.NULL) is True
 
+    # Array handling tests - avoid "ambiguous truth value" error
+    def test_is_null_empty_list(self):
+        assert is_null([]) is True
+
+    def test_is_null_list_all_none(self):
+        assert is_null([None, None, None]) is True
+
+    def test_is_null_list_all_nan(self):
+        assert is_null([np.nan, np.nan]) is True
+
+    def test_is_null_list_mixed_nulls(self):
+        assert is_null([None, np.nan, None]) is True
+
+    def test_is_null_list_with_values(self):
+        assert is_null([1, 2, 3]) is False
+
+    def test_is_null_list_with_some_none(self):
+        # If any element is not null, the list is not null
+        assert is_null([None, 1, None]) is False
+
+    def test_is_null_numpy_array_empty(self):
+        assert is_null(np.array([])) is True
+
+    def test_is_null_numpy_array_with_values(self):
+        assert is_null(np.array([1, 2, 3])) is False
+
+    def test_is_null_numpy_array_with_nan(self):
+        assert is_null(np.array([np.nan, np.nan])) is True
+
+    def test_is_null_numpy_array_mixed(self):
+        # If any element is not null, the array is not null
+        assert is_null(np.array([np.nan, 1, np.nan])) is False
+
+    def test_is_null_nested_list(self):
+        # Nested lists should be handled recursively
+        assert is_null([[None], [None]]) is True
+        assert is_null([[1], [None]]) is False
+
 
 class TestDowncast:
     """Tests for downcast function."""
