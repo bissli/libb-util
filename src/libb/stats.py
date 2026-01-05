@@ -623,7 +623,7 @@ def distance_from_line(m, b, x, y):
     return (-m * x + y - b) / sqrt(m * m + 1)
 
 
-def linterp(x0, x1, x, y0, y1):
+def linterp(x0, x1, x, y0, y1, *, inf_value=None):
     """Linearly interpolate y between y0 and y1 based on x's position.
 
     :param x0: Start of x range.
@@ -631,6 +631,7 @@ def linterp(x0, x1, x, y0, y1):
     :param x: Value to interpolate at.
     :param y0: Y value at x0.
     :param y1: Y value at x1.
+    :param inf_value: Value to return when x1 is infinity (default: y0).
     :returns: Interpolated y value.
     :rtype: float
 
@@ -640,8 +641,12 @@ def linterp(x0, x1, x, y0, y1):
         3.0
         >>> linterp(1, float('inf'), 2, 2, 4)
         2.0
+        >>> linterp(1, float('inf'), 2, 2, 4, inf_value=4)
+        4.0
     """
     import numpy as np
+    if x1 == float('inf'):
+        return float(inf_value if inf_value is not None else y0)
     return float(np.interp(x, [x0, x1], [y0, y1]))
 
 

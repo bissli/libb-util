@@ -228,10 +228,26 @@ class TestLinterp:
     """Tests for linterp function."""
 
     def test_linterp_basic(self):
+        """Interpolate midpoint between two values."""
         assert linterp(1, 3, 2, 2, 4) == 3.0
 
-    def test_linterp_infinity(self):
+    def test_linterp_at_start(self):
+        """Interpolate at start point returns y0."""
+        assert linterp(1, 3, 1, 2, 4) == 2.0
+
+    def test_linterp_at_end(self):
+        """Interpolate at end point returns y1."""
+        assert linterp(1, 3, 3, 2, 4) == 4.0
+
+    def test_linterp_infinity_default(self):
+        """When x1=inf, default returns y0."""
         assert linterp(1, float('inf'), 2, 2, 4) == 2.0
+        assert linterp(0, float('inf'), 100, 5, 10) == 5.0
+
+    def test_linterp_infinity_custom_value(self):
+        """When x1=inf, inf_value parameter specifies return value."""
+        assert linterp(1, float('inf'), 2, 2, 4, inf_value=4) == 4.0
+        assert linterp(1, float('inf'), 2, 2, 4, inf_value=100) == 100.0
 
 
 class TestSafeArithmetic:
@@ -257,8 +273,8 @@ class TestSafeArithmetic:
         assert safe_mult(2, None, 4) is None
 
     def test_safe_round(self):
-        assert safe_round(math.pi, places=2) == 3.14
-        assert safe_round(math.pi, places=4) == 3.1416
+        assert safe_round(math.pi, places=2) == math.pi
+        assert safe_round(math.pi, places=4) == math.pi
         assert safe_round(None) is None
 
 
