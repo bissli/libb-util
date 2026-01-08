@@ -36,6 +36,37 @@ class TestUnderscoreToCamelcase:
     def test_underscore_to_camelcase_empty(self):
         assert underscore_to_camelcase('') == ''
 
+    def test_underscore_to_camelcase_uppercase(self):
+        """Verify uppercase input is properly lowercased except first char
+        of subsequent words.
+        """
+        assert underscore_to_camelcase('FOO_BAR_BAZ') == 'fooBarBaz'
+
+    def test_underscore_to_camelcase_leading_underscore(self):
+        """Verify leading underscore produces camelCase, not PascalCase."""
+        assert underscore_to_camelcase('_foo') == 'foo'
+        assert underscore_to_camelcase('_foo_bar') == 'fooBar'
+
+    def test_underscore_to_camelcase_trailing_underscore(self):
+        """Verify trailing underscore is ignored."""
+        assert underscore_to_camelcase('foo_') == 'foo'
+
+    def test_underscore_to_camelcase_double_underscore(self):
+        """Verify consecutive underscores are handled."""
+        assert underscore_to_camelcase('foo__bar') == 'fooBar'
+
+    def test_underscore_to_camelcase_only_underscores(self):
+        """Verify string of only underscores returns empty."""
+        assert underscore_to_camelcase('___') == ''
+
+    def test_underscore_to_camelcase_mixed_case(self):
+        """Verify mixed case input is normalized."""
+        assert underscore_to_camelcase('Foo_Bar') == 'fooBar'
+
+    def test_underscore_to_camelcase_with_numbers(self):
+        """Verify numbers are preserved."""
+        assert underscore_to_camelcase('foo_123_bar') == 'foo123Bar'
+
 
 class TestUncamel:
     """Tests for uncamel function."""
@@ -54,6 +85,23 @@ class TestUncamel:
 
     def test_uncamel_leading_acronym(self):
         assert uncamel('HTTPResponseCode') == 'http_response_code'
+
+    def test_uncamel_empty(self):
+        """Verify empty string returns empty."""
+        assert uncamel('') == ''
+
+    def test_uncamel_single_char(self):
+        """Verify single character is lowercased."""
+        assert uncamel('A') == 'a'
+        assert uncamel('a') == 'a'
+
+    def test_uncamel_all_uppercase(self):
+        """Verify all uppercase is lowercased without underscores."""
+        assert uncamel('ABC') == 'abc'
+
+    def test_uncamel_lowercase_only(self):
+        """Verify lowercase string is unchanged."""
+        assert uncamel('foo') == 'foo'
 
 
 class TestStripAscii:
@@ -79,6 +127,32 @@ class TestSanitizeVulgarString:
         result = sanitize_vulgar_string('Foo: 93¾ - 94⅛')
         assert '93.75' in result
         assert '94.125' in result
+
+    def test_sanitize_leading_fraction(self):
+        """Verify leading fraction does not add leading space."""
+        result = sanitize_vulgar_string('⅛ cup')
+        assert result == '0.125 cup'
+        assert not result.startswith(' ')
+
+    def test_sanitize_thirds_precision(self):
+        """Verify thirds have reasonable precision without excessive decimals."""
+        result = sanitize_vulgar_string('⅓')
+        assert result == '0.333333'
+        assert len(result) <= 10
+
+    def test_sanitize_empty_string(self):
+        """Verify empty string returns empty."""
+        assert sanitize_vulgar_string('') == ''
+
+    def test_sanitize_no_fractions(self):
+        """Verify string without fractions is unchanged."""
+        assert sanitize_vulgar_string('foo bar') == 'foo bar'
+
+    def test_sanitize_multiple_standalone_fractions(self):
+        """Verify multiple standalone fractions are handled."""
+        result = sanitize_vulgar_string('½ and ¼')
+        assert '0.5' in result
+        assert '0.25' in result
 
 
 class TestRoundDigitString:
@@ -337,8 +411,19 @@ class TestSanitizeVulgarStringEdgeCases:
     """Additional sanitize_vulgar_string tests."""
 
     def test_sanitize_standalone_fraction(self):
+        """Verify standalone fraction at start has no leading space."""
         result = sanitize_vulgar_string('⅛')
-        assert '0.125' in result
+        assert result == '0.125'
+
+    def test_sanitize_fraction_mid_string(self):
+        """Verify fraction mid-string gets leading space."""
+        result = sanitize_vulgar_string('about ½ done')
+        assert result == 'about 0.5 done'
+
+    def test_sanitize_sixths_precision(self):
+        """Verify sixths have clean precision."""
+        result = sanitize_vulgar_string('⅙')
+        assert result == '0.166667'
 
 
 class TestRoundDigitStringEdgeCases:

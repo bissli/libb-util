@@ -53,6 +53,8 @@ static VULGAR_REGEX: Lazy<Regex> = Lazy::new(|| {
 /// Examples:
 ///     >>> sanitize_vulgar_string("Foo-Bar+Baz: 17s 4¾ 1 ⅛ 20 93¾ - 94⅛")
 ///     'Foo-Bar+Baz: 17s 4.75 1.125 20 93.75 - 94.125'
+///     >>> sanitize_vulgar_string("⅓ cup")
+///     '0.333333 cup'
 #[pyfunction]
 pub fn sanitize_vulgar_string(s: &str) -> String {
     let mut result = s.to_string();
@@ -72,12 +74,17 @@ pub fn sanitize_vulgar_string(s: &str) -> String {
             .and_then(|c| VULGAR_FRACTIONS.get(&c))
         {
             let replacement = if whole_num.is_empty() {
-                // Just the fraction, add leading space
-                format!(" {}", frac_val)
+                // Just the fraction - add leading space only if not at start of string
+                let decimal = format_decimal(*frac_val);
+                if full_match.start() == 0 {
+                    decimal
+                } else {
+                    format!(" {}", decimal)
+                }
             } else {
                 // Number + fraction
                 let whole: f64 = whole_num.parse().unwrap_or(0.0);
-                format!("{}", whole + frac_val)
+                format_decimal(whole + frac_val)
             };
 
             result.replace_range(full_match.start()..full_match.end(), &replacement);
@@ -85,6 +92,14 @@ pub fn sanitize_vulgar_string(s: &str) -> String {
     }
 
     result
+}
+
+/// Format a decimal number, removing unnecessary trailing zeros.
+fn format_decimal(val: f64) -> String {
+    let rounded = (val * 1_000_000.0).round() / 1_000_000.0;
+    let formatted = format!("{:.6}", rounded);
+    let trimmed = formatted.trim_end_matches('0').trim_end_matches('.');
+    trimmed.to_string()
 }
 
 /// Convert camelCase to snake_case.
@@ -124,7 +139,7 @@ pub fn uncamel(camel: &str) -> String {
                     result.push('_');
                 }
             }
-            result.push(c.to_lowercase().next().unwrap_or(c));
+            result.extend(c.to_lowercase());
         } else {
             result.push(c);
         }
@@ -144,23 +159,24 @@ pub fn uncamel(camel: &str) -> String {
 /// Examples:
 ///     >>> underscore_to_camelcase('foo_bar_baz')
 ///     'fooBarBaz'
+///     >>> underscore_to_camelcase('FOO_BAR')
+///     'fooBar'
+///     >>> underscore_to_camelcase('_foo_bar')
+///     'fooBar'
 #[pyfunction]
 pub fn underscore_to_camelcase(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut capitalize_next = false;
-    let mut is_first_word = true;
 
     for c in s.chars() {
         if c == '_' {
             capitalize_next = true;
-        } else if capitalize_next {
-            result.push(c.to_uppercase().next().unwrap_or(c));
+        } else if capitalize_next && !result.is_empty() {
+            result.extend(c.to_uppercase());
             capitalize_next = false;
-            is_first_word = false;
-        } else if is_first_word {
-            result.push(c.to_lowercase().next().unwrap_or(c));
         } else {
-            result.push(c);
+            result.extend(c.to_lowercase());
+            capitalize_next = false;
         }
     }
 
