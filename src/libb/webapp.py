@@ -78,6 +78,12 @@ __all__ = [
     'JSONDecoderISODate',
     'ProfileMiddleware',
     'COOKIE_DEFAULTS',
+    'Jinja2Render',
+    'get_request_context',
+    'get_session',
+    'flash_message',
+    'get_flashed_messages',
+    'tooltip_attrs',
 ]
 
 
@@ -1210,6 +1216,168 @@ def websafe(val):
         val = str(val)
 
     return htmlquote(val)
+
+
+#
+# Jinja2 rendering infrastructure (Flask-compatible)
+#
+
+
+class Jinja2Render:
+    """Flask-compatible Jinja2 render class.
+
+    Designed to work with web.py now, easily portable to Flask later.
+
+    Usage::
+
+        render = Jinja2Render('templates/')
+        render.add_globals({'format': fmt, 'today': datetime.date.today})
+        html = render('generic.html', title='Page', content=[html1, html2])
+
+    For Flask migration, this becomes::
+
+        from flask import render_template as render
+        html = render_template('generic.html', title='Page', content=[...])
+    """
+
+    def __init__(
+        self,
+        template_dir: str,
+        globals: dict | None = None,
+        autoescape: bool = True,
+    ) -> None:
+        """Initialize Jinja2 environment with template directory.
+
+        :param template_dir: Path to template directory.
+        :param globals: Dict of global variables/functions for templates.
+        :param autoescape: Enable HTML autoescaping (default True).
+        """
+        from jinja2 import Environment, FileSystemLoader
+
+        self.env = Environment(
+            loader=FileSystemLoader(template_dir),
+            autoescape=autoescape,
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        if globals:
+            self.env.globals.update(globals)
+
+    def __call__(self, template_name: str, **context) -> str:
+        """Render template with context - same signature as Flask's render_template.
+
+        :param template_name: Name of template file (e.g., 'generic.html').
+        :param context: Keyword arguments passed to template.
+        :returns: Rendered HTML string.
+        """
+        template = self.env.get_template(template_name)
+        return template.render(**context)
+
+    def add_globals(self, globals_dict: dict) -> None:
+        """Add globals to Jinja2 environment.
+
+        :param globals_dict: Dict of globals to add.
+        """
+        self.env.globals.update(globals_dict)
+
+    def add_filter(self, name: str, func: callable) -> None:
+        """Add custom filter to Jinja2 environment.
+
+        :param name: Filter name to use in templates.
+        :param func: Filter function.
+        """
+        self.env.filters[name] = func
+
+
+def get_request_context():
+    """Get request context - abstracts web.py vs Flask differences.
+
+    In web.py: returns web.ctx
+    In Flask: would return flask.g or request
+
+    :returns: Request context object.
+    """
+    return web.ctx
+
+
+def get_session() -> dict:
+    """Get session - abstracts web.py vs Flask differences.
+
+    In web.py: returns web.ctx.session
+    In Flask: would return flask.session
+
+    :returns: Session dict-like object.
+    """
+    ctx = get_request_context()
+    return getattr(ctx, 'session', {})
+
+
+def flash_message(message: str, category: str = 'info') -> None:
+    """Add flash message - compatible with Flask's flash().
+
+    :param message: Message text to display.
+    :param category: Message category ('info', 'error', 'warning', 'success').
+    """
+    session = get_session()
+    if 'msgs' not in session:
+        session['msgs'] = []
+    session['msgs'].append((category, message))
+
+
+def get_flashed_messages(with_categories: bool = True) -> list:
+    """Get and clear flash messages - compatible with Flask's get_flashed_messages().
+
+    :param with_categories: If True, return list of (category, message) tuples.
+        If False, return list of message strings only.
+    :returns: List of flash messages.
+    """
+    session = get_session()
+    messages = list(session.get('msgs', []))
+    session['msgs'] = []
+    if with_categories:
+        return messages
+    return [msg for _, msg in messages]
+
+
+def tooltip_attrs(
+    tooltip: str | None,
+    position: str | None = None,
+    width: int | None = None,
+    height: int | None = None,
+) -> str:
+    """Build tooltip attribute string for form inputs.
+
+    Replaces the $code: block in forms/tooltip_input.html template.
+
+    :param tooltip: Tooltip text (may contain HTML).
+    :param position: Tooltip position ('top', 'bottom', 'left', 'right').
+    :param width: Tooltip width in pixels.
+    :param height: Tooltip height in pixels.
+    :returns: HTML attribute string to insert into element.
+
+    Example::
+
+        >>> tooltip_attrs('Simple tip')
+        'title="Simple tip"'
+        >>> tooltip_attrs('<b>HTML</b> tip')
+        'data-html-tooltip="true" data-tooltip-content="<b>HTML</b> tip"'
+        >>> tooltip_attrs('Tip', position='top', width=200)
+        'title="Tip" data-tooltip-position="top" data-tooltip-width="200"'
+    """
+    if not tooltip:
+        return ''
+    attrs = []
+    if '<' in tooltip and '>' in tooltip:
+        attrs.extend(('data-html-tooltip="true"', f'data-tooltip-content="{tooltip}"'))
+    else:
+        attrs.append(f'title="{tooltip}"')
+    if position:
+        attrs.append(f'data-tooltip-position="{position}"')
+    if width:
+        attrs.append(f'data-tooltip-width="{width}"')
+    if height:
+        attrs.append(f'data-tooltip-height="{height}"')
+    return ' '.join(attrs)
 
 
 if __name__ == '__main__':

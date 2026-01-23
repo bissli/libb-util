@@ -631,7 +631,6 @@ class TestLogerror:
     def test_logerror_logs_exception_when_present(self):
         """Verify logerror logs the exception when one is active."""
         import logging
-        import sys
 
         from libb.webapp import logerror
 
@@ -767,6 +766,256 @@ class TestMakeUrlEdgeCases:
         result = make_url('/foo/', __custom__='ignored', bar=1)
         assert '__custom__' not in result
         assert 'bar=1' in result
+
+
+class TestJinja2Render:
+    """Tests for Jinja2Render class."""
+
+    def test_jinja2_render_basic(self):
+        """Verify basic template rendering works."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text('Hello {{ name }}!')
+
+            render = Jinja2Render(tmpdir)
+            result = render('test.html', name='World')
+            assert result == 'Hello World!'
+
+    def test_jinja2_render_with_globals(self):
+        """Verify globals are accessible in templates."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text('Today is {{ today() }}')
+
+            render = Jinja2Render(tmpdir, globals={'today': lambda: '2024-01-01'})
+            result = render('test.html')
+            assert result == 'Today is 2024-01-01'
+
+    def test_jinja2_render_add_globals(self):
+        """Verify add_globals method works."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text('Value: {{ custom_func() }}')
+
+            render = Jinja2Render(tmpdir)
+            render.add_globals({'custom_func': lambda: 42})
+            result = render('test.html')
+            assert result == 'Value: 42'
+
+    def test_jinja2_render_add_filter(self):
+        """Verify add_filter method works."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text('{{ name|upper_custom }}')
+
+            render = Jinja2Render(tmpdir)
+            render.add_filter('upper_custom', lambda s: s.upper())
+            result = render('test.html', name='hello')
+            assert result == 'HELLO'
+
+    def test_jinja2_render_autoescape(self):
+        """Verify autoescaping works by default."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text('{{ content }}')
+
+            render = Jinja2Render(tmpdir)
+            result = render('test.html', content='<script>alert("xss")</script>')
+            assert '&lt;script&gt;' in result
+            assert '<script>' not in result
+
+    def test_jinja2_render_safe_filter(self):
+        """Verify safe filter bypasses autoescaping."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text('{{ content|safe }}')
+
+            render = Jinja2Render(tmpdir)
+            result = render('test.html', content='<b>bold</b>')
+            assert result == '<b>bold</b>'
+
+    def test_jinja2_render_extends(self):
+        """Verify template inheritance works."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir) / 'base.html'
+            base_path.write_text('<html>{% block content %}{% endblock %}</html>')
+
+            child_path = Path(tmpdir) / 'child.html'
+            child_path.write_text(
+                '{% extends "base.html" %}{% block content %}Hello{% endblock %}'
+            )
+
+            render = Jinja2Render(tmpdir)
+            result = render('child.html')
+            assert result == '<html>Hello</html>'
+
+    def test_jinja2_render_macro(self):
+        """Verify macros work in templates."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text(
+                '{% macro greet(name) %}Hello {{ name }}!{% endmacro %}{{ greet("World") }}'
+            )
+
+            render = Jinja2Render(tmpdir)
+            result = render('test.html')
+            assert result == 'Hello World!'
+
+    def test_jinja2_render_for_loop(self):
+        """Verify for loops work in templates."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text('{% for item in items %}{{ item }},{% endfor %}')
+
+            render = Jinja2Render(tmpdir)
+            result = render('test.html', items=['a', 'b', 'c'])
+            assert result == 'a,b,c,'
+
+    def test_jinja2_render_if_condition(self):
+        """Verify if conditions work in templates."""
+        from libb.webapp import Jinja2Render
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / 'test.html'
+            template_path.write_text('{% if show %}visible{% else %}hidden{% endif %}')
+
+            render = Jinja2Render(tmpdir)
+            assert render('test.html', show=True) == 'visible'
+            assert render('test.html', show=False) == 'hidden'
+
+
+class TestTooltipAttrs:
+    """Tests for tooltip_attrs function."""
+
+    def test_tooltip_attrs_simple(self):
+        """Verify simple text tooltip uses title attribute."""
+        from libb.webapp import tooltip_attrs
+
+        result = tooltip_attrs('Simple tip')
+        assert result == 'title="Simple tip"'
+
+    def test_tooltip_attrs_html(self):
+        """Verify HTML tooltip uses data attributes."""
+        from libb.webapp import tooltip_attrs
+
+        result = tooltip_attrs('<b>Bold</b> tip')
+        assert 'data-html-tooltip="true"' in result
+        assert 'data-tooltip-content="<b>Bold</b> tip"' in result
+        assert 'title=' not in result
+
+    def test_tooltip_attrs_with_position(self):
+        """Verify position attribute is added."""
+        from libb.webapp import tooltip_attrs
+
+        result = tooltip_attrs('Tip', position='top')
+        assert 'data-tooltip-position="top"' in result
+
+    def test_tooltip_attrs_with_dimensions(self):
+        """Verify width and height attributes are added."""
+        from libb.webapp import tooltip_attrs
+
+        result = tooltip_attrs('Tip', width=200, height=100)
+        assert 'data-tooltip-width="200"' in result
+        assert 'data-tooltip-height="100"' in result
+
+    def test_tooltip_attrs_all_options(self):
+        """Verify all options work together."""
+        from libb.webapp import tooltip_attrs
+
+        result = tooltip_attrs('<span>HTML</span>', position='bottom', width=300, height=150)
+        assert 'data-html-tooltip="true"' in result
+        assert 'data-tooltip-content="<span>HTML</span>"' in result
+        assert 'data-tooltip-position="bottom"' in result
+        assert 'data-tooltip-width="300"' in result
+        assert 'data-tooltip-height="150"' in result
+
+    def test_tooltip_attrs_empty(self):
+        """Verify empty/None tooltip returns empty string."""
+        from libb.webapp import tooltip_attrs
+
+        assert tooltip_attrs(None) == ''
+        assert tooltip_attrs('') == ''
+
+    def test_tooltip_attrs_no_false_html_detection(self):
+        """Verify text with < or > alone doesn't trigger HTML mode."""
+        from libb.webapp import tooltip_attrs
+
+        # Only < without > should use title
+        result = tooltip_attrs('Value < 100')
+        assert result == 'title="Value < 100"'
+
+        # Only > without < should use title
+        result = tooltip_attrs('Value > 50')
+        assert result == 'title="Value > 50"'
+
+
+class TestFlashMessages:
+    """Tests for flash message functions."""
+
+    def test_flash_message_and_get(self):
+        """Verify flash_message and get_flashed_messages work together."""
+        from libb.webapp import flash_message, get_flashed_messages
+
+        # Mock web.ctx.session
+        mock_session = {}
+        with mock.patch('libb.webapp.get_session', return_value=mock_session):
+            flash_message('Test message', 'info')
+            flash_message('Error message', 'error')
+
+            messages = get_flashed_messages()
+            assert len(messages) == 2
+            assert messages[0] == ('info', 'Test message')
+            assert messages[1] == ('error', 'Error message')
+
+            # Messages should be cleared after retrieval
+            messages_again = get_flashed_messages()
+            assert len(messages_again) == 0
+
+    def test_get_flashed_messages_without_categories(self):
+        """Verify get_flashed_messages(with_categories=False) returns only messages."""
+        mock_session = {'msgs': [('info', 'Message 1'), ('error', 'Message 2')]}
+        with mock.patch('libb.webapp.get_session', return_value=mock_session):
+            from libb.webapp import get_flashed_messages
+
+            messages = get_flashed_messages(with_categories=False)
+            assert messages == ['Message 1', 'Message 2']
+
+    def test_flash_message_creates_msgs_list(self):
+        """Verify flash_message creates msgs list if it doesn't exist."""
+        mock_session = {}
+        with mock.patch('libb.webapp.get_session', return_value=mock_session):
+            from libb.webapp import flash_message
+
+            flash_message('Test', 'info')
+            assert 'msgs' in mock_session
+            assert mock_session['msgs'] == [('info', 'Test')]
+
+    def test_get_flashed_messages_empty_session(self):
+        """Verify get_flashed_messages handles empty session gracefully."""
+        mock_session = {}
+        with mock.patch('libb.webapp.get_session', return_value=mock_session):
+            from libb.webapp import get_flashed_messages
+
+            messages = get_flashed_messages()
+            assert messages == []
 
 
 if __name__ == '__main__':
