@@ -81,6 +81,9 @@ __all__ = [
     'Jinja2Render',
     'get_request_context',
     'get_session',
+    'get_current_session',
+    'get_request_dict',
+    'get_cntc',
     'flash_message',
     'get_flashed_messages',
     'tooltip_attrs',
@@ -1293,10 +1296,15 @@ def get_request_context():
     """Get request context - abstracts web.py vs Flask differences.
 
     In web.py: returns web.ctx
-    In Flask: would return flask.g or request
+    In Flask: returns flask.g
 
     :returns: Request context object.
     """
+    try:
+        if flask.has_request_context():
+            return flask.g
+    except (NameError, AttributeError):
+        pass
     return web.ctx
 
 
@@ -1304,12 +1312,76 @@ def get_session() -> dict:
     """Get session - abstracts web.py vs Flask differences.
 
     In web.py: returns web.ctx.session
-    In Flask: would return flask.session
+    In Flask with Beaker: returns session from request.environ
 
     :returns: Session dict-like object.
     """
+    try:
+        if flask.has_request_context():
+            return flask.request.environ.get('beaker.session', {})
+    except (NameError, AttributeError):
+        pass
     ctx = get_request_context()
     return getattr(ctx, 'session', {})
+
+
+def get_current_session() -> dict:
+    """Get Beaker session from Flask request environ or web.ctx.
+
+    Alias for get_session() with explicit Beaker support.
+
+    :returns: Beaker session dict-like object.
+    """
+    return get_session()
+
+
+def get_request_dict(**defaults) -> dict:
+    """Get request parameters with defaults, supporting callables.
+
+    Replaces web.input() pattern. Supports callable defaults like lambda.
+
+    Example::
+
+        # web.py pattern:
+        web.input(fund='All', date=lambda: Date.today())
+
+        # Flask pattern:
+        get_request_dict(fund='All', date=lambda: Date.today())
+
+    :param defaults: Default values for parameters. Callables are invoked.
+    :returns: Dict of request parameters with defaults applied.
+    """
+    req = {}
+    try:
+        if flask.has_request_context():
+            req = flask.request.values.to_dict()
+    except (NameError, AttributeError):
+        pass
+
+    if not req:
+        try:
+            req = dict(web.input())
+        except (NameError, AttributeError):
+            pass
+
+    for key, default in defaults.items():
+        if key not in req or req[key] == '':
+            req[key] = default() if callable(default) else default
+
+    return req
+
+
+def get_cntc():
+    """Get database connection from Flask g or web.ctx.
+
+    :returns: Database connection object.
+    """
+    try:
+        if flask.has_request_context():
+            return flask.g.cntc
+    except (NameError, AttributeError):
+        pass
+    return web.ctx.cntc
 
 
 def flash_message(message: str, category: str = 'info') -> None:
