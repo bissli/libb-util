@@ -1,6 +1,7 @@
-"""Tests for webapp utility functions (non-framework specific)."""
+"""Tests for webapp utility functions."""
 
 import datetime
+import logging
 import sys
 import tempfile
 import time
@@ -10,168 +11,18 @@ from unittest import mock
 import pytest
 
 from libb import COOKIE_DEFAULTS, JSONDecoderISODate, JSONEncoderISODate
-from libb import first_of_each, htmlquote, htmlunquote, httpdate, inject_file
-from libb import inject_image, local_or_static_join, make_url, parsehttpdate
-from libb import prefix_urls, rand_retry, rsleep, safe_join, scale
-from libb import url_path_join, urlquote, valid_api_key, validaddr, validip
-from libb import validip6addr, validipaddr, validipport, websafe
-
-
-class TestValidIpAddr:
-    """Tests for IP address validation functions."""
-
-    def test_validipaddr_valid(self):
-        assert validipaddr('192.168.1.1') is True
-        assert validipaddr('0.0.0.0') is True
-        assert validipaddr('255.255.255.255') is True
-        assert validipaddr('10.0.0.1') is True
-
-    def test_validipaddr_invalid(self):
-        assert validipaddr('192.168. 1.1') is False  # space
-        assert validipaddr('192.168.1.800') is False  # > 255
-        assert validipaddr('192.168.1') is False  # only 3 octets
-        assert validipaddr('192.168.1.1.1') is False  # 5 octets
-        assert validipaddr('abc.def.ghi.jkl') is False  # non-numeric
-
-    def test_validip6addr_valid(self):
-        assert validip6addr('::') is True
-        assert validip6addr('aaaa:bbbb:cccc:dddd::1') is True
-        assert validip6addr('::1') is True
-        assert validip6addr('fe80::1') is True
-
-    def test_validip6addr_invalid(self):
-        assert validip6addr('1:2:3:4:5:6:7:8:9:10') is False
-        assert validip6addr('12:10') is False
-        assert validip6addr('not an ip') is False
-
-    def test_validipport_valid(self):
-        assert validipport('9000') is True
-        assert validipport('0') is True
-        assert validipport('65535') is True
-        assert validipport('80') is True
-        assert validipport('443') is True
-
-    def test_validipport_invalid(self):
-        assert validipport('foo') is False
-        assert validipport('1000000') is False
-        assert validipport('-1') is False
-        assert validipport('65536') is False
-
-
-class TestValidIp:
-    """Tests for validip function."""
-
-    def test_validip_ipv4_only(self):
-        assert validip('1.2.3.4') == ('1.2.3.4', 8080)
-
-    def test_validip_port_only(self):
-        assert validip('80') == ('0.0.0.0', 80)
-
-    def test_validip_ipv4_with_port(self):
-        assert validip('192.168.0.1:85') == ('192.168.0.1', 85)
-
-    def test_validip_ipv6(self):
-        assert validip('::') == ('::', 8080)
-
-    def test_validip_ipv6_with_port(self):
-        assert validip('[::]:88') == ('::', 88)
-        assert validip('[::1]:80') == ('::1', 80)
-
-    def test_validip_empty_string(self):
-        assert validip('') == ('0.0.0.0', 8080)
-
-    def test_validip_custom_defaults(self):
-        assert validip('', defaultaddr='127.0.0.1', defaultport=3000) == ('127.0.0.1', 3000)
-
-    def test_validip_invalid_raises(self):
-        with pytest.raises(ValueError):
-            validip('fff')
-        with pytest.raises(ValueError):
-            validip('invalid:port')
-
-
-class TestValidAddr:
-    """Tests for validaddr function."""
-
-    def test_validaddr_socket_path(self):
-        assert validaddr('/path/to/socket') == '/path/to/socket'
-        assert validaddr('/var/run/app.sock') == '/var/run/app.sock'
-
-    def test_validaddr_port_only(self):
-        assert validaddr('8000') == ('0.0.0.0', 8000)
-
-    def test_validaddr_ip_only(self):
-        assert validaddr('127.0.0.1') == ('127.0.0.1', 8080)
-
-    def test_validaddr_ip_with_port(self):
-        assert validaddr('127.0.0.1:8000') == ('127.0.0.1', 8000)
-
-    def test_validaddr_invalid_raises(self):
-        with pytest.raises(ValueError):
-            validaddr('fff')
-
-
-class TestUrlQuote:
-    """Tests for urlquote function."""
-
-    def test_urlquote_special_chars(self):
-        assert urlquote('://?f=1&j=1') == '%3A//%3Ff%3D1%26j%3D1'
-
-    def test_urlquote_none(self):
-        assert urlquote(None) == ''
-
-    def test_urlquote_unicode(self):
-        assert urlquote('\u203d') == '%E2%80%BD'
-
-    def test_urlquote_spaces(self):
-        result = urlquote('hello world')
-        assert '%20' in result or '+' in result
-
-
-class TestHttpDate:
-    """Tests for httpdate and parsehttpdate functions."""
-
-    def test_httpdate_format(self):
-        dt = datetime.datetime(1970, 1, 1, 1, 1, 1)
-        assert httpdate(dt) == 'Thu, 01 Jan 1970 01:01:01 GMT'
-
-    def test_httpdate_different_dates(self):
-        dt = datetime.datetime(2023, 12, 25, 0, 0, 0)
-        result = httpdate(dt)
-        assert 'Dec 2023' in result
-        assert 'GMT' in result
-
-    def test_parsehttpdate_parse(self):
-        result = parsehttpdate('Thu, 01 Jan 1970 01:01:01 GMT')
-        assert result == datetime.datetime(1970, 1, 1, 1, 1, 1)
-
-    def test_parsehttpdate_invalid(self):
-        result = parsehttpdate('invalid date')
-        assert result is None
-
-    def test_httpdate_roundtrip(self):
-        dt = datetime.datetime(2023, 6, 15, 12, 30, 45)
-        formatted = httpdate(dt)
-        parsed = parsehttpdate(formatted)
-        assert parsed == dt
+from libb import appmenu, htmlquote, inject_file, inject_image, local_or_static_join
+from libb import make_url, rand_retry, render_field, rsleep, safe_join, scale, websafe
 
 
 class TestHtmlQuote:
-    """Tests for htmlquote and htmlunquote functions."""
+    """Tests for htmlquote function."""
 
     def test_htmlquote_special_chars(self):
         assert htmlquote("<'&\">") == '&lt;&#39;&amp;&quot;&gt;'
 
     def test_htmlquote_ampersand_first(self):
-        # Ampersand must be escaped first
         assert htmlquote('&lt;') == '&amp;lt;'
-
-    def test_htmlunquote_special_chars(self):
-        assert htmlunquote('&lt;&#39;&amp;&quot;&gt;') == "<'&\">"
-
-    def test_htmlquote_roundtrip(self):
-        original = "<script>alert('xss')</script>"
-        assert htmlunquote(htmlquote(original)) == original
 
     def test_htmlquote_normal_text(self):
         assert htmlquote('hello world') == 'hello world'
@@ -196,6 +47,73 @@ class TestWebsafe:
     def test_websafe_number(self):
         result = websafe(123)
         assert result == '123'
+
+
+class TestRenderField:
+    """Tests for render_field function."""
+
+    def test_render_field_basic(self):
+        """Verify basic field rendering."""
+        class MockField:
+            def __str__(self):
+                return '<input type="text" name="test">'
+        result = render_field(MockField())
+        assert '<input type="text" name="test">' in result
+
+    def test_render_field_with_note_error(self):
+        """Verify field with note error wraps in error span."""
+        class MockField:
+            note = 'Field is required'
+            def __str__(self):
+                return '<input type="text">'
+        result = render_field(MockField())
+        assert '<span class="flderr" title="Field is required">' in result
+        assert '</span>' in result
+
+    def test_render_field_with_errors_list(self):
+        """Verify field with errors list wraps in error span."""
+        class MockField:
+            errors = ['Error 1', 'Error 2']
+            def __str__(self):
+                return '<input type="text">'
+        result = render_field(MockField())
+        assert '<span class="flderr" title="Error 1, Error 2">' in result
+
+    def test_render_field_no_error(self):
+        """Verify field without error has no error span."""
+        class MockField:
+            def __str__(self):
+                return '<input type="text">'
+        result = render_field(MockField())
+        assert 'flderr' not in result
+        assert '<input type="text">' in result
+
+
+class TestAppmenu:
+    """Tests for appmenu function."""
+
+    def test_appmenu_basic(self):
+        """Verify basic menu generation with URL/name pairs."""
+        result = appmenu(('/path1/', 'name_one', '/path2/', 'name_two'))
+        assert '<ul class="menu">' in result
+        assert '<li><a href="/path1/">Name One</a></li>' in result
+        assert '<li><a href="/path2/">Name Two</a></li>' in result
+        assert '</ul>' in result
+
+    def test_appmenu_preserves_urls(self):
+        """Verify URLs are used as-is without modification."""
+        result = appmenu(('/trading/top_n_pnl/', 'top_n_pnl'))
+        assert 'href="/trading/top_n_pnl/"' in result
+
+    def test_appmenu_custom_formatter(self):
+        """Verify custom formatter is applied to names."""
+        result = appmenu(('/path/', 'test_name'), fmt_name=str.upper)
+        assert 'TEST_NAME' in result
+
+    def test_appmenu_empty(self):
+        """Verify empty tuple produces empty menu."""
+        result = appmenu(())
+        assert result == '<ul class="menu">\n\n</ul>'
 
 
 class TestMakeUrl:
@@ -236,47 +154,6 @@ class TestMakeUrl:
         assert 'bar=1' in result
 
 
-class TestPrefixUrls:
-    """Tests for prefix_urls function."""
-
-    def test_prefix_urls_basic(self):
-        urls = ('/foo', 'foo_handler', '/bar', 'bar_handler')
-        result = prefix_urls('/api', 'api_', urls)
-        assert result == ('/api/foo', 'api_foo_handler', '/api/bar', 'api_bar_handler')
-
-    def test_prefix_urls_empty(self):
-        result = prefix_urls('/api', 'api_', ())
-        assert result == ()
-
-
-class TestUrlPathJoin:
-    """Tests for url_path_join function."""
-
-    def test_url_path_join_basic(self):
-        result = url_path_join('/foo/', '/bar/', '/baz')
-        assert result == 'foo/bar/baz'
-
-    def test_url_path_join_with_scheme(self):
-        result = url_path_join('http://example.com', '/path')
-        assert result == 'http://example.com/path'
-
-    def test_url_path_join_strips_slashes(self):
-        result = url_path_join('/a/', '/b/', '/c/')
-        assert '//' not in result.replace('://', '')
-
-
-class TestFirstOfEach:
-    """Tests for first_of_each function."""
-
-    def test_first_of_each_basic(self):
-        result = list(first_of_each(['a', 'b'], ['', 'x'], ['', '', 'z']))
-        assert result == ['a', 'x', 'z']
-
-    def test_first_of_each_empty(self):
-        result = list(first_of_each(['', ''], ['', '']))
-        assert result == ['', '']
-
-
 class TestSafeJoin:
     """Tests for safe_join function."""
 
@@ -310,7 +187,6 @@ class TestScale:
     def test_scale_hex6_white(self):
         result = scale('#FFFFFF', 0.5)
         assert result.startswith('#')
-        # 255 * 0.5 = 127.5 -> 128 = 0x80
         assert '80' in result or '7F' in result
 
     def test_scale_hex3(self):
@@ -322,7 +198,6 @@ class TestScale:
         assert result == '#000'
 
     def test_scale_clamps(self):
-        # Scaling beyond 255 should clamp
         result = scale('#FFFFFF', 2.0)
         assert result.startswith('#')
 
@@ -388,7 +263,6 @@ class TestRsleep:
         assert elapsed >= 0.01
 
     def test_rsleep_with_random(self):
-        # Just verify it doesn't raise
         rsleep(always=0, rand_extra=1)
 
 
@@ -409,7 +283,6 @@ class TestRandRetry:
         assert call_count == 1
 
     def test_rand_retry_eventual_success(self):
-        import logging
         call_count = 0
 
         @rand_retry(x_times=3, exception=ValueError)
@@ -420,7 +293,6 @@ class TestRandRetry:
                 raise ValueError('fail')
             return 'success'
 
-        # Mock sleep timing and suppress retry logging
         with mock.patch('libb.webapp.rsleep'):
             logging.disable(logging.WARNING)
             try:
@@ -431,7 +303,6 @@ class TestRandRetry:
         assert call_count == 3
 
     def test_rand_retry_all_failures(self):
-        import logging
         call_count = 0
 
         @rand_retry(x_times=2, exception=ValueError)
@@ -440,7 +311,6 @@ class TestRandRetry:
             call_count += 1
             raise ValueError('fail')
 
-        # Mock sleep timing and suppress retry logging
         with mock.patch('libb.webapp.rsleep'):
             logging.disable(logging.WARNING)
             try:
@@ -448,7 +318,7 @@ class TestRandRetry:
             finally:
                 logging.disable(logging.NOTSET)
         assert result is None
-        assert call_count == 3  # Initial + 2 retries
+        assert call_count == 3
 
 
 class TestInjectFile:
@@ -468,26 +338,11 @@ class TestInjectImage:
 
     def test_inject_image_returns_data_uri(self):
         with tempfile.NamedTemporaryFile(mode='wb', suffix='.png', delete=False) as f:
-            f.write(b'\x89PNG\r\n\x1a\n')  # PNG magic bytes
+            f.write(b'\x89PNG\r\n\x1a\n')
             f.flush()
             result = inject_image(f.name)
         assert result.startswith('data:image/png;base64,')
         Path(f.name).unlink()
-
-
-class TestValidApiKey:
-    """Tests for valid_api_key function."""
-
-    def test_valid_api_key_valid_format(self):
-        assert valid_api_key('abc123') is True
-        assert valid_api_key('ABC-123_xyz') is True
-        assert valid_api_key('a' * 255) is True
-
-    def test_valid_api_key_invalid_format(self):
-        assert valid_api_key('') is False
-        assert valid_api_key(None) is False
-        assert valid_api_key('a' * 256) is False  # Too long
-        assert valid_api_key('abc@123') is False  # Invalid char
 
 
 class TestCookieDefaults:
@@ -509,9 +364,7 @@ class TestLocalOrStaticJoin:
             local_file = Path(tmpdir) / 'test.txt'
             local_file.write_text('local content')
             result = local_or_static_join('/nonexistent/static', str(local_file))
-            # Function returns Path from expandabspath
             assert isinstance(result, Path)
-            # Use resolve() to handle macOS /var -> /private/var symlink
             assert result.resolve() == local_file.resolve()
 
     def test_local_or_static_join_static_exists(self):
@@ -520,7 +373,6 @@ class TestLocalOrStaticJoin:
             static_file.write_text('static content')
             result = local_or_static_join(static_dir, 'test.txt')
             assert isinstance(result, Path)
-            # Use resolve() to handle macOS /var -> /private/var symlink
             assert result.resolve() == static_file.resolve()
 
     def test_local_or_static_join_neither_exists(self):
@@ -580,8 +432,6 @@ class TestLogerror:
     """Tests for logerror function."""
 
     def test_logerror_wraps_error_fn(self):
-        import logging
-
         from libb.webapp import logerror
 
         test_logger = logging.getLogger('test_logerror')
@@ -598,15 +448,11 @@ class TestLogerror:
             return 'original error page'
 
         wrapped = logerror(original_error, test_logger)
-
-        # This should work but since there's no exception in sys.exc_info, exc will be None
         result = wrapped()
         assert result == 'original error page'
 
     def test_logerror_does_not_log_none_when_no_exception(self):
-        """Verify logerror doesn't log 'NoneType: None' when no exception is active."""
-        import logging
-
+        """Verify logerror doesn't log 'NoneType: None' when no exception."""
         from libb.webapp import logerror
 
         test_logger = logging.getLogger('test_logerror_none')
@@ -630,8 +476,6 @@ class TestLogerror:
 
     def test_logerror_logs_exception_when_present(self):
         """Verify logerror logs the exception when one is active."""
-        import logging
-
         from libb.webapp import logerror
 
         test_logger = logging.getLogger('test_logerror_exc')
@@ -649,7 +493,6 @@ class TestLogerror:
 
         wrapped = logerror(original_error, test_logger)
 
-        # Call wrapped within an exception context
         try:
             raise ValueError('test error')
         except ValueError:
@@ -664,8 +507,6 @@ class TestProfileMiddleware:
     """Tests for ProfileMiddleware class."""
 
     def test_profile_middleware_init(self):
-        import logging
-
         from libb.webapp import ProfileMiddleware
 
         def app(environ, start_response):
@@ -679,8 +520,6 @@ class TestProfileMiddleware:
         assert pm.count == 20
 
     def test_profile_middleware_call(self):
-        import logging
-
         from libb.webapp import ProfileMiddleware
 
         results = []
@@ -704,54 +543,16 @@ class TestProfileMiddleware:
         assert 'called' in results
 
 
-class TestCorsWebpyHelpers:
-    """Tests for cors_webpy helper functions."""
-
-    def test_cors_webpy_methods_formatting(self):
-        # Test the methods formatting logic
-        methods = ['get', 'post', 'PUT']
-        formatted = ', '.join(sorted(x.upper() for x in methods))
-        assert formatted == 'GET, POST, PUT'
-
-    def test_cors_webpy_headers_formatting(self):
-        # Test the headers formatting logic
-        headers = ['content-type', 'Authorization']
-        formatted = ', '.join(x.upper() for x in headers)
-        assert formatted == 'CONTENT-TYPE, AUTHORIZATION'
-
-    def test_cors_webpy_max_age_timedelta(self):
-        # Test max_age timedelta conversion
-        max_age = datetime.timedelta(hours=6)
-        assert max_age.total_seconds() == 21600
-
-
 class TestScaleEdgeCases:
     """Additional tests for scale function."""
 
     def test_scale_specific_color(self):
-        # Test scaling a known color
-        result = scale('#FF8000', 0.5)  # Orange
+        result = scale('#FF8000', 0.5)
         assert result.startswith('#')
 
     def test_scale_near_boundary(self):
-        result = scale('#FE0000', 1.1)  # Red slightly scaled up
+        result = scale('#FE0000', 1.1)
         assert result.startswith('#')
-
-
-class TestValidIpEdgeCases:
-    """Additional tests for validip edge cases."""
-
-    def test_validip_ipv6_bracket_no_port(self):
-        result = validip('[fe80::1]')
-        assert result == ('fe80::1', 8080)
-
-    def test_validip_invalid_ipv6_in_brackets(self):
-        with pytest.raises(ValueError):
-            validip('[invalid]:80')
-
-    def test_validip_ipv6_invalid_port(self):
-        with pytest.raises(ValueError):
-            validip('[::1]:invalid')
 
 
 class TestMakeUrlEdgeCases:
@@ -759,7 +560,6 @@ class TestMakeUrlEdgeCases:
 
     def test_make_url_merge_existing_list_param(self):
         result = make_url('/foo/?a=1', a=[2, 3])
-        # Should merge existing a=1 with new [2, 3]
         assert 'a=' in result
 
     def test_make_url_double_underscore_ignored(self):
@@ -902,120 +702,218 @@ class TestJinja2Render:
             assert render('test.html', show=False) == 'hidden'
 
 
-class TestTooltipAttrs:
-    """Tests for tooltip_attrs function."""
+flask = pytest.importorskip('flask')
 
-    def test_tooltip_attrs_simple(self):
-        """Verify simple text tooltip uses title attribute."""
-        from libb.webapp import tooltip_attrs
-
-        result = tooltip_attrs('Simple tip')
-        assert result == 'title="Simple tip"'
-
-    def test_tooltip_attrs_html(self):
-        """Verify HTML tooltip uses data attributes."""
-        from libb.webapp import tooltip_attrs
-
-        result = tooltip_attrs('<b>Bold</b> tip')
-        assert 'data-html-tooltip="true"' in result
-        assert 'data-tooltip-content="<b>Bold</b> tip"' in result
-        assert 'title=' not in result
-
-    def test_tooltip_attrs_with_position(self):
-        """Verify position attribute is added."""
-        from libb.webapp import tooltip_attrs
-
-        result = tooltip_attrs('Tip', position='top')
-        assert 'data-tooltip-position="top"' in result
-
-    def test_tooltip_attrs_with_dimensions(self):
-        """Verify width and height attributes are added."""
-        from libb.webapp import tooltip_attrs
-
-        result = tooltip_attrs('Tip', width=200, height=100)
-        assert 'data-tooltip-width="200"' in result
-        assert 'data-tooltip-height="100"' in result
-
-    def test_tooltip_attrs_all_options(self):
-        """Verify all options work together."""
-        from libb.webapp import tooltip_attrs
-
-        result = tooltip_attrs('<span>HTML</span>', position='bottom', width=300, height=150)
-        assert 'data-html-tooltip="true"' in result
-        assert 'data-tooltip-content="<span>HTML</span>"' in result
-        assert 'data-tooltip-position="bottom"' in result
-        assert 'data-tooltip-width="300"' in result
-        assert 'data-tooltip-height="150"' in result
-
-    def test_tooltip_attrs_empty(self):
-        """Verify empty/None tooltip returns empty string."""
-        from libb.webapp import tooltip_attrs
-
-        assert tooltip_attrs(None) == ''
-        assert tooltip_attrs('') == ''
-
-    def test_tooltip_attrs_no_false_html_detection(self):
-        """Verify text with < or > alone doesn't trigger HTML mode."""
-        from libb.webapp import tooltip_attrs
-
-        # Only < without > should use title
-        result = tooltip_attrs('Value < 100')
-        assert result == 'title="Value < 100"'
-
-        # Only > without < should use title
-        result = tooltip_attrs('Value > 50')
-        assert result == 'title="Value > 50"'
+from libb import authd, external_url_for, get_request_dict, is_safe_redirect_url
 
 
-class TestFlashMessages:
-    """Tests for flash message functions."""
+class TestAuthdFlask:
+    """Tests for authd decorator with Flask."""
 
-    def test_flash_message_and_get(self):
-        """Verify flash_message and get_flashed_messages work together."""
-        from libb.webapp import flash_message, get_flashed_messages
+    def test_authd_allows_when_checker_passes(self):
+        app = flask.Flask(__name__)
 
-        # Mock web.ctx.session
-        mock_session = {}
-        with mock.patch('libb.webapp.get_session', return_value=mock_session):
-            flash_message('Test message', 'info')
-            flash_message('Error message', 'error')
+        @app.route('/restricted')
+        @authd(lambda: flask.request.cookies.get('allowed'), lambda: flask.abort(403))
+        def restricted():
+            return 'secret'
 
-            messages = get_flashed_messages()
-            assert len(messages) == 2
-            assert messages[0] == ('info', 'Test message')
-            assert messages[1] == ('error', 'Error message')
+        client = app.test_client()
+        client.set_cookie('allowed', '1')
+        response = client.get('/restricted')
+        assert response.status_code == 200
+        assert response.data == b'secret'
 
-            # Messages should be cleared after retrieval
-            messages_again = get_flashed_messages()
-            assert len(messages_again) == 0
+    def test_authd_denies_when_checker_fails(self):
+        app = flask.Flask(__name__)
 
-    def test_get_flashed_messages_without_categories(self):
-        """Verify get_flashed_messages(with_categories=False) returns only messages."""
-        mock_session = {'msgs': [('info', 'Message 1'), ('error', 'Message 2')]}
-        with mock.patch('libb.webapp.get_session', return_value=mock_session):
-            from libb.webapp import get_flashed_messages
+        @app.route('/restricted')
+        @authd(lambda: flask.request.cookies.get('allowed'), lambda: flask.abort(403))
+        def restricted():
+            return 'secret'
 
-            messages = get_flashed_messages(with_categories=False)
-            assert messages == ['Message 1', 'Message 2']
+        client = app.test_client()
+        response = client.get('/restricted')
+        assert response.status_code == 403
 
-    def test_flash_message_creates_msgs_list(self):
-        """Verify flash_message creates msgs list if it doesn't exist."""
-        mock_session = {}
-        with mock.patch('libb.webapp.get_session', return_value=mock_session):
-            from libb.webapp import flash_message
+    def test_authd_with_custom_fallback(self):
+        app = flask.Flask(__name__)
 
-            flash_message('Test', 'info')
-            assert 'msgs' in mock_session
-            assert mock_session['msgs'] == [('info', 'Test')]
+        @app.route('/restricted')
+        @authd(lambda: False, lambda: ('denied', 401))
+        def restricted():
+            return 'secret'
 
-    def test_get_flashed_messages_empty_session(self):
-        """Verify get_flashed_messages handles empty session gracefully."""
-        mock_session = {}
-        with mock.patch('libb.webapp.get_session', return_value=mock_session):
-            from libb.webapp import get_flashed_messages
+        client = app.test_client()
+        response = client.get('/restricted')
+        assert response.status_code == 401
+        assert b'denied' in response.data
 
-            messages = get_flashed_messages()
-            assert messages == []
+
+class TestGetRequestDict:
+    """Tests for get_request_dict function."""
+
+    def test_get_request_dict_with_defaults(self):
+        """Verify defaults are applied when params not provided."""
+        app = flask.Flask(__name__)
+
+        @app.route('/test')
+        def test_route():
+            req = get_request_dict(fund='All', limit=10)
+            return flask.jsonify(req)
+
+        client = app.test_client()
+        response = client.get('/test')
+        data = response.get_json()
+        assert data['fund'] == 'All'
+        assert data['limit'] == 10
+
+    def test_get_request_dict_with_query_params(self):
+        """Verify query params override defaults."""
+        app = flask.Flask(__name__)
+
+        @app.route('/test')
+        def test_route():
+            req = get_request_dict(fund='All', limit=10)
+            return flask.jsonify(req)
+
+        client = app.test_client()
+        response = client.get('/test?fund=Tenor&limit=50')
+        data = response.get_json()
+        assert data['fund'] == 'Tenor'
+        assert data['limit'] == '50'
+
+    def test_get_request_dict_with_callable_defaults(self):
+        """Verify callable defaults are invoked."""
+        app = flask.Flask(__name__)
+
+        @app.route('/test')
+        def test_route():
+            req = get_request_dict(value=lambda: 42)
+            return flask.jsonify(req)
+
+        client = app.test_client()
+        response = client.get('/test')
+        data = response.get_json()
+        assert data['value'] == 42
+
+    def test_get_request_dict_callable_not_called_when_param_provided(self):
+        """Verify callable defaults not called when param is provided."""
+        app = flask.Flask(__name__)
+        call_count = [0]
+
+        def counter():
+            call_count[0] += 1
+            return 'default'
+
+        @app.route('/test')
+        def test_route():
+            req = get_request_dict(value=counter)
+            return flask.jsonify(req)
+
+        client = app.test_client()
+        response = client.get('/test?value=provided')
+        data = response.get_json()
+        assert data['value'] == 'provided'
+        assert call_count[0] == 0
+
+    def test_get_request_dict_empty_string_uses_default(self):
+        """Verify empty string param triggers default."""
+        app = flask.Flask(__name__)
+
+        @app.route('/test')
+        def test_route():
+            req = get_request_dict(value='default')
+            return flask.jsonify(req)
+
+        client = app.test_client()
+        response = client.get('/test?value=')
+        data = response.get_json()
+        assert data['value'] == 'default'
+
+    def test_get_request_dict_post_form_data(self):
+        """Verify form data is captured from POST."""
+        app = flask.Flask(__name__)
+
+        @app.route('/test', methods=['POST'])
+        def test_route():
+            req = get_request_dict(fund='All')
+            return flask.jsonify(req)
+
+        client = app.test_client()
+        response = client.post('/test', data={'fund': 'Tenor', 'amount': '100'})
+        data = response.get_json()
+        assert data['fund'] == 'Tenor'
+        assert data['amount'] == '100'
+
+
+class TestIsSafeRedirectUrl:
+    """Tests for is_safe_redirect_url function."""
+
+    def test_safe_relative_path(self):
+        """Verify relative paths starting with / are safe."""
+        assert is_safe_redirect_url('/dashboard') is True
+        assert is_safe_redirect_url('/path/to/page') is True
+        assert is_safe_redirect_url('/') is True
+
+    def test_unsafe_protocol_injection(self):
+        """Verify protocol-relative URLs are blocked."""
+        assert is_safe_redirect_url('//evil.com/path') is False
+
+    def test_unsafe_absolute_url(self):
+        """Verify absolute URLs are blocked."""
+        assert is_safe_redirect_url('https://evil.com') is False
+        assert is_safe_redirect_url('http://evil.com') is False
+
+    def test_unsafe_empty_or_none(self):
+        """Verify empty and None values are blocked."""
+        assert is_safe_redirect_url('') is False
+        assert is_safe_redirect_url(None) is False
+
+    def test_unsafe_relative_without_slash(self):
+        """Verify paths not starting with / are blocked."""
+        assert is_safe_redirect_url('path/to/page') is False
+        assert is_safe_redirect_url('dashboard') is False
+
+
+class TestExternalUrlFor:
+    """Tests for external_url_for function."""
+
+    def test_external_url_basic(self):
+        """Verify basic URL generation with base URL."""
+        app = flask.Flask(__name__)
+
+        @app.route('/test')
+        def test_route():
+            return 'test'
+
+        with app.test_request_context():
+            result = external_url_for('https://app.example.com', 'test_route')
+            assert result == 'https://app.example.com/test'
+
+    def test_external_url_with_params(self):
+        """Verify URL parameters are included."""
+        app = flask.Flask(__name__)
+
+        @app.route('/user/<int:user_id>')
+        def user_detail(user_id):
+            return f'User {user_id}'
+
+        with app.test_request_context():
+            result = external_url_for('https://app.example.com', 'user_detail', user_id=123)
+            assert result == 'https://app.example.com/user/123'
+
+    def test_external_url_with_trailing_slash(self):
+        """Verify trailing slash on base URL is handled."""
+        app = flask.Flask(__name__)
+
+        @app.route('/page')
+        def page():
+            return 'page'
+
+        with app.test_request_context():
+            result = external_url_for('https://app.example.com/', 'page')
+            assert result == 'https://app.example.com/page'
 
 
 if __name__ == '__main__':
