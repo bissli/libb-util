@@ -78,6 +78,35 @@ class TestAttrdict:
         righty[0].x = 99
         assert d.x == 10
 
+    def test_attrdict_fromkeys(self):
+        """Verify fromkeys returns attrdict with correct values."""
+        d = attrdict.fromkeys(['a', 'b'], 0)
+        assert isinstance(d, attrdict)
+        assert d.a == 0
+        assert d.b == 0
+
+    def test_attrdict_or(self):
+        """Verify | operator returns attrdict with merged keys."""
+        d = attrdict(x=1) | {'y': 2}
+        assert isinstance(d, attrdict)
+        assert d.x == 1
+        assert d.y == 2
+
+    def test_attrdict_ror(self):
+        """Verify reverse | operator returns attrdict."""
+        d = {'y': 2} | attrdict(x=1)
+        assert isinstance(d, attrdict)
+        assert d.x == 1
+        assert d.y == 2
+
+    def test_attrdict_ior(self):
+        """Verify |= mutates in place and stays attrdict."""
+        d = attrdict(x=1)
+        d |= {'y': 2}
+        assert isinstance(d, attrdict)
+        assert d.x == 1
+        assert d.y == 2
+
 
 class TestLazydict:
     """Tests for lazydict class."""

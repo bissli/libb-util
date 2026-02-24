@@ -118,6 +118,22 @@ class attrdict(dict):
         newdict = attrdict(dict.copy(self))
         return newdict.update(**kwargs)
 
+    @classmethod
+    def fromkeys(cls, iterable, value=None):
+        """Create a new attrdict with keys from iterable and values set to value.
+        """
+        return cls(dict.fromkeys(iterable, value))
+
+    def __or__(self, other):
+        return attrdict(dict.__or__(self, other))
+
+    def __ror__(self, other):
+        return attrdict(dict.__ror__(self, other))
+
+    def __ior__(self, other):
+        dict.update(self, other)
+        return self
+
 
 class lazydict(attrdict):
     """A dictionary where function values are lazily evaluated.
