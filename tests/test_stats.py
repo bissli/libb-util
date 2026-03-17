@@ -9,7 +9,7 @@ from libb import linterp, logrtns, nearest, numify, parse, pct_change
 from libb import round_to_nearest, rsq, rtns, safe_add, safe_cmp, safe_diff
 from libb import safe_divide, safe_max, safe_min, safe_mult, safe_round
 from libb import stddevp, stddevs, thresh, varp, vars
-from libb.stats import convert_mixed_numeral_to_fraction
+from libb.stats import clean_float32, convert_mixed_numeral_to_fraction
 from libb.stats import convert_to_mixed_numeral, distance_from_line, isnumeric
 from libb.stats import np_divide, numpy_smooth, weighted_average
 
@@ -66,6 +66,46 @@ class TestThresh:
     def test_thresh_no_change(self):
         assert thresh(74.90, 0.05) == 74.9
         assert thresh(75.06, 0.05) == 75.06
+
+
+class TestCleanFloat32:
+    """Tests for clean_float32 function."""
+
+    def test_recovers_56_4_from_artifact(self):
+        """Recover 56.4 from float32 artifact."""
+        assert clean_float32(56.4000015258789) == 56.4
+
+    def test_recovers_0_85_from_artifact(self):
+        """Recover 0.85 from float32 artifact."""
+        assert clean_float32(0.849999994039536) == 0.85
+
+    def test_clean_float_passthrough(self):
+        """Pass clean float through unchanged."""
+        assert clean_float32(55.0) == 55.0
+
+    def test_none_passthrough(self):
+        """Pass None through."""
+        assert clean_float32(None) is None
+
+    def test_int_passthrough(self):
+        """Pass int through unchanged."""
+        assert clean_float32(42) == 42
+
+    def test_string_passthrough(self):
+        """Pass string through unchanged."""
+        assert clean_float32('hello') == 'hello'
+
+    def test_zero(self):
+        """Handle 0.0."""
+        assert clean_float32(0.0) == 0.0
+
+    def test_negative_artifact(self):
+        """Handle negative value with artifact."""
+        assert clean_float32(-56.4000015258789) == -56.4
+
+    def test_small_value(self):
+        """Handle small value like 0.0001."""
+        assert clean_float32(0.0001) == 0.0001
 
 
 class TestDigits:
@@ -273,8 +313,8 @@ class TestSafeArithmetic:
         assert safe_mult(2, None, 4) is None
 
     def test_safe_round(self):
-        assert safe_round(math.pi, places=2) == 3.14
-        assert safe_round(math.pi, places=4) == 3.1416
+        assert safe_round(math.pi, places=2) == 3.14  # noqa
+        assert safe_round(math.pi, places=4) == 3.1416  # noqa
         assert safe_round(None) is None
 
 

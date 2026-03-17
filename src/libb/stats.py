@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import operator
+import struct
 import types
 from collections.abc import Iterable
 from decimal import Decimal
@@ -23,6 +24,7 @@ __all__ = [
     'pct_change',
     'diff',
     'thresh',
+    'clean_float32',
     'isnumeric',
     'digits',
     'numify',
@@ -203,6 +205,20 @@ def thresh(x, thresh=0.0):
     if f + thresh > x:
         return f
     return x
+
+
+def clean_float32(x: float | None) -> float | None:
+    """Recover intended value from a float32 precision artifact.
+    """
+    if x is None or not isinstance(x, float):
+        return x
+    f32_bytes = struct.pack('f', x)
+    f32 = struct.unpack('f', f32_bytes)[0]
+    for dp in range(7):
+        candidate = round(f32, dp)
+        if struct.pack('f', candidate) == f32_bytes:
+            return candidate
+    return round(f32, 6)
 
 
 def isnumeric(x):
