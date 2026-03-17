@@ -3,8 +3,6 @@
 This module provides utility functions for pandas DataFrames and Series,
 including null checking, type downcasting, fuzzy merging, and timezone data.
 """
-from __future__ import annotations
-
 import gc
 import gzip
 import os

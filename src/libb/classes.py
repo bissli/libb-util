@@ -1,16 +1,9 @@
-from __future__ import annotations
-
 import logging
 import sys
 import weakref
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
-
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec
-else:
-    from typing_extensions import ParamSpec
+from typing import Any, ParamSpec, TypeVar
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import base64
 import contextlib
 import cProfile
@@ -15,8 +13,8 @@ import random
 import sys
 import time
 import urllib.parse
+from collections.abc import Callable
 from functools import update_wrapper, wraps
-from typing import Callable
 
 from dateutil import parser
 

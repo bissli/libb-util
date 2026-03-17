@@ -1,6 +1,4 @@
 """Config related settings, follows 12factor.net."""
-from __future__ import annotations
-
 import logging
 import os
 import tempfile

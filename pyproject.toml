@@ -5,7 +5,7 @@ readme = "README.md"
 description = "libb utility modules for python"
 authors = [{name = "bissli", email = "bissli@xyz.org"}]
 license = {text = "0BSD"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "backoff",
@@ -22,7 +22,6 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -50,7 +49,7 @@ packages = [{ include = "libb", from = "src" }]
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 
 numpy = "*"
 backoff = "*"

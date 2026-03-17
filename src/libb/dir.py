@@ -3,8 +3,6 @@
 .. note::
     ``os.walk`` and ``scandir`` were slow over network connections in Python 2.
 """
-from __future__ import annotations
-
 import glob
 import itertools
 import logging
