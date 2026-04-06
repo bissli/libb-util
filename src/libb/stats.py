@@ -48,6 +48,7 @@ __all__ = [
     'safe_diff',
     'safe_divide',
     'safe_mult',
+    'safe_abs',
     'safe_round',
     'safe_cmp',
     'safe_min',
@@ -734,6 +735,14 @@ def safe_mult(*args):
     if None not in args:
         return reduce(operator.mul, args)
     return None
+
+
+def safe_abs(arg):
+    """Safely return absolute value, returning None if argument is None.
+    """
+    if arg is None:
+        return None
+    return abs(arg)
 
 
 def safe_round(arg, places=2):

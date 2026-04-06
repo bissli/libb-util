@@ -6,9 +6,9 @@ import pytest
 
 from libb import avg, beta, choose, correl, covarp, covars, diff, digits
 from libb import linterp, logrtns, nearest, numify, parse, pct_change
-from libb import round_to_nearest, rsq, rtns, safe_add, safe_cmp, safe_diff
-from libb import safe_divide, safe_max, safe_min, safe_mult, safe_round
-from libb import stddevp, stddevs, thresh, varp, vars
+from libb import round_to_nearest, rsq, rtns, safe_abs, safe_add, safe_cmp
+from libb import safe_diff, safe_divide, safe_max, safe_min, safe_mult
+from libb import safe_round, stddevp, stddevs, thresh, varp, vars
 from libb.stats import clean_float32, convert_mixed_numeral_to_fraction
 from libb.stats import convert_to_mixed_numeral, distance_from_line, isnumeric
 from libb.stats import np_divide, numpy_smooth, weighted_average
@@ -288,6 +288,30 @@ class TestLinterp:
         """When x1=inf, inf_value parameter specifies return value."""
         assert linterp(1, float('inf'), 2, 2, 4, inf_value=4) == 4.0
         assert linterp(1, float('inf'), 2, 2, 4, inf_value=100) == 100.0
+
+
+class TestSafeAbs:
+    """Tests for safe_abs function."""
+
+    def test_positive(self):
+        """Return positive value unchanged."""
+        assert safe_abs(5) == 5
+
+    def test_negative(self):
+        """Return absolute value of negative."""
+        assert safe_abs(-5) == 5
+
+    def test_zero(self):
+        """Return zero for zero."""
+        assert safe_abs(0) == 0
+
+    def test_none(self):
+        """Return None for None."""
+        assert safe_abs(None) is None
+
+    def test_float(self):
+        """Return absolute value of negative float."""
+        assert safe_abs(-math.pi) == math.pi
 
 
 class TestSafeArithmetic:
