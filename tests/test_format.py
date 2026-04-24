@@ -50,6 +50,18 @@ def test_parens():
     assert_equal('(123.4)', fmt(-123.4, '1p'))
 
 
+def test_parens_with_suffix():
+    assert_equal('(2.00M)', fmt(-2000000, '2pM'))
+    assert_equal('(2.00m)', fmt(-2000000, '2pm'))
+    assert_equal('(1.5B)', fmt(-1500000000, '1pB'))
+    assert_equal('(500K)', fmt(-500000, '0pK'))
+    assert_equal('(1,234M)', fmt(-1234000000, '0pcM'))
+    assert_equal('(2.0M)', fmt(-2000000, '1pS'))
+    assert_equal('(37.2%)', fmt(-0.372, '1p%'))
+    assert_equal('(37.2 bp)', fmt(-0.00372, '1p#'))
+    assert_equal('(1.2)', fmt(-1234567890.12, '1p/b'))
+
+
 def test_sign():
     assert_equal('+123', fmt(123.4, '+0'))
     assert_equal('0', fmt(0.0, '+0'))

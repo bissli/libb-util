@@ -147,7 +147,8 @@ def format(value, style):
             val = commafy(val)
         # wrap in parens
         if parens and not is_zero:
-            val = f'({val})'
+            val = f'({val}{suffix})'
+            suffix = ''
         elif 'p' in fmt:
             # pad positive numbers so the last digit lines up better
             val = f'{val}'
