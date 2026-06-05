@@ -897,6 +897,9 @@ def convert_to_mixed_numeral(num, force_sign=False):
 
     m = m.groupdict()
 
+    if m['decimal'] and set(m['decimal']) == {'.'}:
+        m['decimal'] = None
+
     sig = m.pop('sign') or ''
     num = safe_add(*[Fraction(str(v or 0)) for v in m.values()])
     num *= -1 if sig == '-' else 1
