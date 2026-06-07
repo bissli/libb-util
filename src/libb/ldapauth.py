@@ -20,11 +20,22 @@ from collections.abc import Iterable
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['authenticate']
+__all__ = ['authenticate', 'InvalidCredentialsError']
 
 _USER_FILTER = (
     '(&(objectclass=user)(!(objectclass=computer))'
     '(userPrincipalName={user}@{domain}))')
+
+
+class InvalidCredentialsError(Exception):
+    """A confirmed bad-credentials bind (wrong username or password).
+
+    Raised by :func:`authenticate` only when
+    ``raise_on_invalid_credentials=True``, letting a caller tell a wrong
+    password apart from an unreachable directory -- the two failure modes
+    are otherwise both reported as ``(None, [])``. Useful for callers that
+    rate-limit failed passwords but must not penalize an AD outage.
+    """
 
 
 def authenticate(
@@ -36,6 +47,7 @@ def authenticate(
     ca_cert_file: str | None = None,
     verify: bool = True,
     port: int = 636,
+    raise_on_invalid_credentials: bool = False,
 ) -> tuple[str | None, list[str]]:
     """Bind to AD over LDAPS and return (user, group_cns) or (None, []).
 
@@ -52,7 +64,13 @@ def authenticate(
     :param verify: Require a validated TLS certificate (default True).
         When False, validation is disabled and a warning is logged.
     :param port: LDAPS port (default 636).
+    :param raise_on_invalid_credentials: When True, a confirmed bad
+        password raises :class:`InvalidCredentialsError` instead of
+        returning ``(None, [])``, so the caller can distinguish it from
+        an unreachable directory (which still returns ``(None, [])``).
     :returns: (user, [group_cns]) on success, else (None, []).
+    :raises InvalidCredentialsError: On bad credentials when
+        ``raise_on_invalid_credentials`` is set.
     """
     if not user or not password:
         return None, []
@@ -88,6 +106,8 @@ def authenticate(
             return user, groups
         except ldap_exceptions.LDAPInvalidCredentialsResult:
             logger.warning('invalid credentials for %s', user)
+            if raise_on_invalid_credentials:
+                raise InvalidCredentialsError(user) from None
             return None, []
         except ldap_exceptions.LDAPException:
             logger.exception('AD bind failed against %s', host)

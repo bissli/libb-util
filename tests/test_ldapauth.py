@@ -83,6 +83,27 @@ class TestAuthenticate:
                 'alice', 'bad', servers=['dc1'],
                 domain='corp.example.com') == (None, [])
 
+    def test_invalid_credentials_raise_when_opted_in(self):
+        """Verify raise_on_invalid_credentials surfaces a bad password."""
+        fake = FakeConnection(
+            bind_error=ldap3.core.exceptions.LDAPInvalidCredentialsResult())
+        server, tls, conn = _patch(connection_return=fake)
+        with server, tls, conn, pytest.raises(ldapauth.InvalidCredentialsError):
+            ldapauth.authenticate(
+                'alice', 'bad', servers=['dc1'], domain='corp.example.com',
+                raise_on_invalid_credentials=True)
+
+    def test_server_error_denies_without_raising_when_opted_in(self):
+        """Verify an AD outage still returns (None, []) even when opted in."""
+        side = [ldap3.core.exceptions.LDAPSocketOpenError('down'),
+                ldap3.core.exceptions.LDAPSocketOpenError('down')]
+        server, tls, conn = _patch(connection_side_effect=side)
+        with server, tls, conn:
+            assert ldapauth.authenticate(
+                'alice', 'pw', servers=['dc1', 'dc2'],
+                domain='corp.example.com',
+                raise_on_invalid_credentials=True) == (None, [])
+
     def test_server_error_falls_through_to_next(self):
         """Verify a server error tries the next server before succeeding."""
         good = FakeConnection(entries=[FakeEntry(['CN=Users,DC=corp'])])
