@@ -48,14 +48,16 @@ pip install "libb-util[pandas,text,web,math]"
 
 ### Available Extras
 
-| Extra | Description |
-|-------|-------------|
-| `pandas` | DataFrame utilities with pyarrow |
-| `text` | Text processing (ftfy, rapidfuzz, chardet) |
-| `web` | Web frameworks (Flask, Twisted, web.py) |
-| `math` | Matplotlib charting |
-| `test` | Testing tools (pytest, asserts) |
-| `docs` | Sphinx documentation |
+| Extra       | Description                                   |
+| ----------- | --------------------------------------------- |
+| `pandas`    | DataFrame utilities with pyarrow              |
+| `text`      | Text processing (ftfy, rapidfuzz, chardet)    |
+| `web`       | Web frameworks (Flask, Twisted, web.py)       |
+| `math`      | Matplotlib charting                           |
+| `ldapauth`  | Active Directory LDAPS authentication (ldap3) |
+| `tokenauth` | DynamoDB-backed API token registry (boto3)    |
+| `test`      | Testing tools (pytest, asserts)               |
+| `docs`      | Sphinx documentation                          |
 
 ---
 
@@ -63,29 +65,29 @@ pip install "libb-util[pandas,text,web,math]"
 
 ### Configuration
 
-| Function/Class | Description |
-|----------------|-------------|
-| `Setting()` | Hierarchical config with dot notation and locking |
-| `attrdict(**kw)` | Dict with attribute access |
-| `dictobj(**kw)` | Immutable dict with attribute access |
+| Function/Class   | Description                                       |
+| ---------------- | ------------------------------------------------- |
+| `Setting()`      | Hierarchical config with dot notation and locking |
+| `attrdict(**kw)` | Dict with attribute access                        |
+| `dictobj(**kw)`  | Immutable dict with attribute access              |
 
 ### Function Utilities
 
-| Function | Description |
-|----------|-------------|
-| `compose(*funcs)` | Right-to-left function composition |
-| `timeout(seconds)` | Decorator to limit function execution time |
+| Function              | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `compose(*funcs)`     | Right-to-left function composition           |
+| `timeout(seconds)`    | Decorator to limit function execution time   |
 | `retry(tries, delay)` | Decorator for retry with exponential backoff |
-| `memoize(func)` | Cache function results |
-| `once(func)` | Execute function only once |
+| `memoize(func)`       | Cache function results                       |
+| `once(func)`          | Execute function only once                   |
 
 ### Dictionary Operations (Rust-accelerated)
 
-| Function | Description |
-|----------|-------------|
-| `multikeysort(items, columns)` | Sort list of dicts by multiple keys |
-| `numify(val, to=int)` | Convert string to number with format handling |
-| `parse(s)` | Extract number from string |
+| Function                       | Description                                   |
+| ------------------------------ | --------------------------------------------- |
+| `multikeysort(items, columns)` | Sort list of dicts by multiple keys           |
+| `numify(val, to=int)`          | Convert string to number with format handling |
+| `parse(s)`                     | Extract number from string                    |
 
 ```python
 # Rust-accelerated sorting
@@ -100,55 +102,55 @@ parse('100.5%')     # 100.5
 
 ### Iteration (Rust-accelerated)
 
-| Function | Description |
-|----------|-------------|
-| `chunked(iterable, n)` | Split into chunks of size n |
-| `collapse(*args)` | Recursively flatten nested lists/tuples ⚡ |
-| `backfill(values)` | Fill None values with last non-None ⚡ |
+| Function                      | Description                                   |
+| ----------------------------- | --------------------------------------------- |
+| `chunked(iterable, n)`        | Split into chunks of size n                   |
+| `collapse(*args)`             | Recursively flatten nested lists/tuples ⚡    |
+| `backfill(values)`            | Fill None values with last non-None ⚡        |
 | `backfill_iterdict(iterdict)` | Back-fill dicts with latest values per key ⚡ |
-| `same_order(ref, comp)` | Check if elements appear in same order ⚡ |
-| `unique(iterable)` | Unique items preserving order |
+| `same_order(ref, comp)`       | Check if elements appear in same order ⚡     |
+| `unique(iterable)`            | Unique items preserving order                 |
 
 ⚡ = Rust-accelerated
 
 ### Text Processing (Rust-accelerated)
 
-| Function | Description |
-|----------|-------------|
-| `sanitize_vulgar_string(s)` | Replace vulgar fractions with decimals ⚡ |
-| `uncamel(camel)` | Convert CamelCase to snake_case ⚡ |
-| `underscore_to_camelcase(s)` | Convert snake_case to camelCase ⚡ |
-| `normalize(text)` | Unicode normalization |
-| `slugify(text)` | URL-safe slug |
-| `strip_html(text)` | Remove HTML tags |
-| `truncate(text, length)` | Truncate with ellipsis |
+| Function                     | Description                               |
+| ---------------------------- | ----------------------------------------- |
+| `sanitize_vulgar_string(s)`  | Replace vulgar fractions with decimals ⚡ |
+| `uncamel(camel)`             | Convert CamelCase to snake_case ⚡        |
+| `underscore_to_camelcase(s)` | Convert snake_case to camelCase ⚡        |
+| `normalize(text)`            | Unicode normalization                     |
+| `slugify(text)`              | URL-safe slug                             |
+| `strip_html(text)`           | Remove HTML tags                          |
+| `truncate(text, length)`     | Truncate with ellipsis                    |
 
 ⚡ = Rust-accelerated
 
 ### I/O and Paths
 
-| Function | Description |
-|----------|-------------|
-| `ensure_dir(path)` | Create directory if not exists |
-| `safe_filename(name)` | Sanitize filename |
-| `temp_file(**kw)` | Context manager for temp files |
-| `atomic_write(path)` | Atomic file write context |
+| Function              | Description                    |
+| --------------------- | ------------------------------ |
+| `ensure_dir(path)`    | Create directory if not exists |
+| `safe_filename(name)` | Sanitize filename              |
+| `temp_file(**kw)`     | Context manager for temp files |
+| `atomic_write(path)`  | Atomic file write context      |
 
 ### Concurrency
 
-| Function | Description |
-|----------|-------------|
-| `threaded(func)` | Run function in thread |
-| `parallel_map(func, items)` | Parallel execution |
-| `Semaphore(n)` | Limit concurrent access |
+| Function                    | Description             |
+| --------------------------- | ----------------------- |
+| `threaded(func)`            | Run function in thread  |
+| `parallel_map(func, items)` | Parallel execution      |
+| `Semaphore(n)`              | Limit concurrent access |
 
 ### Process Management
 
-| Function | Description |
-|----------|-------------|
-| `run_cmd(cmd)` | Execute shell command |
-| `is_running(pid)` | Check if process exists |
-| `kill_tree(pid)` | Kill process and children |
+| Function          | Description               |
+| ----------------- | ------------------------- |
+| `run_cmd(cmd)`    | Execute shell command     |
+| `is_running(pid)` | Check if process exists   |
+| `kill_tree(pid)`  | Kill process and children |
 
 ---
 

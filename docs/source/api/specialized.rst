@@ -16,6 +16,33 @@ HTML escaping, JSON encoders with ISO date support.
    :show-inheritance:
    :no-index:
 
+ldapauth
+--------
+
+Active Directory authentication via an LDAPS simple bind: looks the user up
+by ``userPrincipalName`` and returns their ``memberOf`` group CNs. Servers,
+domain, and TLS trust are all caller-injected. Requires the ``ldapauth`` extra.
+
+.. automodule:: libb.ldapauth
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :no-index:
+
+tokenauth
+---------
+
+Token-registry authentication for machine endpoints: per-client API keys
+stored as SHA-256 hashes in a DynamoDB table and looked up by a ``key_sha256``
+GSI, with mint/revoke/list admin helpers. Fails closed; table and credentials
+are caller-injected. Requires the ``tokenauth`` extra.
+
+.. automodule:: libb.tokenauth
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :no-index:
+
 stats
 -----
 

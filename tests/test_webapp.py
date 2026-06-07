@@ -916,5 +916,121 @@ class TestExternalUrlFor:
             assert result == 'https://app.example.com/page'
 
 
+from libb import group_required, login_required, token_required
+from libb import tokenauth
+
+
+def _build_app(rule, decorator):
+    """Build a single-route Flask app guarded by decorator."""
+    app = flask.Flask(__name__)
+    app.secret_key = 'test-secret'
+
+    @app.route(rule)
+    @decorator
+    def view():
+        return 'ok'
+
+    return app
+
+
+class TestGroupRequired:
+    """Tests for the group_required decorator."""
+
+    def test_allows_when_group_intersects(self):
+        """Verify access when session groups intersect allowed_groups."""
+        app = _build_app('/x', group_required({'admins'}))
+        client = app.test_client()
+        with client.session_transaction() as sess:
+            sess['groups'] = ['admins', 'users']
+        assert client.get('/x').status_code == 200
+
+    def test_forbids_when_no_intersection(self):
+        """Verify a 403 when session groups do not intersect allowed_groups."""
+        app = _build_app('/x', group_required({'admins'}))
+        client = app.test_client()
+        with client.session_transaction() as sess:
+            sess['groups'] = ['users']
+        assert client.get('/x').status_code == 403
+
+    def test_custom_on_forbidden(self):
+        """Verify a custom on_forbidden renderer is used for the 403."""
+        app = _build_app('/x', group_required(
+            {'admins'}, on_forbidden=lambda groups, allowed: ('nope', 403)))
+        response = app.test_client().get('/x')
+        assert response.status_code == 403
+        assert b'nope' in response.data
+
+
+class TestLoginRequired:
+    """Tests for the login_required decorator."""
+
+    def test_redirects_when_no_user(self):
+        """Verify an unauthenticated request redirects to the login path."""
+        app = _build_app('/x', login_required(allowed_groups={'admins'}))
+        response = app.test_client().get('/x')
+        assert response.status_code == 302
+        assert response.headers['Location'].endswith('/login/')
+
+    def test_forbidden_when_wrong_group(self):
+        """Verify a logged-in user outside allowed_groups gets a 403."""
+        app = _build_app('/x', login_required(allowed_groups={'admins'}))
+        client = app.test_client()
+        with client.session_transaction() as sess:
+            sess['user'] = 'bob'
+            sess['groups'] = ['users']
+        assert client.get('/x').status_code == 403
+
+    def test_allows_when_user_and_group(self):
+        """Verify a logged-in user in an allowed group is served."""
+        app = _build_app('/x', login_required(allowed_groups={'admins'}))
+        client = app.test_client()
+        with client.session_transaction() as sess:
+            sess['user'] = 'bob'
+            sess['groups'] = ['admins']
+        assert client.get('/x').status_code == 200
+
+
+class TestTokenRequired:
+    """Tests for the token_required decorator."""
+
+    def test_authorized_request_passes(self):
+        """Verify an authorized token reaches the view."""
+        app = _build_app('/m', token_required(table='t'))
+        client = app.test_client()
+        with mock.patch.object(tokenauth, 'verify_token', return_value=True):
+            response = client.get('/m', headers={'Authorization': 'Bearer abc'})
+        assert response.status_code == 200
+
+    def test_unauthorized_request_401(self):
+        """Verify an unauthorized token yields a 401."""
+        app = _build_app('/m', token_required(table='t'))
+        client = app.test_client()
+        with mock.patch.object(tokenauth, 'verify_token', return_value=False):
+            assert client.get('/m').status_code == 401
+
+    def test_extracts_bearer_and_x_api_key(self):
+        """Verify the key is read from the Bearer header and X-Api-Key."""
+        app = _build_app('/m', token_required(table='t'))
+        client = app.test_client()
+        seen = []
+        with mock.patch.object(tokenauth, 'verify_token',
+                               side_effect=lambda presented, **kw: seen.append(presented) or True):
+            client.get('/m', headers={'Authorization': 'Bearer tok1'})
+            client.get('/m', headers={'X-Api-Key': 'tok2'})
+        assert seen == ['tok1', 'tok2']
+
+    def test_query_key_ignored_unless_opted_in(self):
+        """Verify the ?key query arg is read only when allow_query_key is set."""
+        seen = []
+        patched = mock.patch.object(
+            tokenauth, 'verify_token',
+            side_effect=lambda presented, **kw: seen.append(presented) or True)
+        with patched:
+            _build_app('/m', token_required(table='t')).test_client().get('/m?key=q')
+            _build_app('/m', token_required(
+                table='t', allow_query_key=True)).test_client().get('/m?key=q')
+        assert seen == ['', 'q']
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

@@ -16,7 +16,7 @@ help:
 
 # Install dependencies and build extension
 dev:
-	poetry install --extras test
+	poetry install --extras test --extras web --extras ldapauth --extras tokenauth
 	maturin develop --release
 
 # Build native extension only

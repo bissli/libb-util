@@ -65,7 +65,7 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          poetry install -E test -E pandas -E text -E math
+          poetry install -E test -E pandas -E text -E math -E web -E ldapauth -E tokenauth
 
       - name: Build Rust extension
         shell: bash

@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     'authd',
+    'group_required',
+    'login_required',
+    'token_required',
     'make_url',
     'appmenu',
     'render_field',
@@ -140,6 +143,128 @@ def authd(checker_fn, fallback_fn):
         return update_wrapper(authd_fn, f)
 
     return wrapper
+
+
+def group_required(allowed_groups, *, session_accessor=None, on_forbidden=None):
+    """Decorator: 403 unless the session's groups intersect allowed_groups.
+
+    A thin Flask wrapper over :func:`authd` for group-set authorization.
+    Group names are injected, never hardcoded; richer policies (a
+    superuser override, per-row checks) compose by supplying a custom
+    ``on_forbidden`` or wrapping the result.
+
+    :param allowed_groups: Iterable of group names; access needs a
+        non-empty intersection with the session's ``groups``.
+    :param session_accessor: Callable returning the session mapping
+        (defaults to Flask's ``session``).
+    :param on_forbidden: Callable(groups, allowed) returning the denied
+        response; defaults to ``flask.abort(403)``.
+    :returns: A view decorator.
+    """
+    allowed = set(allowed_groups)
+
+    def get_session():
+        return session_accessor() if session_accessor is not None else flask.session
+
+    def checker():
+        return bool(set(get_session().get('groups', [])) & allowed)
+
+    def fallback():
+        if on_forbidden is not None:
+            return on_forbidden(sorted(get_session().get('groups', [])), sorted(allowed))
+        return flask.abort(403)
+
+    return authd(checker, fallback)
+
+
+def login_required(*, allowed_groups, session_accessor=None,
+                   login_path='/login/', on_forbidden=None):
+    """Decorator: require a logged-in session whose groups are allowed.
+
+    Redirects to ``login_path`` when no user is in the session; otherwise
+    enforces :func:`group_required`. Built for the standard Flask web
+    tier; all group names, the login path, and the denied renderer are
+    injected.
+
+    :param allowed_groups: Iterable of group names (see group_required).
+    :param session_accessor: Callable returning the session mapping
+        (defaults to Flask's ``session``).
+    :param login_path: Where to redirect unauthenticated users.
+    :param on_forbidden: Callable(groups, allowed) for the 403 case.
+    :returns: A view decorator.
+    """
+
+    def get_session():
+        return session_accessor() if session_accessor is not None else flask.session
+
+    def decorator(view):
+        guarded = group_required(
+            allowed_groups, session_accessor=session_accessor,
+            on_forbidden=on_forbidden)(view)
+
+        @wraps(view)
+        def login_required_fn(*args, **kwargs):
+            if not get_session().get('user'):
+                return flask.redirect(login_path)
+            return guarded(*args, **kwargs)
+
+        return login_required_fn
+
+    return decorator
+
+
+def _extract_presented_key(allow_query_key: bool = False) -> str:
+    """Pull a presented API key from the current Flask request.
+
+    Order: ``Authorization: Bearer <k>``, then ``X-Api-Key``, then the
+    ``?key=`` query arg when ``allow_query_key`` is set (off by default;
+    query strings leak into logs).
+
+    :param allow_query_key: Accept the key from the ?key query arg.
+    :returns: The presented key, or '' if none.
+    """
+    header = flask.request.headers.get('Authorization', '')
+    if header.lower().startswith('bearer '):
+        return header[7:].strip()
+    api_key = flask.request.headers.get('X-Api-Key')
+    if api_key:
+        return api_key.strip()
+    if allow_query_key:
+        return (flask.request.args.get('key') or '').strip()
+    return ''
+
+
+def token_required(*, table=None, static_token=None, region=None,
+                   dynamodb_client=None, allow_query_key=False):
+    """Decorator: gate a Flask view on a tc-auth token, failing closed.
+
+    Extracts the key from the request (see :func:`_extract_presented_key`)
+    and authorizes it via ``libb.tokenauth.verify_token``; an
+    unauthorized request gets a 401. Suited to machine endpoints
+    (MCP / API) behind the standard Flask tier.
+
+    :param table: DynamoDB registry table name (optional).
+    :param static_token: Constant-time break-glass token (optional).
+    :param region: AWS region for a default boto3 client (optional).
+    :param dynamodb_client: Injected boto3 DynamoDB client (optional).
+    :param allow_query_key: Accept the key from the ?key query arg.
+    :returns: A view decorator.
+    """
+    from libb import tokenauth
+
+    def decorator(view):
+        @wraps(view)
+        def token_required_fn(*args, **kwargs):
+            presented = _extract_presented_key(allow_query_key)
+            if not tokenauth.verify_token(
+                    presented, table=table, static_token=static_token,
+                    region=region, dynamodb_client=dynamodb_client):
+                return flask.abort(401)
+            return view(*args, **kwargs)
+
+        return token_required_fn
+
+    return decorator
 
 
 #
