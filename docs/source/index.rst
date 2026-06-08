@@ -208,7 +208,6 @@ Core Utilities
    libb.FileLike
    libb.Attachable
    libb.Dimension
-
 Collections
 ~~~~~~~~~~~
 
@@ -240,7 +239,6 @@ Collections
    :toctree: generated
 
    libb.ComparableHeap
-
 Input/Output
 ~~~~~~~~~~~~
 
@@ -317,7 +315,6 @@ Input/Output
    libb.download_file
    libb.splitall
    libb.resplit
-
 Specialized
 ~~~~~~~~~~~
 
@@ -332,6 +329,7 @@ Specialized
    libb.pct_change
    libb.diff
    libb.thresh
+   libb.clean_float32
    libb.isnumeric
    libb.digits
    libb.numify
@@ -357,6 +355,7 @@ Specialized
    libb.safe_diff
    libb.safe_divide
    libb.safe_mult
+   libb.safe_abs
    libb.safe_round
    libb.safe_cmp
    libb.safe_min
@@ -364,9 +363,6 @@ Specialized
    libb.convert_mixed_numeral_to_fraction
    libb.convert_to_mixed_numeral
    libb.round_to_nearest
-   libb.BBox
-   libb.overlaps
-   libb.push_apart
    libb.numpy_smooth
    libb.choose
 
@@ -459,49 +455,31 @@ Specialized
    :nosignatures:
    :toctree: generated
 
-   libb.get_or_create
-   libb.paged
-   libb.rsleep
-   libb.rand_retry
-   libb.cors_webpy
-   libb.cors_flask
    libb.authd
-   libb.xsrf_token
-   libb.xsrf_protected
-   libb.valid_api_key
-   libb.requires_api_key
+   libb.group_required
+   libb.login_required
+   libb.token_required
    libb.make_url
-   libb.prefix_urls
-   libb.url_path_join
-   libb.first_of_each
+   libb.appmenu
+   libb.render_field
+   libb.scale
    libb.safe_join
    libb.local_or_static_join
    libb.inject_file
    libb.inject_image
-   libb.build_breadcrumb
-   libb.breadcrumbify
-   libb.appmenu
-   libb.scale
-   libb.render_field
-   libb.login_protected
-   libb.userid_or_admin
-   libb.manager_or_admin
-   libb.logerror
-   libb.validip6addr
-   libb.validipaddr
-   libb.validipport
-   libb.validip
-   libb.validaddr
-   libb.urlquote
-   libb.httpdate
-   libb.parsehttpdate
    libb.htmlquote
-   libb.htmlunquote
    libb.websafe
+   libb.rsleep
+   libb.rand_retry
+   libb.logerror
+   libb.COOKIE_DEFAULTS
    libb.JSONEncoderISODate
    libb.JSONDecoderISODate
+   libb.Jinja2Render
    libb.ProfileMiddleware
-   libb.COOKIE_DEFAULTS
+   libb.get_request_dict
+   libb.is_safe_redirect_url
+   libb.external_url_for
 
 **Windows** - Windows-specific utilities
 
@@ -516,7 +494,6 @@ Specialized
    libb.mount_file_share
    libb.parse_wmic_output
    libb.exit_cmd
-
 ----
 
 Design Philosophy
