@@ -137,9 +137,13 @@ def round_digit_string(s, places=None) -> str:
         '7283.1234'
         >>> round_digit_string('7283', 3)
         '7283'
+        >>> round_digit_string('inf')
+        'inf'
+        >>> round_digit_string('1e400')
+        '1e400'
     """
     s = s.strip()
-    with contextlib.suppress(ValueError):
+    with contextlib.suppress(ValueError, OverflowError):
         f = float(s)
         i = int(f)
         if f == i:
