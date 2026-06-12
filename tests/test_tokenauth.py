@@ -194,3 +194,113 @@ class TestListClients:
             ('alpha', 'revoked', '2026-01-01'),
             ('zeta', 'active', '2026-02-01'),
             ]
+
+
+def _scope(path='/api/x', headers=None, query=b'', scheme='http'):
+    """Build a minimal ASGI HTTP scope for middleware tests."""
+    raw = [(k.encode('latin-1'), v.encode('latin-1'))
+           for k, v in (headers or {}).items()]
+    return {'type': scheme, 'path': path, 'headers': raw, 'query_string': query}
+
+
+def _mw(**kw):
+    """Build an ApiTokenMiddleware with a no-op app and sane defaults."""
+    kw.setdefault('protected_prefixes', ('/api/',))
+    return tokenauth.ApiTokenMiddleware(app=None, **kw)
+
+
+class TestPresentKey:
+    """Tests for ApiTokenMiddleware key extraction precedence."""
+
+    def test_x_api_key_header(self):
+        """Verify the X-API-Key header is read."""
+        assert _mw()._present_key(_scope(headers={'x-api-key': 'k1'})) == 'k1'
+
+    def test_bearer_authorization(self):
+        """Verify a Bearer authorization header yields the token."""
+        assert _mw()._present_key(
+            _scope(headers={'authorization': 'Bearer k2'})) == 'k2'
+
+    def test_query_param_fallback(self):
+        """Verify ?key= is used when no header carries a key."""
+        assert _mw()._present_key(_scope(query=b'key=k3')) == 'k3'
+
+    def test_x_api_key_wins_over_bearer(self):
+        """Verify X-API-Key takes precedence over a Bearer header."""
+        scope = _scope(headers={'x-api-key': 'k1', 'authorization': 'Bearer k2'})
+        assert _mw()._present_key(scope) == 'k1'
+
+    def test_missing_key_is_none(self):
+        """Verify a request with no credential yields None."""
+        assert _mw()._present_key(_scope()) is None
+
+
+class TestGuards:
+    """Tests for ApiTokenMiddleware._guards (which requests get gated)."""
+
+    def test_protected_path_is_gated(self):
+        """Verify a configured gate engages on a protected prefix."""
+        assert _mw(static_token='t')._guards(_scope(path='/api/x')) is True
+
+    def test_unprotected_path_passes(self):
+        """Verify a path outside the protected prefixes is not gated."""
+        assert _mw(static_token='t')._guards(_scope(path='/health')) is False
+
+    def test_unconfigured_gate_passes(self):
+        """Verify a gate with no token, table, or verifier never engages."""
+        assert _mw()._guards(_scope(path='/api/x')) is False
+
+    def test_non_http_passes(self):
+        """Verify non-HTTP scopes (websocket/lifespan) are never gated."""
+        assert _mw(static_token='t')._guards(
+            _scope(path='/api/x', scheme='websocket')) is False
+
+
+class TestAuthorize:
+    """Tests for ApiTokenMiddleware._authorize dispatch."""
+
+    def test_injected_verifier_used(self):
+        """Verify an injected verify callable overrides verify_token."""
+        seen = []
+        mw = _mw(verify=lambda k: seen.append(k) or k == 'ok')
+        assert mw._authorize('ok') is True
+        assert mw._authorize('no') is False
+        assert seen == ['ok', 'no']
+
+    def test_default_uses_static_token(self):
+        """Verify the default authorizer honors the static break-glass token."""
+        assert _mw(static_token='glass')._authorize('glass') is True
+        assert _mw(static_token='glass')._authorize('wrong') is False
+
+
+class TestAdminMain:
+    """Tests for the _admin_main CLI dispatch."""
+
+    def test_add_prints_key_and_succeeds(self, capsys, monkeypatch):
+        """Verify add mints a key, prints it, and returns 0."""
+        monkeypatch.setattr(tokenauth, 'mint_key', lambda *a, **k: 'RAWKEY')
+        rc = tokenauth._admin_main(['--table', 't', 'add', 'c1'])
+        assert rc == 0
+        assert 'RAWKEY' in capsys.readouterr().out
+
+    def test_add_existing_returns_1(self, monkeypatch):
+        """Verify add on an existing client returns exit code 1."""
+        def _boom(*a, **k):
+            raise tokenauth.ClientExistsError('c1')
+        monkeypatch.setattr(tokenauth, 'mint_key', _boom)
+        assert tokenauth._admin_main(['--table', 't', 'add', 'c1']) == 1
+
+    def test_revoke_missing_returns_1(self, monkeypatch):
+        """Verify revoke on an unknown client returns exit code 1."""
+        def _boom(*a, **k):
+            raise tokenauth.ClientNotFoundError('c1')
+        monkeypatch.setattr(tokenauth, 'revoke_key', _boom)
+        assert tokenauth._admin_main(['--table', 't', 'revoke', 'c1']) == 1
+
+    def test_list_prints_rows(self, capsys, monkeypatch):
+        """Verify list prints a row per client and returns 0."""
+        monkeypatch.setattr(tokenauth, 'list_clients',
+                            lambda *a, **k: [('c1', 'active', '2026-01-01')])
+        rc = tokenauth._admin_main(['--table', 't', 'list'])
+        assert rc == 0
+        assert 'c1' in capsys.readouterr().out

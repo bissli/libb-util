@@ -35,7 +35,7 @@ pandas = ["pyarrow", "pandas", "pandas-downcast==1.2.4", "numexpr"]
 web = ["Twisted", "service-identity", "Flask"]
 twd = ["Twisted", "service-identity"]
 ldapauth = ["ldap3"]
-tokenauth = ["boto3"]
+tokenauth = ["boto3", "starlette", "anyio"]
 test = ["asserts", "pytest", "pytest-mock", "pytest-runner", "pytest-benchmark", "unittest2", "WebTest", "maturin>=1.0,<2.0", "exceptiongroup", "jinja2"]
 deploy = ["bump2version"]
 docs = ["Sphinx", "sphinx-rtd-theme", "sphinx-autodoc-typehints", "myst-parser", "sphinx-copybutton"]
@@ -87,6 +87,8 @@ service-identity = { version = "*", optional = true }
 # == auth
 ldap3 = { version = "*", optional = true }
 boto3 = { version = "*", optional = true }
+starlette = { version = "*", optional = true }
+anyio = { version = "*", optional = true }
 # == test
 asserts = { version = "*", optional = true }
 pytest = { version = "*", optional = true }
@@ -130,7 +132,11 @@ twd = [
   "service-identity",
 ]
 ldapauth = ["ldap3"]
-tokenauth = ["boto3"]
+tokenauth = [
+  "boto3",
+  "starlette",
+  "anyio",
+]
 test = [
   "asserts",
   "pytest",

@@ -26,6 +26,7 @@ import datetime
 import hashlib
 import logging
 import secrets
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ __all__ = [
     'mint_key',
     'revoke_key',
     'list_clients',
+    'ApiTokenMiddleware',
 ]
 
 KEY_SHA256_INDEX = 'key_sha256-index'
@@ -252,3 +254,155 @@ def list_clients(
                 item.get('created_at', {}).get('S', ''),
                 ) for item in page.get('Items', []))
     return sorted(rows)
+
+
+class ApiTokenMiddleware:
+    """Raw ASGI middleware gating chosen path prefixes on a token.
+
+    Requests under ``protected_prefixes`` must present a key (``X-API-Key``
+    header, ``Authorization: Bearer``, or ``?key=``); all else passes
+    through, as does any request when neither a static token nor a table
+    is configured. Authorization runs through :func:`verify_token` unless
+    a ``verify`` callable is injected (e.g. to add caching). Raw ASGI, not
+    ``BaseHTTPMiddleware``, so it never buffers a streaming body;
+    ``starlette`` and ``anyio`` import lazily (``libb-util[tokenauth]``).
+
+    :param app: The wrapped ASGI application.
+    :param protected_prefixes: Path prefixes that require a token.
+    :param table: DynamoDB registry table name (optional).
+    :param static_token: Constant-time break-glass token (optional).
+    :param region: AWS region for a default boto3 client (optional).
+    :param verify: Custom ``(presented) -> bool`` authorizer; defaults to
+        :func:`verify_token` over the table/static token/region.
+    """
+
+    def __init__(
+        self,
+        app,
+        *,
+        protected_prefixes: tuple[str, ...],
+        table: str | None = None,
+        static_token: str | None = None,
+        region: str | None = None,
+        verify: Callable[[str], bool] | None = None,
+    ) -> None:
+        """Wrap an ASGI app with the configured credential checks."""
+        self.app = app
+        self.protected_prefixes = tuple(protected_prefixes)
+        self.table = table
+        self.static_token = static_token
+        self.region = region
+        self._verify = verify
+
+    async def __call__(self, scope, receive, send) -> None:
+        """Gate the request, offloading the blocking lookup to a thread."""
+        import anyio
+
+        if not self._guards(scope):
+            await self.app(scope, receive, send)
+            return
+
+        presented = self._present_key(scope)
+        authorized = bool(presented) and await anyio.to_thread.run_sync(
+            self._authorize, presented)
+        if not authorized:
+            from starlette.responses import JSONResponse
+            response = JSONResponse({'detail': 'Unauthorized'}, status_code=401)
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
+
+    def _guards(self, scope) -> bool:
+        """Return True if this request must be authorized."""
+        if scope['type'] != 'http':
+            return False
+        if not self._verify and not self.static_token and not self.table:
+            return False
+        return scope['path'].startswith(self.protected_prefixes)
+
+    @staticmethod
+    def _present_key(scope) -> str | None:
+        """Pull the key from the X-API-Key, Bearer, or ?key= sources."""
+        from urllib.parse import parse_qs
+
+        headers = {
+            key.decode('latin-1').lower(): value.decode('latin-1')
+            for key, value in scope.get('headers', [])
+            }
+        if headers.get('x-api-key'):
+            return headers['x-api-key']
+        authorization = headers.get('authorization', '')
+        if authorization.lower().startswith('bearer '):
+            return authorization[7:]
+        query = parse_qs(scope.get('query_string', b'').decode('latin-1'))
+        return (query.get('key') or [None])[0]
+
+    def _authorize(self, presented: str) -> bool:
+        """Authorize a key via the injected or default verifier."""
+        if self._verify is not None:
+            return self._verify(presented)
+        return verify_token(
+            presented, table=self.table, static_token=self.static_token,
+            region=self.region)
+
+
+def _admin_main(argv: list[str] | None = None) -> int:
+    """Generic add/revoke/list CLI over a client-key registry table.
+
+    Run as ``python -m libb.tokenauth --table <name> add|revoke|list ...``.
+    The raw key from ``add`` is printed once and cannot be recovered.
+
+    :param argv: Argument list (defaults to sys.argv[1:]).
+    :returns: Process exit code.
+    """
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(prog='libb.tokenauth')
+    parser.add_argument('--table', required=True, help='registry table name')
+    parser.add_argument('--region', default=None, help='AWS region (optional)')
+    sub = parser.add_subparsers(dest='command', required=True)
+
+    add = sub.add_parser('add', help='provision a client and mint a key')
+    add.add_argument('client_id')
+    add.add_argument('--name', default=None,
+                     help='display name (defaults to client_id)')
+    add.add_argument('--force', action='store_true',
+                     help='overwrite an existing client (rotate its key)')
+
+    revoke = sub.add_parser('revoke', help='deactivate a client')
+    revoke.add_argument('client_id')
+
+    sub.add_parser('list', help='list registered clients')
+
+    args = parser.parse_args(argv)
+    if args.command == 'add':
+        try:
+            raw_key = mint_key(args.client_id, table=args.table,
+                               client_name=args.name, force=args.force,
+                               region=args.region)
+        except ClientExistsError:
+            print(f'client {args.client_id!r} already exists '
+                  f'(use --force to rotate its key)', file=sys.stderr)
+            return 1
+        print(f'client:  {args.client_id}')
+        print(f'api key: {raw_key}')
+        print('store this key now -- it cannot be recovered.')
+        return 0
+    if args.command == 'revoke':
+        try:
+            revoke_key(args.client_id, table=args.table, region=args.region)
+        except ClientNotFoundError:
+            print(f'client {args.client_id!r} not found', file=sys.stderr)
+            return 1
+        print(f'revoked {args.client_id}')
+        return 0
+    for client_id, status, created_at in list_clients(
+            table=args.table, region=args.region):
+        print(f'{client_id:32s} {status:8s} {created_at}')
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(_admin_main())
