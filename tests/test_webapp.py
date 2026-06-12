@@ -778,9 +778,9 @@ class TestGetRequestDict:
             return flask.jsonify(req)
 
         client = app.test_client()
-        response = client.get('/test?fund=Tenor&limit=50')
+        response = client.get('/test?fund=Corp&limit=50')
         data = response.get_json()
-        assert data['fund'] == 'Tenor'
+        assert data['fund'] == 'Corp'
         assert data['limit'] == '50'
 
     def test_get_request_dict_with_callable_defaults(self):
@@ -841,9 +841,9 @@ class TestGetRequestDict:
             return flask.jsonify(req)
 
         client = app.test_client()
-        response = client.post('/test', data={'fund': 'Tenor', 'amount': '100'})
+        response = client.post('/test', data={'fund': 'Corp', 'amount': '100'})
         data = response.get_json()
-        assert data['fund'] == 'Tenor'
+        assert data['fund'] == 'Corp'
         assert data['amount'] == '100'
 
 

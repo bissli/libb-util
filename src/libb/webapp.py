@@ -236,7 +236,7 @@ def _extract_presented_key(allow_query_key: bool = False) -> str:
 
 def token_required(*, table=None, static_token=None, region=None,
                    dynamodb_client=None, allow_query_key=False):
-    """Decorator: gate a Flask view on a tc-auth token, failing closed.
+    """Decorator: gate a Flask view on a registry token, failing closed.
 
     Extracts the key from the request (see :func:`_extract_presented_key`)
     and authorizes it via ``libb.tokenauth.verify_token``; an

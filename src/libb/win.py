@@ -148,9 +148,10 @@ def mount_admin_share(host, password, unmount=False):
         multiple connections to a share by the same user.
     """
     user = os.environ['USERNAME'].lower()
+    domain = os.environ.get('USERDOMAIN', '.')
     hostip = socket.gethostbyname(host)
     if not unmount:
-        run_command(['net', 'use', r'\\' + hostip + r'\admin$', rf'/user:TENOR\{user}', password], hidearg=password)
+        run_command(['net', 'use', r'\\' + hostip + r'\admin$', rf'/user:{domain}\{user}', password], hidearg=password)
     else:
         run_command(['net', 'use', r'\\' + hostip + r'\admin$', '/del'])
 
@@ -165,10 +166,11 @@ def mount_file_share(host, password, drive, share, unmount=False):
     :param bool unmount: If True, unmount instead of mount.
     """
     user = os.environ['USERNAME'].lower()
+    domain = os.environ.get('USERDOMAIN', '.')
     hostip = socket.gethostbyname(host)
     if not unmount:
         run_command(
-            ['net', 'use', drive, r'\\' + hostip + '\\' + share, rf'/user:TENOR\{user}', password], hidearg=password
+            ['net', 'use', drive, r'\\' + hostip + '\\' + share, rf'/user:{domain}\{user}', password], hidearg=password
         )
     else:
         run_command(['net', 'use', drive, '/del'])
