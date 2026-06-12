@@ -1,21 +1,32 @@
 """Token-registry auth: per-client API keys backed by a DynamoDB table.
 
-A small, framework-agnostic core for gating machine endpoints (MCP / API)
-on per-client keys. Keys are minted once, stored only as SHA-256 hashes,
-and looked up by a ``key_sha256`` global secondary index; a client is
-allowed only while its item is ``active``.
+A small, framework-agnostic toolkit for gating machine endpoints (MCP /
+API) on per-client keys. Keys are minted once, stored only as SHA-256
+hashes, and looked up by a ``key_sha256`` global secondary index; a client
+is allowed only while its item is ``active``. The table name, AWS region,
+and boto3 client are all injected by the caller -- nothing is hardcoded --
+so the same code serves any ``<name>`` registry table.
 
-The table name, AWS region, and boto3 client are all injected by the
-caller -- nothing is hardcoded -- so the same code serves any ``<name>``
-registry table on Fargate (ambient task role) or a host passing explicit
-credentials. Validation fails closed and compares the optional static
-break-glass token in constant time. No caching is done here: callers wrap
-:func:`key_active_in_registry` in whatever cache suits their runtime.
+Layers, low to high:
+
+- :func:`key_active_in_registry` -- the raw DynamoDB lookup (one GSI
+  query). No caching: wrap it in a TTL cache and pass the wrapper as
+  ``registry_check`` below to keep the lookup off a request hot path.
+- :func:`verify_token` -- authorize a presented key: static break-glass
+  token (constant time) then the registry, failing closed.
+- :class:`ApiTokenMiddleware` -- a raw-ASGI gate that runs a
+  ``(presented) -> bool`` verifier (typically
+  ``functools.partial(verify_token, ...)``) for chosen path prefixes.
+- :func:`mint_key` / :func:`revoke_key` / :func:`list_clients` and the
+  ``libb-tokenauth`` CLI (:func:`run_cli`) -- provisioning.
+
+Both :func:`verify_token` and :class:`ApiTokenMiddleware` independently
+fail closed; used together that is deliberate defense-in-depth.
 
 Expected table shape::
 
     client_id   (S)  -- partition key
-    client_name (S)
+    client_name (S)  -- stored by mint_key; not returned by list_clients
     key_sha256  (S)  -- GSI 'key_sha256-index', projection ALL
     active      (BOOL)
     created_at  (S)  -- ISO-8601 UTC
@@ -26,7 +37,9 @@ import datetime
 import hashlib
 import logging
 import secrets
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from typing import Any, Literal, NamedTuple
+from urllib.parse import parse_qs
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +47,7 @@ __all__ = [
     'KEY_SHA256_INDEX',
     'ClientExistsError',
     'ClientNotFoundError',
+    'ClientRecord',
     'hash_key',
     'key_active_in_registry',
     'verify_token',
@@ -46,6 +60,14 @@ __all__ = [
 KEY_SHA256_INDEX = 'key_sha256-index'
 
 
+class ClientRecord(NamedTuple):
+    """A registry client row: id, status, and creation time."""
+
+    client_id: str
+    status: Literal['active', 'revoked']
+    created_at: str
+
+
 class ClientExistsError(Exception):
     """Raised when minting a key for a client_id that already exists."""
 
@@ -54,11 +76,12 @@ class ClientNotFoundError(Exception):
     """Raised when revoking a client_id absent from the registry."""
 
 
-def _dynamodb_client(dynamodb_client=None, region: str | None = None):
+def _dynamodb_client(dynamodb_client: Any = None, region: str | None = None) -> Any:
     """Return the injected boto3 client or build a default one.
 
     :param dynamodb_client: Pre-built boto3 DynamoDB client, or None.
-    :param region: AWS region for a default client (optional).
+    :param region: AWS region for a default client (optional). Ignored
+        when ``dynamodb_client`` is supplied.
     :returns: A boto3 DynamoDB client.
     """
     if dynamodb_client is not None:
@@ -85,7 +108,7 @@ def key_active_in_registry(
     *,
     table: str,
     region: str | None = None,
-    dynamodb_client=None,
+    dynamodb_client: Any = None,
 ) -> bool:
     """Return True iff a hashed key maps to an active client.
 
@@ -119,35 +142,50 @@ def verify_token(
     table: str | None = None,
     static_token: str | None = None,
     region: str | None = None,
-    dynamodb_client=None,
+    dynamodb_client: Any = None,
+    registry_check: Callable[[str], bool] | None = None,
 ) -> bool:
     """Authorize a presented key, failing closed.
 
-    Checks the optional static break-glass token first (constant time),
-    then the registry. Any registry error denies. If neither a static
-    token nor a table is configured the call denies -- an open
-    network-trust gate is an explicit caller decision, never a default
-    here.
+    The static break-glass token is checked first (constant time). The
+    registry is then consulted via ``registry_check`` if given, else via a
+    direct :func:`key_active_in_registry` call when ``table`` is provided.
+    Any error in the registry path denies. If no path is configured -- no
+    static token, no ``registry_check``, and no ``table`` -- the call
+    denies; an open network-trust gate is an explicit caller decision,
+    never a default here.
+
+    To bind this to :class:`ApiTokenMiddleware`, wrap it with
+    ``functools.partial(verify_token, static_token=..., registry_check=...)``.
 
     :param presented: The raw key presented by the client.
-    :param table: DynamoDB registry table name (optional).
+    :param table: DynamoDB registry table name (optional). Used to build
+        the default registry lookup when ``registry_check`` is not given.
     :param static_token: Constant-time break-glass token (optional).
     :param region: AWS region for a default boto3 client (optional).
     :param dynamodb_client: Injected boto3 DynamoDB client (optional).
+    :param registry_check: Lookup called with the SHA-256 *digest* of the
+        key (not the raw key) -- ``(key_sha256) -> bool`` -- replacing the
+        default :func:`key_active_in_registry` call. This is the seam for a
+        cached lookup: wrap :func:`key_active_in_registry` in a TTL cache
+        and pass it here. When given, ``table``/``region``/
+        ``dynamodb_client`` are not used.
     :returns: True if the presented key is authorized.
     """
     if not presented:
         return False
     if static_token and secrets.compare_digest(presented, static_token):
         return True
-    if not table:
+    if registry_check is None and not table:
         return False
     try:
+        if registry_check is not None:
+            return registry_check(hash_key(presented))
         return key_active_in_registry(
             hash_key(presented), table=table, region=region,
             dynamodb_client=dynamodb_client)
     except Exception as exc:
-        logger.warning(f'token registry lookup failed; denying (fail closed): {exc}')
+        logger.warning('token registry lookup failed; denying (fail closed): %s', exc)
         return False
 
 
@@ -158,7 +196,7 @@ def mint_key(
     client_name: str | None = None,
     force: bool = False,
     region: str | None = None,
-    dynamodb_client=None,
+    dynamodb_client: Any = None,
 ) -> str:
     """Provision a client and return its freshly minted raw key.
 
@@ -204,7 +242,7 @@ def revoke_key(
     *,
     table: str,
     region: str | None = None,
-    dynamodb_client=None,
+    dynamodb_client: Any = None,
 ) -> None:
     """Disable a client by clearing its active flag.
 
@@ -235,20 +273,20 @@ def list_clients(
     *,
     table: str,
     region: str | None = None,
-    dynamodb_client=None,
-) -> list[tuple[str, str, str]]:
-    """Return every registered client as (client_id, status, created_at).
+    dynamodb_client: Any = None,
+) -> list[ClientRecord]:
+    """Return every registered client, sorted by client_id.
 
     :param table: DynamoDB registry table name.
     :param region: AWS region for a default boto3 client (optional).
     :param dynamodb_client: Injected boto3 DynamoDB client (optional).
-    :returns: Sorted (client_id, 'active'|'revoked', created_at) tuples.
+    :returns: Sorted :class:`ClientRecord` rows.
     """
     client = _dynamodb_client(dynamodb_client, region)
     paginator = client.get_paginator('scan')
     rows = []
     for page in paginator.paginate(TableName=table):
-        rows.extend((
+        rows.extend(ClientRecord(
                 item.get('client_id', {}).get('S', ''),
                 'active' if item.get('active', {}).get('BOOL') else 'revoked',
                 item.get('created_at', {}).get('S', ''),
@@ -259,42 +297,44 @@ def list_clients(
 class ApiTokenMiddleware:
     """Raw ASGI middleware gating chosen path prefixes on a token.
 
-    Requests under ``protected_prefixes`` must present a key (``X-API-Key``
-    header, ``Authorization: Bearer``, or ``?key=``); all else passes
-    through, as does any request when neither a static token nor a table
-    is configured. Authorization runs through :func:`verify_token` unless
-    a ``verify`` callable is injected (e.g. to add caching). Raw ASGI, not
-    ``BaseHTTPMiddleware``, so it never buffers a streaming body;
-    ``starlette`` and ``anyio`` import lazily (``libb-util[tokenauth]``).
+    HTTP requests under ``protected_prefixes`` must present a key
+    (``X-API-Key`` header, ``Authorization: Bearer``, or ``?key=``) that
+    ``verify`` authorizes; everything else passes through. ``verify`` is
+    any ``(presented) -> bool`` -- typically :func:`verify_token` bound to
+    its config::
+
+        verify = functools.partial(
+            verify_token, static_token=TOKEN, registry_check=cached_lookup)
+        app.add_middleware(
+            ApiTokenMiddleware, protected_prefixes=('/api/',), verify=verify)
+
+    The verifier runs in a worker thread and fails closed -- returning
+    False or raising yields a 401.
+
+    Raw ASGI, not ``BaseHTTPMiddleware``, so it never buffers a streaming
+    body and depends on no web framework; only ``anyio`` is imported
+    lazily (``libb-util[tokenauth]``). Note: only ``http`` scopes are
+    gated -- ``websocket`` connections pass through, so do not place a
+    WebSocket endpoint under a protected prefix expecting it to be gated.
 
     :param app: The wrapped ASGI application.
     :param protected_prefixes: Path prefixes that require a token.
-    :param table: DynamoDB registry table name (optional).
-    :param static_token: Constant-time break-glass token (optional).
-    :param region: AWS region for a default boto3 client (optional).
-    :param verify: Custom ``(presented) -> bool`` authorizer; defaults to
-        :func:`verify_token` over the table/static token/region.
+    :param verify: ``(presented) -> bool`` authorizer.
     """
 
     def __init__(
         self,
-        app,
+        app: Any,
         *,
-        protected_prefixes: tuple[str, ...],
-        table: str | None = None,
-        static_token: str | None = None,
-        region: str | None = None,
-        verify: Callable[[str], bool] | None = None,
+        protected_prefixes: Iterable[str],
+        verify: Callable[[str], bool],
     ) -> None:
-        """Wrap an ASGI app with the configured credential checks."""
+        """Wrap an ASGI app with the configured credential check."""
         self.app = app
         self.protected_prefixes = tuple(protected_prefixes)
-        self.table = table
-        self.static_token = static_token
-        self.region = region
         self._verify = verify
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
         """Gate the request, offloading the blocking lookup to a thread."""
         import anyio
 
@@ -303,29 +343,27 @@ class ApiTokenMiddleware:
             return
 
         presented = self._present_key(scope)
-        authorized = bool(presented) and await anyio.to_thread.run_sync(
-            self._authorize, presented)
+        authorized = False
+        if presented:
+            try:
+                authorized = await anyio.to_thread.run_sync(self._verify, presented)
+            except Exception as exc:
+                logger.warning('authorization raised; denying (fail closed): %s', exc)
         if not authorized:
-            from starlette.responses import JSONResponse
-            response = JSONResponse({'detail': 'Unauthorized'}, status_code=401)
-            await response(scope, receive, send)
+            await _send_unauthorized(send)
             return
 
         await self.app(scope, receive, send)
 
-    def _guards(self, scope) -> bool:
+    def _guards(self, scope: dict) -> bool:
         """Return True if this request must be authorized."""
-        if scope['type'] != 'http':
+        if scope.get('type') != 'http':
             return False
-        if not self._verify and not self.static_token and not self.table:
-            return False
-        return scope['path'].startswith(self.protected_prefixes)
+        return scope.get('path', '').startswith(self.protected_prefixes)
 
     @staticmethod
-    def _present_key(scope) -> str | None:
+    def _present_key(scope: dict) -> str | None:
         """Pull the key from the X-API-Key, Bearer, or ?key= sources."""
-        from urllib.parse import parse_qs
-
         headers = {
             key.decode('latin-1').lower(): value.decode('latin-1')
             for key, value in scope.get('headers', [])
@@ -334,28 +372,39 @@ class ApiTokenMiddleware:
             return headers['x-api-key']
         authorization = headers.get('authorization', '')
         if authorization.lower().startswith('bearer '):
-            return authorization[7:]
+            bearer = authorization[7:]
+            if bearer:
+                return bearer
         query = parse_qs(scope.get('query_string', b'').decode('latin-1'))
         return (query.get('key') or [None])[0]
 
-    def _authorize(self, presented: str) -> bool:
-        """Authorize a key via the injected or default verifier."""
-        if self._verify is not None:
-            return self._verify(presented)
-        return verify_token(
-            presented, table=self.table, static_token=self.static_token,
-            region=self.region)
+
+async def _send_unauthorized(send: Any) -> None:
+    """Emit a raw-ASGI 401 JSON response (no web-framework dependency)."""
+    body = b'{"detail":"Unauthorized"}'
+    await send({
+        'type': 'http.response.start',
+        'status': 401,
+        'headers': [
+            (b'content-type', b'application/json'),
+            (b'content-length', str(len(body)).encode('latin-1')),
+            ],
+        })
+    await send({'type': 'http.response.body', 'body': body})
 
 
-def _admin_main(argv: list[str] | None = None) -> int:
+def run_cli(argv: list[str] | None = None) -> int:
     """Generic add/revoke/list CLI over a client-key registry table.
 
-    Run as ``python -m libb.tokenauth --table <name> add|revoke|list ...``.
-    The raw key from ``add`` is printed once and cannot be recovered.
+    Run as ``python -m libb.tokenauth --table <name> add|revoke|list ...``
+    or via the ``libb-tokenauth`` console script. The raw key from ``add``
+    is printed once and cannot be recovered.
 
     :param argv: Argument list (defaults to sys.argv[1:]).
     :returns: Process exit code.
     """
+    # argparse/sys deferred: this CLI is never reached when the module is
+    # imported by a server, so its import cost stays off the hot path.
     import argparse
     import sys
 
@@ -398,11 +447,10 @@ def _admin_main(argv: list[str] | None = None) -> int:
             return 1
         print(f'revoked {args.client_id}')
         return 0
-    for client_id, status, created_at in list_clients(
-            table=args.table, region=args.region):
-        print(f'{client_id:32s} {status:8s} {created_at}')
+    for record in list_clients(table=args.table, region=args.region):
+        print(f'{record.client_id!r:34s} {record.status:8s} {record.created_at}')
     return 0
 
 
 if __name__ == '__main__':
-    raise SystemExit(_admin_main())
+    raise SystemExit(run_cli())

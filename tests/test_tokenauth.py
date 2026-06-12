@@ -1,5 +1,6 @@
 """Tests for the tokenauth module."""
 
+import functools
 import hashlib
 
 import pytest
@@ -183,17 +184,58 @@ class TestRevokeKey:
 class TestListClients:
     """Tests for list_clients."""
 
-    def test_returns_sorted_status_rows(self):
-        """Verify list_clients returns sorted (id, status, created_at) tuples."""
+    def test_returns_sorted_client_records(self):
+        """Verify list_clients returns sorted ClientRecord rows."""
         stub = StubDynamo(items=[
             _item('zeta', 'h1', active=True, created_at='2026-02-01'),
             _item('alpha', 'h2', active=False, created_at='2026-01-01'),
             ])
         rows = tokenauth.list_clients(table='t', dynamodb_client=stub)
         assert rows == [
-            ('alpha', 'revoked', '2026-01-01'),
-            ('zeta', 'active', '2026-02-01'),
+            tokenauth.ClientRecord('alpha', 'revoked', '2026-01-01'),
+            tokenauth.ClientRecord('zeta', 'active', '2026-02-01'),
             ]
+        assert rows[0].status == 'revoked'
+
+
+class TestRegistryCheckSeam:
+    """Tests for the verify_token registry_check injection seam."""
+
+    def test_registry_check_replaces_default_lookup(self):
+        """Verify a registry_check callable is used instead of DynamoDB."""
+        seen = []
+        check = lambda h: seen.append(h) or True
+        assert tokenauth.verify_token('rawkey', registry_check=check) is True
+        assert seen == [tokenauth.hash_key('rawkey')]
+
+    def test_static_token_short_circuits_registry_check(self):
+        """Verify the static token wins without consulting registry_check."""
+        def _fail(h):
+            raise AssertionError('registry_check should not run')
+        assert tokenauth.verify_token(
+            'glass', static_token='glass', registry_check=_fail) is True
+
+    def test_registry_check_error_fails_closed(self):
+        """Verify an error from registry_check denies."""
+        def _boom(h):
+            raise RuntimeError('cache down')
+        assert tokenauth.verify_token('k', registry_check=_boom) is False
+
+
+class TestPartialVerifier:
+    """Verify functools.partial(verify_token, ...) wires a middleware verifier."""
+
+    def test_partial_over_registry_check(self):
+        """Verify a partial-bound verifier authorizes via registry_check."""
+        verify = functools.partial(
+            tokenauth.verify_token, registry_check=lambda h: True)
+        assert verify('anything') is True
+
+    def test_partial_honors_static_token(self):
+        """Verify a partial-bound verifier accepts the static token."""
+        verify = functools.partial(tokenauth.verify_token, static_token='glass')
+        assert verify('glass') is True
+        assert verify('nope') is False
 
 
 def _scope(path='/api/x', headers=None, query=b'', scheme='http'):
@@ -203,10 +245,11 @@ def _scope(path='/api/x', headers=None, query=b'', scheme='http'):
     return {'type': scheme, 'path': path, 'headers': raw, 'query_string': query}
 
 
-def _mw(**kw):
+def _mw(verify=None, **kw):
     """Build an ApiTokenMiddleware with a no-op app and sane defaults."""
     kw.setdefault('protected_prefixes', ('/api/',))
-    return tokenauth.ApiTokenMiddleware(app=None, **kw)
+    return tokenauth.ApiTokenMiddleware(
+        app=None, verify=verify or (lambda k: True), **kw)
 
 
 class TestPresentKey:
@@ -230,6 +273,11 @@ class TestPresentKey:
         scope = _scope(headers={'x-api-key': 'k1', 'authorization': 'Bearer k2'})
         assert _mw()._present_key(scope) == 'k1'
 
+    def test_empty_bearer_falls_through_to_query(self):
+        """Verify an empty 'Bearer ' does not shadow the ?key= fallback."""
+        scope = _scope(headers={'authorization': 'Bearer '}, query=b'key=k3')
+        assert _mw()._present_key(scope) == 'k3'
+
     def test_missing_key_is_none(self):
         """Verify a request with no credential yields None."""
         assert _mw()._present_key(_scope()) is None
@@ -239,47 +287,83 @@ class TestGuards:
     """Tests for ApiTokenMiddleware._guards (which requests get gated)."""
 
     def test_protected_path_is_gated(self):
-        """Verify a configured gate engages on a protected prefix."""
-        assert _mw(static_token='t')._guards(_scope(path='/api/x')) is True
+        """Verify a protected prefix engages the gate."""
+        assert _mw()._guards(_scope(path='/api/x')) is True
 
     def test_unprotected_path_passes(self):
         """Verify a path outside the protected prefixes is not gated."""
-        assert _mw(static_token='t')._guards(_scope(path='/health')) is False
-
-    def test_unconfigured_gate_passes(self):
-        """Verify a gate with no token, table, or verifier never engages."""
-        assert _mw()._guards(_scope(path='/api/x')) is False
+        assert _mw()._guards(_scope(path='/health')) is False
 
     def test_non_http_passes(self):
         """Verify non-HTTP scopes (websocket/lifespan) are never gated."""
-        assert _mw(static_token='t')._guards(
-            _scope(path='/api/x', scheme='websocket')) is False
+        assert _mw()._guards(_scope(path='/api/x', scheme='websocket')) is False
+
+    def test_malformed_scope_passes(self):
+        """Verify a scope missing 'type'/'path' passes through, not raises."""
+        assert _mw()._guards({}) is False
 
 
-class TestAuthorize:
-    """Tests for ApiTokenMiddleware._authorize dispatch."""
+def _run(mw, scope):
+    """Drive the middleware once, capturing whether the app ran and any send()."""
+    import asyncio
+    sent = []
+    app_ran = []
 
-    def test_injected_verifier_used(self):
-        """Verify an injected verify callable overrides verify_token."""
-        seen = []
-        mw = _mw(verify=lambda k: seen.append(k) or k == 'ok')
-        assert mw._authorize('ok') is True
-        assert mw._authorize('no') is False
-        assert seen == ['ok', 'no']
+    async def app(s, r, sd):
+        app_ran.append(True)
 
-    def test_default_uses_static_token(self):
-        """Verify the default authorizer honors the static break-glass token."""
-        assert _mw(static_token='glass')._authorize('glass') is True
-        assert _mw(static_token='glass')._authorize('wrong') is False
+    async def send(msg):
+        sent.append(msg)
+
+    mw.app = app
+    asyncio.get_event_loop().run_until_complete(mw(scope, None, send))
+    return app_ran, sent
 
 
-class TestAdminMain:
-    """Tests for the _admin_main CLI dispatch."""
+class TestCall:
+    """Tests for the ApiTokenMiddleware ASGI __call__ gate."""
+
+    def setup_method(self):
+        """Skip the ASGI-gate tests when the anyio extra is absent."""
+        pytest.importorskip('anyio')
+
+    def test_authorized_request_reaches_app(self):
+        """Verify a valid key lets the request through to the app."""
+        mw = _mw(verify=lambda k: k == 'good')
+        app_ran, sent = _run(mw, _scope(headers={'x-api-key': 'good'}))
+        assert app_ran == [True]
+        assert sent == []
+
+    def test_unauthorized_request_gets_401(self):
+        """Verify a bad key yields a raw-ASGI 401 and never reaches the app."""
+        mw = _mw(verify=lambda k: False)
+        app_ran, sent = _run(mw, _scope(headers={'x-api-key': 'bad'}))
+        assert app_ran == []
+        assert sent[0]['status'] == 401
+
+    def test_verifier_exception_fails_closed(self):
+        """Verify a raising verifier denies (401), not 500 or pass-through."""
+        def _boom(k):
+            raise RuntimeError('cache down')
+        mw = _mw(verify=_boom)
+        app_ran, sent = _run(mw, _scope(headers={'x-api-key': 'k'}))
+        assert app_ran == []
+        assert sent[0]['status'] == 401
+
+    def test_unprotected_path_skips_verify(self):
+        """Verify an open path reaches the app without calling verify."""
+        mw = _mw(verify=lambda k: (_ for _ in ()).throw(AssertionError()))
+        app_ran, _ = _run(mw, _scope(path='/health'))
+        assert app_ran == [True]
+
+
+class TestRunCli:
+    """Tests for the run_cli admin command dispatch."""
 
     def test_add_prints_key_and_succeeds(self, capsys, monkeypatch):
         """Verify add mints a key, prints it, and returns 0."""
         monkeypatch.setattr(tokenauth, 'mint_key', lambda *a, **k: 'RAWKEY')
-        rc = tokenauth._admin_main(['--table', 't', 'add', 'c1'])
+        rc = tokenauth.run_cli(['--table', 't', 'add', 'c1'])
         assert rc == 0
         assert 'RAWKEY' in capsys.readouterr().out
 
@@ -288,19 +372,20 @@ class TestAdminMain:
         def _boom(*a, **k):
             raise tokenauth.ClientExistsError('c1')
         monkeypatch.setattr(tokenauth, 'mint_key', _boom)
-        assert tokenauth._admin_main(['--table', 't', 'add', 'c1']) == 1
+        assert tokenauth.run_cli(['--table', 't', 'add', 'c1']) == 1
 
     def test_revoke_missing_returns_1(self, monkeypatch):
         """Verify revoke on an unknown client returns exit code 1."""
         def _boom(*a, **k):
             raise tokenauth.ClientNotFoundError('c1')
         monkeypatch.setattr(tokenauth, 'revoke_key', _boom)
-        assert tokenauth._admin_main(['--table', 't', 'revoke', 'c1']) == 1
+        assert tokenauth.run_cli(['--table', 't', 'revoke', 'c1']) == 1
 
     def test_list_prints_rows(self, capsys, monkeypatch):
         """Verify list prints a row per client and returns 0."""
         monkeypatch.setattr(tokenauth, 'list_clients',
-                            lambda *a, **k: [('c1', 'active', '2026-01-01')])
-        rc = tokenauth._admin_main(['--table', 't', 'list'])
+                            lambda *a, **k: [tokenauth.ClientRecord(
+                                'c1', 'active', '2026-01-01')])
+        rc = tokenauth.run_cli(['--table', 't', 'list'])
         assert rc == 0
         assert 'c1' in capsys.readouterr().out
