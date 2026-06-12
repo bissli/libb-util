@@ -1,6 +1,6 @@
 [project]
 name = "libb-util"
-version = "0.0.41"
+version = "0.0.42"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = [{name = "bissli", email = "bissli@xyz.org"}]
@@ -45,7 +45,7 @@ libb-tokenauth = "libb.tokenauth:run_cli"
 
 [tool.poetry]
 name = "libb-util"
-version = "0.0.41"
+version = "0.0.42"
 readme = "README.md"
 description = "libb utility modules for python"
 authors = ["bissli"]
@@ -90,7 +90,6 @@ service-identity = { version = "*", optional = true }
 # == auth
 ldap3 = { version = "*", optional = true }
 boto3 = { version = "*", optional = true }
-starlette = { version = "*", optional = true }
 anyio = { version = "*", optional = true }
 # == test
 asserts = { version = "*", optional = true }
@@ -137,7 +136,6 @@ twd = [
 ldapauth = ["ldap3"]
 tokenauth = [
   "boto3",
-  "starlette",
   "anyio",
 ]
 test = [
