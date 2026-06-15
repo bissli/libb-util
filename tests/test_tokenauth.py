@@ -316,7 +316,7 @@ def _run(mw, scope):
         sent.append(msg)
 
     mw.app = app
-    asyncio.get_event_loop().run_until_complete(mw(scope, None, send))
+    asyncio.run(mw(scope, None, send))
     return app_ran, sent
 
 
