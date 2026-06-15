@@ -30,6 +30,43 @@ _OOXML_MIME_BY_TOPDIR = {
 _ZIP_CONTAINER_MIMES = frozenset({
     'application/zip', 'application/octet-stream'})
 
+# Office / OOXML / ODF content types that minimal base images (notably the
+# AWS Lambda python base) carry in neither the builtin mimetypes map nor a
+# system mime.types, so guess_extension(mime) returns None there. Register
+# the canonical mime->extension maps so resolution is consistent on any
+# image without relying on a system database.
+_DOCUMENT_MIMETYPES = {
+    'application/msword': '.doc',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.ms-powerpoint': '.ppt',
+    'application/vnd.ms-excel.sheet.binary.macroEnabled.12': '.xlsb',
+    'application/vnd.ms-excel.sheet.macroEnabled.12': '.xlsm',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        '.docx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+        '.xlsx',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+        '.pptx',
+    'application/vnd.oasis.opendocument.spreadsheet': '.ods',
+    'application/onenote': '.one',
+    }
+
+
+def _register_document_mimetypes() -> None:
+    """Register office/OOXML/ODF mime->extension maps with ``mimetypes``.
+
+    Idempotent. Runs at import so ``guess_extension`` resolves these types
+    on base images lacking a system mime.types (e.g. AWS Lambda). The mime
+    is lowercased because ``guess_extension`` lowercases its lookup key but
+    ``add_type`` stores the type verbatim -- without this the mixed-case
+    ``macroEnabled.12`` types would never resolve.
+    """
+    for mime, ext in _DOCUMENT_MIMETYPES.items():
+        mimetypes.add_type(mime.lower(), ext)
+
+
+_register_document_mimetypes()
+
 
 def _refine_zip_mime(buffer: bytes) -> str | None:
     """Resolve a zip-container buffer to its precise OOXML/ODF mimetype.

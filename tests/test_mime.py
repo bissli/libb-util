@@ -6,6 +6,7 @@ import pytest
 from libb import guess_extension, guess_type, magic_mime_from_buffer
 from libb import sniff_format
 from libb.mime import _refine_zip_mime
+from libb.mime import _register_document_mimetypes, _DOCUMENT_MIMETYPES
 
 try:
     import magic
@@ -147,6 +148,25 @@ class TestSniffFormat:
     def test_plain_text(self):
         mime, ext = sniff_format(b'just plain research text\n')
         assert mime.startswith('text/')
+
+
+class TestDocumentMimetypeRegistration:
+    """guess_extension resolves office/OOXML/ODF mimes even on a minimal
+    mimetypes database (no builtin OOXML, no system mime.types) -- the
+    AWS Lambda base-image case that otherwise drops these documents.
+    """
+
+    def test_office_mimes_resolve_on_minimal_db(self):
+        import mimetypes
+        saved = mimetypes._db
+        try:
+            mimetypes._db = mimetypes.MimeTypes(filenames=())
+            assert mimetypes.guess_extension(DOCX_MIME) is None
+            _register_document_mimetypes()
+            for mime, ext in _DOCUMENT_MIMETYPES.items():
+                assert mimetypes.guess_extension(mime) == ext
+        finally:
+            mimetypes._db = saved
 
 
 if __name__ == '__main__':
