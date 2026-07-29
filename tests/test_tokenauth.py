@@ -78,58 +78,78 @@ class TestHashKey:
 class TestKeyActiveInRegistry:
     """Tests for key_active_in_registry."""
 
-    def test_active_client_returns_true(self):
-        """Verify an active matching client reads as active."""
+    def test_active_client_returns_its_client_id(self):
+        """Verify an active client resolves to its own client_id."""
         digest = tokenauth.hash_key('raw')
         stub = StubDynamo(items=[_item('c1', digest, active=True)])
-        assert tokenauth.key_active_in_registry(
-            digest, table='t', dynamodb_client=stub) is True
+        result = tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub)
+        assert result == 'c1'
+        assert result != digest
+        assert result is not True
 
-    def test_inactive_client_returns_false(self):
-        """Verify a revoked (inactive) client reads as not active."""
+    def test_second_client_id_is_not_hardcoded(self):
+        """Verify the returned identity tracks the matched row."""
+        digest = tokenauth.hash_key('other')
+        stub = StubDynamo(items=[_item('analyst-two', digest, active=True)])
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub) == 'analyst-two'
+
+    def test_inactive_client_returns_none(self):
+        """Verify a revoked client denies even though the row matches."""
         digest = tokenauth.hash_key('raw')
         stub = StubDynamo(items=[_item('c1', digest, active=False)])
         assert tokenauth.key_active_in_registry(
-            digest, table='t', dynamodb_client=stub) is False
+            digest, table='t', dynamodb_client=stub) is None
 
-    def test_missing_client_returns_false(self):
-        """Verify an unknown key hash reads as not active."""
+    def test_active_row_without_client_id_denies(self):
+        """Verify an active but unattributable row is denied, not allowed."""
+        digest = tokenauth.hash_key('raw')
+        item = _item('c1', digest, active=True)
+        del item['client_id']
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=StubDynamo(items=[item])) is None
+
+    def test_missing_client_returns_none(self):
+        """Verify an unknown key hash denies."""
         stub = StubDynamo(items=[])
         assert tokenauth.key_active_in_registry(
-            'nope', table='t', dynamodb_client=stub) is False
+            'nope', table='t', dynamodb_client=stub) is None
 
 
 class TestVerifyToken:
     """Tests for verify_token."""
 
-    def test_static_token_constant_time_match(self):
-        """Verify a correct static break-glass token authorizes."""
-        assert tokenauth.verify_token('glass', static_token='glass') is True
+    def test_static_token_yields_sentinel_not_the_credential(self):
+        """Verify break-glass authorizes as a named identity, not the key."""
+        result = tokenauth.verify_token('glass', static_token='glass')
+        assert result == tokenauth.STATIC_TOKEN_CLIENT_ID
+        assert result != 'glass'
 
     def test_static_token_mismatch_denies(self):
         """Verify a wrong static token does not authorize."""
-        assert tokenauth.verify_token('nope', static_token='glass') is False
+        assert tokenauth.verify_token('nope', static_token='glass') is None
 
     def test_empty_presented_denies(self):
         """Verify an empty presented key is denied."""
-        assert tokenauth.verify_token('', static_token='glass') is False
+        assert tokenauth.verify_token('', static_token='glass') is None
 
     def test_no_table_and_no_static_fails_closed(self):
         """Verify an unconfigured gate denies rather than opening."""
-        assert tokenauth.verify_token('anything') is False
+        assert tokenauth.verify_token('anything') is None
 
-    def test_registry_active_authorizes(self):
-        """Verify a presented key whose hash is an active client authorizes."""
+    def test_registry_path_returns_client_id(self):
+        """Verify the registry path propagates the identity to the caller."""
         digest = tokenauth.hash_key('rawkey')
         stub = StubDynamo(items=[_item('c1', digest, active=True)])
         assert tokenauth.verify_token(
-            'rawkey', table='t', dynamodb_client=stub) is True
+            'rawkey', table='t', dynamodb_client=stub) == 'c1'
 
     def test_registry_error_fails_closed(self):
         """Verify any registry error denies (fail closed)."""
         stub = StubDynamo(query_error=RuntimeError('boom'))
         assert tokenauth.verify_token(
-            'rawkey', table='t', dynamodb_client=stub) is False
+            'rawkey', table='t', dynamodb_client=stub) is None
 
 
 class TestMintKey:
@@ -201,25 +221,38 @@ class TestListClients:
 class TestRegistryCheckSeam:
     """Tests for the verify_token registry_check injection seam."""
 
-    def test_registry_check_replaces_default_lookup(self):
-        """Verify a registry_check callable is used instead of DynamoDB."""
+    def test_registry_check_receives_digest_not_raw_key(self):
+        """Verify registry_check is handed the digest, never the raw key."""
         seen = []
-        check = lambda h: seen.append(h) or True
-        assert tokenauth.verify_token('rawkey', registry_check=check) is True
+        check = lambda h: seen.append(h) or 'c1'
+        tokenauth.verify_token('rawkey', registry_check=check)
         assert seen == [tokenauth.hash_key('rawkey')]
+        assert 'rawkey' not in seen
+
+    def test_registry_check_client_id_is_propagated(self):
+        """Verify an identity-returning registry_check reaches the caller."""
+        assert tokenauth.verify_token(
+            'k', registry_check=lambda h: 'analyst-two') == 'analyst-two'
+
+    def test_legacy_bool_registry_check_yields_sentinel(self):
+        """Verify a bool-returning lookup authorizes without leaking True."""
+        result = tokenauth.verify_token('k', registry_check=lambda h: True)
+        assert result == tokenauth.UNKNOWN_CLIENT_ID
+        assert result is not True
 
     def test_static_token_short_circuits_registry_check(self):
         """Verify the static token wins without consulting registry_check."""
         def _fail(h):
             raise AssertionError('registry_check should not run')
         assert tokenauth.verify_token(
-            'glass', static_token='glass', registry_check=_fail) is True
+            'glass', static_token='glass',
+            registry_check=_fail) == tokenauth.STATIC_TOKEN_CLIENT_ID
 
     def test_registry_check_error_fails_closed(self):
         """Verify an error from registry_check denies."""
         def _boom(h):
             raise RuntimeError('cache down')
-        assert tokenauth.verify_token('k', registry_check=_boom) is False
+        assert tokenauth.verify_token('k', registry_check=_boom) is None
 
 
 class TestPartialVerifier:
@@ -228,14 +261,14 @@ class TestPartialVerifier:
     def test_partial_over_registry_check(self):
         """Verify a partial-bound verifier authorizes via registry_check."""
         verify = functools.partial(
-            tokenauth.verify_token, registry_check=lambda h: True)
-        assert verify('anything') is True
+            tokenauth.verify_token, registry_check=lambda h: 'c1')
+        assert verify('anything') == 'c1'
 
     def test_partial_honors_static_token(self):
         """Verify a partial-bound verifier accepts the static token."""
         verify = functools.partial(tokenauth.verify_token, static_token='glass')
-        assert verify('glass') is True
-        assert verify('nope') is False
+        assert verify('glass') == tokenauth.STATIC_TOKEN_CLIENT_ID
+        assert verify('nope') is None
 
 
 def _scope(path='/api/x', headers=None, query=b'', scheme='http'):
@@ -264,19 +297,24 @@ class TestPresentKey:
         assert _mw()._present_key(
             _scope(headers={'authorization': 'Bearer k2'})) == 'k2'
 
-    def test_query_param_fallback(self):
-        """Verify ?key= is used when no header carries a key."""
-        assert _mw()._present_key(_scope(query=b'key=k3')) == 'k3'
+    def test_query_string_key_is_rejected(self):
+        """Verify a ?key= query parameter is never accepted as a credential."""
+        assert _mw()._present_key(_scope(query=b'key=k3')) is None
+
+    def test_query_string_cannot_override_a_header(self):
+        """Verify a query parameter cannot displace the header credential."""
+        scope = _scope(headers={'x-api-key': 'k1'}, query=b'key=attacker')
+        assert _mw()._present_key(scope) == 'k1'
 
     def test_x_api_key_wins_over_bearer(self):
         """Verify X-API-Key takes precedence over a Bearer header."""
         scope = _scope(headers={'x-api-key': 'k1', 'authorization': 'Bearer k2'})
         assert _mw()._present_key(scope) == 'k1'
 
-    def test_empty_bearer_falls_through_to_query(self):
-        """Verify an empty 'Bearer ' does not shadow the ?key= fallback."""
-        scope = _scope(headers={'authorization': 'Bearer '}, query=b'key=k3')
-        assert _mw()._present_key(scope) == 'k3'
+    def test_empty_bearer_yields_none(self):
+        """Verify a bare 'Bearer ' is not treated as a credential."""
+        assert _mw()._present_key(
+            _scope(headers={'authorization': 'Bearer '})) is None
 
     def test_missing_key_is_none(self):
         """Verify a request with no credential yields None."""
@@ -355,6 +393,38 @@ class TestCall:
         mw = _mw(verify=lambda k: (_ for _ in ()).throw(AssertionError()))
         app_ran, _ = _run(mw, _scope(path='/health'))
         assert app_ran == [True]
+
+    def test_authorized_scope_carries_client_id_not_the_key(self):
+        """Verify the identity, never the credential, is published to scope."""
+        mw = _mw(verify=lambda k: 'analyst-two')
+        scope = _scope(headers={'x-api-key': 'secret-key'})
+        app_ran, _ = _run(mw, scope)
+        assert app_ran == [True]
+        assert scope['state']['client_id'] == 'analyst-two'
+        assert 'secret-key' not in scope['state'].values()
+
+    def test_legacy_bool_verifier_publishes_sentinel(self):
+        """Verify a bool-returning verifier yields a sentinel, not True."""
+        mw = _mw(verify=lambda k: True)
+        scope = _scope(headers={'x-api-key': 'k'})
+        _run(mw, scope)
+        assert scope['state']['client_id'] == tokenauth.UNKNOWN_CLIENT_ID
+
+    def test_denied_request_publishes_no_identity(self):
+        """Verify a rejected request leaves no client_id behind in scope."""
+        mw = _mw(verify=lambda k: None)
+        scope = _scope(headers={'x-api-key': 'bad'})
+        app_ran, sent = _run(mw, scope)
+        assert app_ran == []
+        assert sent[0]['status'] == 401
+        assert 'client_id' not in scope.get('state', {})
+
+    def test_query_string_credential_is_not_accepted(self):
+        """Verify a key supplied only in the query string yields a 401."""
+        mw = _mw(verify=lambda k: 'c1')
+        app_ran, sent = _run(mw, _scope(query=b'key=k3'))
+        assert app_ran == []
+        assert sent[0]['status'] == 401
 
 
 class TestRunCli:

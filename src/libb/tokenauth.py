@@ -15,13 +15,25 @@ Layers, low to high:
 - :func:`verify_token` -- authorize a presented key: static break-glass
   token (constant time) then the registry, failing closed.
 - :class:`ApiTokenMiddleware` -- a raw-ASGI gate that runs a
-  ``(presented) -> bool`` verifier (typically
+  ``(presented) -> str | None`` verifier (typically
   ``functools.partial(verify_token, ...)``) for chosen path prefixes.
 - :func:`mint_key` / :func:`revoke_key` / :func:`list_clients` and the
   ``libb-tokenauth`` CLI (:func:`run_cli`) -- provisioning.
 
 Both :func:`verify_token` and :class:`ApiTokenMiddleware` independently
 fail closed; used together that is deliberate defense-in-depth.
+
+The authorization layers return the *identity* they authorized -- a
+client_id string, or None when denied -- rather than a bare bool, and
+:class:`ApiTokenMiddleware` publishes it at ``scope['state']['client_id']``
+so a downstream handler can log which human made the call. Returning an
+identity keeps the truthiness contract of the old bool, so ``if
+verify_token(...)`` still reads correctly.
+
+A credential is read from the ``X-API-Key`` or ``Authorization: Bearer``
+header only. A ``?key=`` query parameter is deliberately not accepted:
+query strings are recorded verbatim by proxy and web-server access logs,
+so that form turns every request into a credential disclosure.
 
 Expected table shape::
 
@@ -39,12 +51,13 @@ import logging
 import secrets
 from collections.abc import Callable, Iterable
 from typing import Any, Literal, NamedTuple
-from urllib.parse import parse_qs
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     'KEY_SHA256_INDEX',
+    'STATIC_TOKEN_CLIENT_ID',
+    'UNKNOWN_CLIENT_ID',
     'ClientExistsError',
     'ClientNotFoundError',
     'ClientRecord',
@@ -58,6 +71,28 @@ __all__ = [
 ]
 
 KEY_SHA256_INDEX = 'key_sha256-index'
+
+STATIC_TOKEN_CLIENT_ID = 'static-token'
+
+UNKNOWN_CLIENT_ID = 'unknown'
+
+
+def _as_client_id(result: Any) -> str | None:
+    """Normalize an authorizer result to a client_id or None.
+
+    Keeps the identity published downstream typed as ``str | None`` even
+    when a caller supplies a pre-existing ``-> bool`` callable, so a raw
+    ``True`` can never reach a log line posing as a client_id.
+
+    :param result: Whatever an injected ``registry_check`` or ``verify``
+        returned.
+    :returns: The string unchanged when non-empty; ``UNKNOWN_CLIENT_ID``
+        for a truthy non-string (a legacy bool-returning callable); None
+        for anything falsy.
+    """
+    if isinstance(result, str):
+        return result or None
+    return UNKNOWN_CLIENT_ID if result else None
 
 
 class ClientRecord(NamedTuple):
@@ -109,18 +144,23 @@ def key_active_in_registry(
     table: str,
     region: str | None = None,
     dynamodb_client: Any = None,
-) -> bool:
-    """Return True iff a hashed key maps to an active client.
+) -> str | None:
+    """Return the client_id a hashed key maps to, if that client is active.
 
-    Queries the ``key_sha256-index`` GSI for a single match and reports
-    its ``active`` flag. Does not catch errors and does not cache --
-    callers decide both.
+    Queries the ``key_sha256-index`` GSI for a single match and reports the
+    matched client's identity. Does not catch errors and does not cache --
+    callers decide both. The GSI query already returns the whole row, so
+    surfacing the identity costs nothing over the previous boolean and is
+    what lets a caller attribute a request to a named client. An active row
+    whose ``client_id`` is missing or empty denies, rather than authorizing
+    an unattributable caller.
 
     :param key_sha256: SHA-256 hex digest of the presented key.
     :param table: DynamoDB registry table name.
     :param region: AWS region for a default boto3 client (optional).
     :param dynamodb_client: Injected boto3 DynamoDB client (optional).
-    :returns: True if a matching client item is active.
+    :returns: The matched ``client_id`` when the item exists and is
+        active, else None.
     """
     client = _dynamodb_client(dynamodb_client, region)
     response = client.query(
@@ -132,8 +172,10 @@ def key_active_in_registry(
         )
     items = response.get('Items', [])
     if not items:
-        return False
-    return items[0].get('active', {}).get('BOOL', False)
+        return None
+    if not items[0].get('active', {}).get('BOOL', False):
+        return None
+    return items[0].get('client_id', {}).get('S', '') or None
 
 
 def verify_token(
@@ -143,9 +185,9 @@ def verify_token(
     static_token: str | None = None,
     region: str | None = None,
     dynamodb_client: Any = None,
-    registry_check: Callable[[str], bool] | None = None,
-) -> bool:
-    """Authorize a presented key, failing closed.
+    registry_check: Callable[[str], str | None] | None = None,
+) -> str | None:
+    """Authorize a presented key and return the identity, failing closed.
 
     The static break-glass token is checked first (constant time). The
     registry is then consulted via ``registry_check`` if given, else via a
@@ -158,6 +200,9 @@ def verify_token(
     To bind this to :class:`ApiTokenMiddleware`, wrap it with
     ``functools.partial(verify_token, static_token=..., registry_check=...)``.
 
+    The returned identity is never the presented key: a credential must
+    not reach the log line that records who called.
+
     :param presented: The raw key presented by the client.
     :param table: DynamoDB registry table name (optional). Used to build
         the default registry lookup when ``registry_check`` is not given.
@@ -165,28 +210,31 @@ def verify_token(
     :param region: AWS region for a default boto3 client (optional).
     :param dynamodb_client: Injected boto3 DynamoDB client (optional).
     :param registry_check: Lookup called with the SHA-256 *digest* of the
-        key (not the raw key) -- ``(key_sha256) -> bool`` -- replacing the
-        default :func:`key_active_in_registry` call. This is the seam for a
-        cached lookup: wrap :func:`key_active_in_registry` in a TTL cache
-        and pass it here. When given, ``table``/``region``/
+        key (not the raw key) -- ``(key_sha256) -> str | None`` --
+        replacing the default :func:`key_active_in_registry` call. This is
+        the seam for a cached lookup: wrap :func:`key_active_in_registry`
+        in a TTL cache and pass it here. When given, ``table``/``region``/
         ``dynamodb_client`` are not used.
-    :returns: True if the presented key is authorized.
+    :returns: The authorized client identity, else None. A static-token
+        match yields ``STATIC_TOKEN_CLIENT_ID`` so break-glass use is
+        distinguishable in a log from a registered client; a legacy
+        ``-> bool`` ``registry_check`` yields ``UNKNOWN_CLIENT_ID``.
     """
     if not presented:
-        return False
+        return None
     if static_token and secrets.compare_digest(presented, static_token):
-        return True
+        return STATIC_TOKEN_CLIENT_ID
     if registry_check is None and not table:
-        return False
+        return None
     try:
         if registry_check is not None:
-            return registry_check(hash_key(presented))
+            return _as_client_id(registry_check(hash_key(presented)))
         return key_active_in_registry(
             hash_key(presented), table=table, region=region,
             dynamodb_client=dynamodb_client)
     except Exception as exc:
         logger.warning('token registry lookup failed; denying (fail closed): %s', exc)
-        return False
+        return None
 
 
 def mint_key(
@@ -297,19 +345,19 @@ def list_clients(
 class ApiTokenMiddleware:
     """Raw ASGI middleware gating chosen path prefixes on a token.
 
-    HTTP requests under ``protected_prefixes`` must present a key
-    (``X-API-Key`` header, ``Authorization: Bearer``, or ``?key=``) that
-    ``verify`` authorizes; everything else passes through. ``verify`` is
-    any ``(presented) -> bool`` -- typically :func:`verify_token` bound to
-    its config::
+    HTTP requests under ``protected_prefixes`` must present a key -- in the
+    ``X-API-Key`` or ``Authorization: Bearer`` header -- that ``verify``
+    authorizes; everything else passes through. ``verify`` is any
+    ``(presented) -> str | None`` -- typically :func:`verify_token` bound
+    to its config::
 
         verify = functools.partial(
             verify_token, static_token=TOKEN, registry_check=cached_lookup)
         app.add_middleware(
             ApiTokenMiddleware, protected_prefixes=('/api/',), verify=verify)
 
-    The verifier runs in a worker thread and fails closed -- returning
-    False or raising yields a 401.
+    The verifier runs in a worker thread and fails closed -- returning a
+    falsy value or raising yields a 401.
 
     Raw ASGI, not ``BaseHTTPMiddleware``, so it never buffers a streaming
     body and depends on no web framework; only ``anyio`` is imported
@@ -317,9 +365,17 @@ class ApiTokenMiddleware:
     gated -- ``websocket`` connections pass through, so do not place a
     WebSocket endpoint under a protected prefix expecting it to be gated.
 
+    On success the authorized identity is published at
+    ``scope['state']['client_id']`` before the wrapped app runs, so a
+    downstream handler can attribute the request without re-reading the
+    credential. A legacy ``-> bool`` verifier yields ``UNKNOWN_CLIENT_ID``
+    there rather than a bare ``True``. A ``?key=`` query parameter is not
+    an accepted credential source; see the module docstring.
+
     :param app: The wrapped ASGI application.
     :param protected_prefixes: Path prefixes that require a token.
-    :param verify: ``(presented) -> bool`` authorizer.
+    :param verify: ``(presented) -> str | None`` authorizer returning the
+        identity.
     """
 
     def __init__(
@@ -327,7 +383,7 @@ class ApiTokenMiddleware:
         app: Any,
         *,
         protected_prefixes: Iterable[str],
-        verify: Callable[[str], bool],
+        verify: Callable[[str], str | None],
     ) -> None:
         """Wrap an ASGI app with the configured credential check."""
         self.app = app
@@ -343,16 +399,18 @@ class ApiTokenMiddleware:
             return
 
         presented = self._present_key(scope)
-        authorized = False
+        client_id = None
         if presented:
             try:
-                authorized = await anyio.to_thread.run_sync(self._verify, presented)
+                client_id = _as_client_id(
+                    await anyio.to_thread.run_sync(self._verify, presented))
             except Exception as exc:
                 logger.warning('authorization raised; denying (fail closed): %s', exc)
-        if not authorized:
+        if not client_id:
             await _send_unauthorized(send)
             return
 
+        scope.setdefault('state', {})['client_id'] = client_id
         await self.app(scope, receive, send)
 
     def _guards(self, scope: dict) -> bool:
@@ -363,7 +421,16 @@ class ApiTokenMiddleware:
 
     @staticmethod
     def _present_key(scope: dict) -> str | None:
-        """Pull the key from the X-API-Key, Bearer, or ?key= sources."""
+        """Pull the key from the X-API-Key or Bearer header, header-only.
+
+        The query string is never consulted. A credential in a URL is
+        written verbatim into proxy, load-balancer and web-server access
+        logs, so accepting ``?key=`` makes every request a disclosure.
+
+        :param scope: The ASGI HTTP connection scope.
+        :returns: The presented credential, or None when neither header
+            carries one.
+        """
         headers = {
             key.decode('latin-1').lower(): value.decode('latin-1')
             for key, value in scope.get('headers', [])
@@ -372,11 +439,8 @@ class ApiTokenMiddleware:
             return headers['x-api-key']
         authorization = headers.get('authorization', '')
         if authorization.lower().startswith('bearer '):
-            bearer = authorization[7:]
-            if bearer:
-                return bearer
-        query = parse_qs(scope.get('query_string', b'').decode('latin-1'))
-        return (query.get('key') or [None])[0]
+            return authorization[7:] or None
+        return None
 
 
 async def _send_unauthorized(send: Any) -> None:
