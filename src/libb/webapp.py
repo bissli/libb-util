@@ -213,14 +213,14 @@ def login_required(*, allowed_groups, session_accessor=None,
     return decorator
 
 
-def _extract_presented_key(allow_query_key: bool = False) -> str:
+def _extract_presented_key() -> str:
     """Pull a presented API key from the current Flask request.
 
-    Order: ``Authorization: Bearer <k>``, then ``X-Api-Key``, then the
-    ``?key=`` query arg when ``allow_query_key`` is set (off by default;
-    query strings leak into logs).
+    Order: ``Authorization: Bearer <k>``, then ``X-Api-Key``. The query
+    string is never consulted -- a credential in a URL is written verbatim
+    into proxy, load-balancer and web-server access logs, so accepting
+    ``?key=`` turns every request into a credential disclosure.
 
-    :param allow_query_key: Accept the key from the ?key query arg.
     :returns: The presented key, or '' if none.
     """
     header = flask.request.headers.get('Authorization', '')
@@ -229,13 +229,11 @@ def _extract_presented_key(allow_query_key: bool = False) -> str:
     api_key = flask.request.headers.get('X-Api-Key')
     if api_key:
         return api_key.strip()
-    if allow_query_key:
-        return (flask.request.args.get('key') or '').strip()
     return ''
 
 
 def token_required(*, table=None, static_token=None, region=None,
-                   dynamodb_client=None, allow_query_key=False):
+                   dynamodb_client=None):
     """Decorator: gate a Flask view on a registry token, failing closed.
 
     Extracts the key from the request (see :func:`_extract_presented_key`)
@@ -243,11 +241,15 @@ def token_required(*, table=None, static_token=None, region=None,
     unauthorized request gets a 401. Suited to machine endpoints
     (MCP / API) behind the standard Flask tier.
 
+    On success the authorized identity is published at ``flask.g.client_id``
+    before the view runs, so a view or an after-request logger can record
+    which client called without re-reading the credential. This mirrors
+    ``scope['state']['client_id']`` on the ASGI side.
+
     :param table: DynamoDB registry table name (optional).
     :param static_token: Constant-time break-glass token (optional).
     :param region: AWS region for a default boto3 client (optional).
     :param dynamodb_client: Injected boto3 DynamoDB client (optional).
-    :param allow_query_key: Accept the key from the ?key query arg.
     :returns: A view decorator.
     """
     from libb import tokenauth
@@ -255,11 +257,13 @@ def token_required(*, table=None, static_token=None, region=None,
     def decorator(view):
         @wraps(view)
         def token_required_fn(*args, **kwargs):
-            presented = _extract_presented_key(allow_query_key)
-            if not tokenauth.verify_token(
-                    presented, table=table, static_token=static_token,
-                    region=region, dynamodb_client=dynamodb_client):
+            presented = _extract_presented_key()
+            client_id = tokenauth.verify_token(
+                presented, table=table, static_token=static_token,
+                region=region, dynamodb_client=dynamodb_client)
+            if not client_id:
                 return flask.abort(401)
+            flask.g.client_id = client_id
             return view(*args, **kwargs)
 
         return token_required_fn

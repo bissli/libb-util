@@ -920,16 +920,13 @@ from libb import group_required, login_required, token_required
 from libb import tokenauth
 
 
-def _build_app(rule, decorator):
+def _build_app(rule, decorator, view=None):
     """Build a single-route Flask app guarded by decorator."""
     app = flask.Flask(__name__)
     app.secret_key = 'test-secret'
-
-    @app.route(rule)
-    @decorator
-    def view():
-        return 'ok'
-
+    handler = view or (lambda: 'ok')
+    handler.__name__ = 'view'
+    app.route(rule)(decorator(handler))
     return app
 
 
@@ -1019,17 +1016,47 @@ class TestTokenRequired:
             client.get('/m', headers={'X-Api-Key': 'tok2'})
         assert seen == ['tok1', 'tok2']
 
-    def test_query_key_ignored_unless_opted_in(self):
-        """Verify the ?key query arg is read only when allow_query_key is set."""
+    def test_query_key_is_never_read(self):
+        """Verify a ?key query arg is never accepted as a credential."""
         seen = []
         patched = mock.patch.object(
             tokenauth, 'verify_token',
-            side_effect=lambda presented, **kw: seen.append(presented) or True)
+            side_effect=lambda presented, **kw: seen.append(presented) or 'c1')
         with patched:
             _build_app('/m', token_required(table='t')).test_client().get('/m?key=q')
-            _build_app('/m', token_required(
-                table='t', allow_query_key=True)).test_client().get('/m?key=q')
-        assert seen == ['', 'q']
+        assert seen == ['']
+
+    def test_query_key_cannot_override_a_header(self):
+        """Verify a query arg cannot displace the header credential."""
+        seen = []
+        patched = mock.patch.object(
+            tokenauth, 'verify_token',
+            side_effect=lambda presented, **kw: seen.append(presented) or 'c1')
+        with patched:
+            _build_app('/m', token_required(table='t')).test_client().get(
+                '/m?key=attacker', headers={'X-Api-Key': 'tok'})
+        assert seen == ['tok']
+
+    def test_allow_query_key_argument_is_gone(self):
+        """Verify the removed allow_query_key option is rejected, not ignored."""
+        with pytest.raises(TypeError):
+            token_required(table='t', allow_query_key=True)
+
+    def test_authorized_request_publishes_client_id(self):
+        """Verify the authorized identity reaches flask.g for the view."""
+        captured = []
+
+        def view():
+            captured.append(flask.g.client_id)
+            return 'ok'
+
+        patched = mock.patch.object(
+            tokenauth, 'verify_token', return_value='analyst-two')
+        with patched:
+            app = _build_app('/m', token_required(table='t'), view=view)
+            app.test_client().get('/m', headers={'X-Api-Key': 'secret-key'})
+        assert captured == ['analyst-two']
+        assert 'secret-key' not in captured
 
 
 if __name__ == '__main__':
