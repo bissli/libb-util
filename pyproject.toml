@@ -188,3 +188,14 @@ include = [
   # test suite. sdist-only: the wheel has no use for them.
   { path = "vectors/*.json", format = "sdist" },
   ]
+# Notes:
+# - maturin walks python-source on the filesystem rather than consulting
+#   git, so a path that is gitignored is still packaged. .claude/ is
+#   ignored globally and was reaching the wheel for exactly that reason.
+# - Byte-compiled output is per-interpreter and must never ship, since a
+#   stale .pyc shadows the module it was built from.
+exclude = [
+  "**/__pycache__/**",
+  "**/*.pyc",
+  "**/.claude/**",
+  ]
