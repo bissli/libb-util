@@ -50,7 +50,6 @@ docs/source/generated/
 
 # Native extension build artifacts
 rust/target/
-rust/Cargo.lock
 *.so
 
 # Benchmark tests (not checked in)
