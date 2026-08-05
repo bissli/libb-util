@@ -9,6 +9,7 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "backoff",
+    "python-dateutil",
     "regex",
     "titlecase>=2.4.1",
     "more-itertools",
@@ -58,6 +59,7 @@ python = "^3.10"
 
 numpy = "*"
 backoff = "*"
+python-dateutil = "*"
 matplotlib = { version = "*", optional = true }
 # == text
 regex = "*"
