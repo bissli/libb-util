@@ -33,7 +33,12 @@ jobs:
         run: cargo fmt --manifest-path rust/Cargo.toml -- --check
 
       - name: Run Clippy
-        run: cargo clippy --manifest-path rust/Cargo.toml -- -D warnings
+        run: cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
+
+      - name: Run Clippy without the Python layer
+        run: |
+          cargo clippy --manifest-path rust/Cargo.toml --all-targets \
+            --no-default-features -- -D warnings
 
   test:
     name: Test (${{ matrix.os }} / Python ${{ matrix.python-version }})
@@ -87,3 +92,43 @@ jobs:
 
       - name: Run Rust tests
         run: cargo test --manifest-path rust/Cargo.toml
+
+      - name: Run Rust tests without the Python layer
+        run: cargo test --manifest-path rust/Cargo.toml --no-default-features
+
+      - name: Verify the kernel cdylib needs no Python symbols
+        run: |
+          # extension-module deliberately leaves libpython out of NEEDED and
+          # resolves Py* at load time, so `ldd` is clean in BOTH feature
+          # configurations. The symbol table is what discriminates.
+          cargo build --manifest-path rust/Cargo.toml --no-default-features --release
+          SO=rust/target/release/lib_libb.so
+          if [ ! -f "$SO" ]; then
+            echo "ERROR: $SO was not built"
+            exit 1
+          fi
+          if nm -D --undefined-only "$SO" | grep ' U Py'; then
+            echo "ERROR: kernel build still needs Python symbols"
+            exit 1
+          fi
+          if nm -D --defined-only "$SO" | grep PyInit; then
+            echo "ERROR: kernel build still exports a Python module init"
+            exit 1
+          fi
+          echo "OK: kernel needs no Python symbols"
+
+      - name: Verify the default build DOES carry the Python layer
+        run: |
+          # Guards against the gate above passing because the Python layer
+          # silently stopped being built at all.
+          cargo build --manifest-path rust/Cargo.toml --release
+          SO=rust/target/release/lib_libb.so
+          nm -D --defined-only "$SO" | grep -q PyInit__libb || {
+            echo "ERROR: default build lost its PyInit__libb export"
+            exit 1
+          }
+          test "$(nm -D --undefined-only "$SO" | grep -c ' U Py')" -gt 0 || {
+            echo "ERROR: default build resolves no Python symbols"
+            exit 1
+          }
+          echo "OK: default build carries the Python layer"

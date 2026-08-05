@@ -36,11 +36,36 @@ fn parse(py: Python<'_>, s: &str) -> PyObject {
     to_py_object(py, numparse::parse(s))
 }
 
+/// Strip accounting and thousands formatting from a numeric string.
+///
+/// Applies the shared formatting rules without coercing to a type, so the
+/// caller keeps its own int/float policy. Commas are dropped, surrounding
+/// parentheses become a leading minus, and a trailing percent sign is
+/// removed rather than divided by 100.
+///
+/// Args:
+///     s: String to normalize.
+///
+/// Returns:
+///     The normalized string, or None when nothing is left to convert.
+///
+/// Examples:
+///     >>> normalize_numeric_str('1,234.56')
+///     '1234.56'
+///     >>> normalize_numeric_str('(50%)')
+///     '-50'
+///     >>> normalize_numeric_str('  (  )  ')
+#[pyfunction]
+fn normalize_numeric_str(s: &str) -> Option<String> {
+    numparse::normalize_numeric_str(s)
+}
+
 /// Python module definition.
 #[pymodule]
 pub fn _libb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Number parsing
     m.add_function(wrap_pyfunction!(parse, m)?)?;
+    m.add_function(wrap_pyfunction!(normalize_numeric_str, m)?)?;
 
     // Dictionary sorting
     m.add_function(wrap_pyfunction!(dictsort::multikeysort, m)?)?;

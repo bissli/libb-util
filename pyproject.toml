@@ -177,8 +177,14 @@ build-backend = "maturin"
 
 [tool.maturin]
 module-name = "libb._libb"
-features = ["pyo3/extension-module"]
+features = ["python"]
 python-packages = ["libb"]
 python-source = "src"
 manifest-path = "rust/Cargo.toml"
-include = ["LICENSE"]
+include = [
+  "LICENSE",
+  # The Rust vector tests read these via include_str!, so an sdist without
+  # them builds fine (the module is #[cfg(test)]) but cannot run its own
+  # test suite. sdist-only: the wheel has no use for them.
+  { path = "vectors/*.json", format = "sdist" },
+  ]

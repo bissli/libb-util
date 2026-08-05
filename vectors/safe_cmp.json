@@ -1,0 +1,25 @@
+[
+  {"op": ">", "a": 2, "b": 1, "expected": true},
+  {"op": ">", "a": 1, "b": 2, "expected": false},
+  {"op": ">", "a": null, "b": 1, "expected": false, "note": "None is never greater"},
+  {"op": ">", "a": 2, "b": null, "expected": true},
+  {"op": "<", "a": null, "b": 1, "expected": true},
+  {"op": ">=", "a": 1, "b": 1, "expected": true},
+  {"op": ">=", "a": 2, "b": null, "expected": true},
+  {"op": ">=", "a": null, "b": 1, "expected": false},
+  {"op": "<=", "a": 1, "b": 1, "expected": true},
+  {"op": "<=", "a": 2, "b": 1, "expected": false},
+  {"op": "==", "a": null, "b": null, "expected": true},
+  {"op": "==", "a": null, "b": 1, "expected": false},
+  {"op": "!=", "a": null, "b": 1, "expected": true},
+  {"op": "<>", "a": null, "b": 1, "expected": true, "note": "'<>' is an accepted alias for '!='"},
+  {"op": "<>", "a": 1, "b": 1, "expected": false},
+  {"op": "<", "a": "abc", "b": "abd", "expected": true},
+
+  {"op": "==", "a": [1, null], "b": [2, null], "expected": true,
+   "note": "the iterable both-contain-None rule surfaces through safe_cmp as equality"},
+  {"op": ">", "a": [1, null], "b": [2, 3], "expected": false},
+  {"op": "<", "a": [1, null], "b": [2, 3], "expected": true},
+  {"op": ">", "a": [1, 2], "b": [3, null], "expected": true,
+   "note": "None on the right side wins even though 1 < 3 element-wise"}
+]

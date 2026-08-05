@@ -10,6 +10,7 @@ from math import ceil, floor, isnan, log10, sqrt
 
 import regex as re
 
+from libb._rust import normalize_numeric_str as _normalize_numeric_impl
 from libb._rust import parse as _parse_impl
 from libb.dicts import cmp
 from libb.func import suppresswarning
@@ -285,26 +286,16 @@ def numify(val, to=float):
             return None
 
     if isinstance(val, str):
-        val = val.strip()
-        if not val:
+        # Notes:
+        # - Formatting rules live in the Rust kernel so this and
+        #   numparse::numify_str cannot drift; see vectors/README.md.
+        # - The coercion below stays Python's own: int() rejects a
+        #   fractional or exponent string and has arbitrary precision,
+        #   which libtc's DataSet type inference relies on to tell an int
+        #   column from a float one.
+        val = _normalize_numeric_impl(val)
+        if val is None:
             return None
-
-        is_negative = False
-        if val.startswith('(') and val.endswith(')'):
-            val = val[1:-1].strip()
-            if not val:
-                return None
-            is_negative = True
-
-        val = val.replace(',', '')
-
-        if val.endswith('%'):
-            val = val[:-1].strip()
-            if not val:
-                return None
-
-        if is_negative:
-            val = f'-{val}'
 
         try:
             return to(val)

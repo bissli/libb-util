@@ -1,0 +1,23 @@
+[
+  {"input": "1,234.56", "expected": "1234.56"},
+  {"input": "  42  ", "expected": "42", "note": "surrounding whitespace is trimmed"},
+  {"input": "1,000", "expected": "1000"},
+  {"input": "1,2,3", "expected": "123", "note": "every comma is dropped, not just grouped ones"},
+  {"input": "50%", "expected": "50", "note": "the percent sign is removed, never divided by 100"},
+  {"input": "(100)", "expected": "-100", "note": "parentheses are accounting negation"},
+  {"input": "(1,000)", "expected": "-1000"},
+  {"input": "(50%)", "expected": "-50", "note": "parentheses and percent compose"},
+  {"input": "(100%)", "expected": "-100"},
+  {"input": "  ( 100 )  ", "expected": "-100", "note": "the inner text is trimmed again after unwrapping"},
+  {"input": "-50", "expected": "-50", "note": "an explicit sign passes through untouched"},
+  {"input": "(-50)", "expected": "--50", "note": "negation is prepended blindly; the doubled sign is left to fail at coercion"},
+  {"input": "100%%", "expected": "100%", "note": "only one trailing suffix is removed"},
+  {"input": "1 000", "expected": "1 000", "note": "interior whitespace is NOT a separator and survives"},
+  {"input": "abc", "expected": "abc", "note": "normalisation does not validate: a non-numeric string passes through"},
+  {"input": "().", "expected": "().", "note": "unwrapping needs both delimiters, so this is not treated as negation"},
+  {"input": "", "expected": null},
+  {"input": "   ", "expected": null, "note": "whitespace only, empty after the trim"},
+  {"input": "(  )", "expected": null, "note": "empty parentheses, rejected before the sign is applied"},
+  {"input": "%", "expected": null, "note": "bare suffix, empty after the strip"},
+  {"input": "(%)", "expected": null}
+]

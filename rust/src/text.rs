@@ -3,6 +3,7 @@
 //! Implements text transformation functions with optimized Rust implementations.
 
 use once_cell::sync::Lazy;
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
 use regex::Regex;
 use std::collections::HashMap;
@@ -55,7 +56,7 @@ static VULGAR_REGEX: Lazy<Regex> = Lazy::new(|| {
 ///     'Foo-Bar+Baz: 17s 4.75 1.125 20 93.75 - 94.125'
 ///     >>> sanitize_vulgar_string("⅓ cup")
 ///     '0.333333 cup'
-#[pyfunction]
+#[cfg_attr(feature = "python", pyfunction)]
 pub fn sanitize_vulgar_string(s: &str) -> String {
     let mut result = s.to_string();
 
@@ -117,7 +118,7 @@ fn format_decimal(val: f64) -> String {
 ///     'camel_camel_case'
 ///     >>> uncamel('getHTTPResponseCode')
 ///     'get_http_response_code'
-#[pyfunction]
+#[cfg_attr(feature = "python", pyfunction)]
 pub fn uncamel(camel: &str) -> String {
     let mut result = String::with_capacity(camel.len() + 10);
     let chars: Vec<char> = camel.chars().collect();
@@ -163,7 +164,7 @@ pub fn uncamel(camel: &str) -> String {
 ///     'fooBar'
 ///     >>> underscore_to_camelcase('_foo_bar')
 ///     'fooBar'
-#[pyfunction]
+#[cfg_attr(feature = "python", pyfunction)]
 pub fn underscore_to_camelcase(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut capitalize_next = false;

@@ -7,6 +7,7 @@ Stub implementations exist for Sphinx documentation generation.
 __all__ = [
     # Number parsing
     'parse',
+    'normalize_numeric_str',
     # Dictionary sorting
     'multikeysort',
     # Text functions
@@ -36,6 +37,20 @@ def parse(s: str):
 
     :param str s: String to parse.
     :returns: Parsed int or float, or None if parsing fails.
+    """
+
+
+def normalize_numeric_str(s: str):
+    """Strip accounting and thousands formatting from a numeric string.
+
+    Applies the shared formatting rules without coercing to a type, so the
+    caller keeps its own int/float policy. Commas are dropped, surrounding
+    parentheses become a leading minus, and a trailing percent sign is
+    removed rather than divided by 100.
+
+    :param str s: String to normalize.
+    :returns: Normalized string, or None when nothing is left to convert.
+    :rtype: str | None
     """
 
 
@@ -107,5 +122,5 @@ def same_order(ref: list, comp: list) -> bool:
 
 
 from libb._libb import backfill, backfill_iterdict, collapse, multikeysort
-from libb._libb import parse, same_order, sanitize_vulgar_string, uncamel
-from libb._libb import underscore_to_camelcase
+from libb._libb import normalize_numeric_str, parse, same_order
+from libb._libb import sanitize_vulgar_string, uncamel, underscore_to_camelcase

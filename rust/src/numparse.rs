@@ -17,35 +17,46 @@ pub enum TargetType {
     Float,
 }
 
-/// Convert value to numeric type, handling common formatting.
+/// Strip accounting and thousands formatting from a numeric string.
 ///
-/// Handles:
-/// - Whitespace trimming
-/// - Comma thousand separators
-/// - Parentheses for negative numbers (accounting format)
-/// - Percentage suffix (strips it, doesn't divide by 100)
-pub fn numify_str(val: &str, to: TargetType) -> ParsedNumber {
+/// The single implementation of the formatting rules that `numify_str` and
+/// `libb.stats.numify` both apply. Each caller then imposes its own
+/// coercion policy on the result: this function decides what the digits
+/// are, not what type they become.
+///
+/// Applied in order:
+/// - Trim surrounding whitespace.
+/// - Surrounding parentheses mean negative (accounting format); the inner
+///   text is trimmed again.
+/// - Commas are removed wherever they appear (thousands separators).
+/// - A trailing `%` is removed, NOT divided by 100.
+/// - The accounting sign is prepended last, so it survives the suffix
+///   strip.
+///
+/// Returns
+/// -------
+/// `None` when nothing is left to convert (empty input, empty parentheses,
+/// or a bare suffix), otherwise the normalised digit string. A non-`None`
+/// result is not a promise that it parses as a number.
+pub fn normalize_numeric_str(val: &str) -> Option<String> {
     let val = val.trim();
 
     if val.is_empty() {
-        return ParsedNumber::None;
+        return None;
     }
 
-    // Check for parentheses notation (negative numbers in accounting format)
     let (val, is_negative) = if val.starts_with('(') && val.ends_with(')') {
         let inner = val[1..val.len() - 1].trim();
         if inner.is_empty() {
-            return ParsedNumber::None;
+            return None;
         }
         (inner, true)
     } else {
         (val, false)
     };
 
-    // Remove thousand separators (commas)
     let val: String = val.chars().filter(|&c| c != ',').collect();
 
-    // Handle percentage notation (strip % suffix)
     let val = if val.ends_with('%') {
         val[..val.len() - 1].trim()
     } else {
@@ -53,14 +64,27 @@ pub fn numify_str(val: &str, to: TargetType) -> ParsedNumber {
     };
 
     if val.is_empty() {
-        return ParsedNumber::None;
+        return None;
     }
 
-    // Build the final string with sign
-    let val = if is_negative {
-        format!("-{}", val)
+    if is_negative {
+        Some(format!("-{}", val))
     } else {
-        val.to_string()
+        Some(val.to_string())
+    }
+}
+
+/// Convert a formatted numeric string to an int or a float.
+///
+/// Normalises with [`normalize_numeric_str`], then coerces. The coercion
+/// policy here is deliberately NOT the one `libb.stats.numify` applies:
+/// this falls back to an `f64` parse and truncates, where Python's `int()`
+/// rejects a fractional or exponent string outright. `libtc`'s DataSet
+/// type inference depends on that rejection, so the two policies are
+/// pinned apart by the shared vectors rather than unified.
+pub fn numify_str(val: &str, to: TargetType) -> ParsedNumber {
+    let Some(val) = normalize_numeric_str(val) else {
+        return ParsedNumber::None;
     };
 
     // Try to convert to target type

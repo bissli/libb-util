@@ -1,4 +1,4 @@
-.PHONY: list dev build test test-all tox lint lint-rust format-rust clean clean-tox help
+.PHONY: list dev build test test-rust test-kernel test-all tox lint lint-rust format-rust clean clean-tox help
 
 # Default target - show help
 help:
@@ -6,6 +6,8 @@ help:
 	@echo "  make dev          - Install dependencies and build native extension"
 	@echo "  make build        - Build native extension only"
 	@echo "  make test         - Run all tests (current Python)"
+	@echo "  make test-rust    - Run Rust tests (both feature configurations)"
+	@echo "  make test-kernel  - Verify the kernel cdylib links without libpython"
 	@echo "  make test-all     - Run tests on Python 3.9-3.13 via tox"
 	@echo "  make tox          - Alias for test-all"
 	@echo "  make lint         - Run all linters (Python + Rust)"
@@ -27,6 +29,33 @@ build:
 test:
 	pytest tests/ -v
 
+# Run Rust tests in both feature configurations
+test-rust:
+	cargo test --manifest-path rust/Cargo.toml
+	cargo test --manifest-path rust/Cargo.toml --no-default-features
+
+# Verify the kernel cdylib needs no Python symbols (ELF hosts only).
+# Notes:
+# - extension-module leaves libpython out of NEEDED and resolves Py* at
+#   load time, so ldd is clean in both feature configurations and cannot
+#   be used as the gate. The symbol table is what discriminates.
+test-kernel:
+	cargo build --manifest-path rust/Cargo.toml --no-default-features --release
+	@SO=rust/target/release/lib_libb.so; \
+	if [ ! -f "$$SO" ]; then \
+		echo "ERROR: $$SO was not built (this target needs an ELF host)"; \
+		exit 1; \
+	fi; \
+	if nm -D --undefined-only "$$SO" | grep ' U Py'; then \
+		echo "ERROR: kernel build still needs Python symbols"; \
+		exit 1; \
+	fi; \
+	if nm -D --defined-only "$$SO" | grep PyInit; then \
+		echo "ERROR: kernel build still exports a Python module init"; \
+		exit 1; \
+	fi; \
+	echo "OK: kernel needs no Python symbols"
+
 # Run tests on all Python versions via tox
 test-all:
 	tox
@@ -39,10 +68,11 @@ tox:
 lint: lint-rust
 	@echo "Linting complete"
 
-# Check Rust formatting and run clippy
+# Check Rust formatting and run clippy in both feature configurations
 lint-rust:
 	cd rust && cargo fmt --all -- --check
-	cd rust && cargo clippy -- -D warnings
+	cd rust && cargo clippy --all-targets -- -D warnings
+	cd rust && cargo clippy --all-targets --no-default-features -- -D warnings
 
 # Auto-format Rust code
 format-rust:
