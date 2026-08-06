@@ -52,5 +52,9 @@ docs/source/generated/
 rust/target/
 *.so
 
+# Per-interpreter venvs built by scripts/test-matrix.sh
+.venvs/
+uv.lock
+
 # Benchmark tests (not checked in)
 tests/test_benchmarks.py

@@ -1,4 +1,4 @@
-.PHONY: list dev build test test-rust test-kernel test-all tox lint lint-rust format-rust clean clean-tox help
+.PHONY: list dev build test test-rust test-kernel test-all test-matrix lint lint-rust format-rust clean clean-matrix help
 
 # Default target - show help
 help:
@@ -8,13 +8,13 @@ help:
 	@echo "  make test         - Run all tests (current Python)"
 	@echo "  make test-rust    - Run Rust tests (both feature configurations)"
 	@echo "  make test-kernel  - Verify the kernel cdylib links without libpython"
-	@echo "  make test-all     - Run tests on Python 3.9-3.13 via tox"
-	@echo "  make tox          - Alias for test-all"
+	@echo "  make test-matrix  - Run tests on Python 3.10-3.15 + 3.14t via uv"
+	@echo "  make test-all     - Alias for test-matrix"
 	@echo "  make lint         - Run all linters (Python + Rust)"
 	@echo "  make lint-rust    - Check Rust formatting and clippy"
 	@echo "  make format-rust  - Auto-format Rust code"
 	@echo "  make clean        - Remove build artifacts"
-	@echo "  make clean-tox    - Remove tox cache (~/.cache/tox/)"
+	@echo "  make clean-matrix - Remove the per-interpreter venvs (.venvs/)"
 
 # Install dependencies and build extension
 dev:
@@ -56,13 +56,15 @@ test-kernel:
 	fi; \
 	echo "OK: kernel needs no Python symbols"
 
-# Run tests on all Python versions via tox
-test-all:
-	tox
+# Run tests on every supported interpreter.
+# Notes:
+# - uv provisions the interpreters, so this covers a 3.15 prerelease and a
+#   free-threaded build that tox could never reach on its own.
+test-matrix:
+	./scripts/test-matrix.sh
 
-# Alias for test-all
-tox:
-	tox
+# Alias for test-matrix
+test-all: test-matrix
 
 # Run all linters
 lint: lint-rust
@@ -86,6 +88,6 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 
-# Remove tox cache (stored in ~/.cache/tox/)
-clean-tox:
-	rm -rf $(HOME)/.cache/tox/libb-util
+# Remove the per-interpreter venvs built by the matrix runner
+clean-matrix:
+	rm -rf .venvs
