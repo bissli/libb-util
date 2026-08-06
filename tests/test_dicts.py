@@ -170,6 +170,56 @@ class TestMultikeysort:
         result = multikeysort(ds, ['missing'])
         assert result[0]['total'] == 96.0
 
+    @pytest.mark.parametrize('inplace', [False, True])
+    def test_multikeysort_rejects_mutation_during_sort(self, inplace):
+        """Verify shrinking the list from a comparator raises ValueError.
+
+        Mutation: indexing the post-sort list with the pre-sort indices
+            without re-checking its length, which panics the Rust
+            extension into a PanicException instead of raising.
+        Oracle: CPython's own list.sort() contract, which reports this
+            exact situation as ValueError('list modified during sort').
+        """
+        ds = []
+
+        class ShrinksOnCompare:
+            def __init__(self, n):
+                self.n = n
+
+            def __lt__(self, other):
+                if len(ds) > 1:
+                    ds.pop()
+                return self.n < other.n
+
+            def __gt__(self, other):
+                return self.n > other.n
+
+        ds.extend({'k': ShrinksOnCompare(8 - i)} for i in range(8))
+
+        with pytest.raises(ValueError, match='list modified during sort'):
+            multikeysort(ds, ['k'], inplace)
+
+    def test_multikeysort_orders_by_object_comparison(self):
+        """Verify a non-scalar column sorts via the object's own __lt__.
+
+        Mutation: routing every non-scalar value to SortValue::None, which
+            would leave the input order untouched.
+        Oracle: hand-computed order of the wrapped integers.
+        """
+        class Wrapped:
+            def __init__(self, n):
+                self.n = n
+
+            def __lt__(self, other):
+                return self.n < other.n
+
+            def __gt__(self, other):
+                return self.n > other.n
+
+        ds = [{'k': Wrapped(3)}, {'k': Wrapped(1)}, {'k': Wrapped(2)}]
+        result = multikeysort(ds, ['k'])
+        assert [row['k'].n for row in result] == [1, 2, 3]
+
     def test_multikeysort_single_column_string(self):
         # Test with single string column instead of list
         ds = [

@@ -3,6 +3,7 @@
 //! Implements `multikeysort` function equivalent to the Python version.
 //! Uses pre-extracted values for O(n) value extraction instead of O(n log n).
 
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use pyo3::IntoPyObjectExt;
@@ -294,26 +295,33 @@ pub fn multikeysort<'py>(
         Ordering::Equal
     });
 
+    // A comparator runs arbitrary Python whenever a column value is not a
+    // scalar, since SortValue::Other falls back to __lt__/__gt__ on the
+    // object. That callback can resize the list being sorted, leaving the
+    // indices collected above pointing past the end. CPython's own
+    // list.sort() reports exactly this case as a ValueError, so match it
+    // rather than indexing out of range.
+    if items.len() != len {
+        return Err(PyValueError::new_err("list modified during sort"));
+    }
+
     // Extract sorted indices
     let sorted_indices: Vec<usize> = sort_keys.iter().map(|k| k.index).collect();
 
-    if inplace {
-        // Reorder items in place
-        let sorted_items: Vec<Py<PyAny>> = sorted_indices
-            .iter()
-            .map(|&i| items.get_item(i).unwrap().unbind())
-            .collect();
+    // Indices are re-read from the list rather than trusted: the length
+    // check above cannot see a mutation that removed and re-added elements,
+    // so propagate any lookup failure instead of unwrapping it into a panic.
+    let sorted_items: Vec<Py<PyAny>> = sorted_indices
+        .iter()
+        .map(|&i| items.get_item(i).map(|item| item.unbind()))
+        .collect::<PyResult<Vec<_>>>()?;
 
+    if inplace {
         for (i, item) in sorted_items.into_iter().enumerate() {
             items.set_item(i, item)?;
         }
         Ok(None)
     } else {
-        // Create new sorted list
-        let sorted_items: Vec<Py<PyAny>> = sorted_indices
-            .iter()
-            .map(|&i| items.get_item(i).unwrap().unbind())
-            .collect();
         let result = PyList::new(py, sorted_items)?;
         Ok(Some(result.unbind()))
     }
