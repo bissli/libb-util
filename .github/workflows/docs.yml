@@ -49,8 +49,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          poetry install -E docs -E pandas -E text
-          poetry run pip install maturin
+          poetry install -E docs -E pandas -E text -E test
           poetry run maturin develop --manifest-path rust/Cargo.toml
 
       - name: Build documentation

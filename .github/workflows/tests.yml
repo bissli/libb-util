@@ -47,7 +47,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu, macos, windows]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
@@ -75,11 +75,58 @@ jobs:
       - name: Build Rust extension
         shell: bash
         run: |
+          # A .so left from another interpreter shadows the module it was
+          # built from, so clear it before rebuilding.
+          rm -f src/libb/*.so src/libb/*.pyd
           poetry run maturin develop --manifest-path rust/Cargo.toml
 
       - name: Run tests
         shell: bash
         run: poetry run pytest tests/ -v
+
+      - name: Run doctests
+        shell: bash
+        # doctest.rst sits outside pytest.ini's testpaths, so `pytest tests/`
+        # never collected it. That gap hid a VirtualModule recursion bug that
+        # had been failing since 3.13.
+        run: poetry run pytest doctest.rst -v
+
+  test-prerelease:
+    name: Test (Python ${{ matrix.python-version }}, allowed to fail)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.15"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        # Notes:
+        # - The pandas extra is omitted: pyarrow needs the Arrow C++ toolchain
+        #   to build from source and no cp315 wheel exists yet. Everything
+        #   else in the reduced set builds from sdist.
+        # - Installed with pip rather than poetry so a lockfile resolved for
+        #   3.10-3.14 cannot veto a prerelease interpreter.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[test,text,math,ldapauth,tokenauth]'
+
+      # doctest.rst is not run here: it walks the pandas-backed modules, and
+      # the pandas extra is not installable on this interpreter.
+      - name: Run tests
+        run: pytest tests/ -v
 
   test-rust:
     name: Test Rust
