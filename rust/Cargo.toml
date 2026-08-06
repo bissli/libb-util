@@ -2,6 +2,7 @@
 name = "libb_core"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.83"
 license-file = "LICENSE"
 
 [lib]
@@ -25,7 +26,7 @@ default = ["python"]
 python = ["pyo3", "pyo3/extension-module"]
 
 [dependencies]
-pyo3 = { version = "0.22", features = ["generate-import-lib"], optional = true }
+pyo3 = { version = "0.29", features = ["generate-import-lib"], optional = true }
 once_cell = "1.19"
 regex = "1.10"
 

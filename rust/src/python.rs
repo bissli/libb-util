@@ -1,6 +1,7 @@
 //! PyO3 bindings for libb functions.
 
 use pyo3::prelude::*;
+use pyo3::IntoPyObjectExt;
 
 use crate::dictsort;
 use crate::iter;
@@ -8,10 +9,10 @@ use crate::numparse::{self, ParsedNumber};
 use crate::text;
 
 /// Convert ParsedNumber to Python object.
-fn to_py_object(py: Python<'_>, result: ParsedNumber) -> PyObject {
+fn to_py_object(py: Python<'_>, result: ParsedNumber) -> Py<PyAny> {
     match result {
-        ParsedNumber::Int(n) => n.into_py(py),
-        ParsedNumber::Float(f) => f.into_py(py),
+        ParsedNumber::Int(n) => n.into_py_any(py).unwrap(),
+        ParsedNumber::Float(f) => f.into_py_any(py).unwrap(),
         ParsedNumber::None => py.None(),
     }
 }
@@ -32,7 +33,7 @@ fn to_py_object(py: Python<'_>, result: ParsedNumber) -> PyObject {
 ///     >>> parse('(1)')
 ///     -1
 #[pyfunction]
-fn parse(py: Python<'_>, s: &str) -> PyObject {
+fn parse(py: Python<'_>, s: &str) -> Py<PyAny> {
     to_py_object(py, numparse::parse(s))
 }
 
@@ -61,7 +62,11 @@ fn normalize_numeric_str(s: &str) -> Option<String> {
 }
 
 /// Python module definition.
-#[pymodule]
+// pyo3 0.22 emitted no Py_mod_gil slot at all, so CPython treated this module
+// as GIL-requiring. pyo3 0.29 defaults the slot to Py_MOD_GIL_NOT_USED, which
+// would silently claim free-threading safety that nothing here has been
+// audited for. State it explicitly until that audit happens.
+#[pymodule(gil_used = true)]
 pub fn _libb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Number parsing
     m.add_function(wrap_pyfunction!(parse, m)?)?;

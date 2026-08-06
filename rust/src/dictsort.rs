@@ -5,6 +5,7 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
+use pyo3::IntoPyObjectExt;
 use std::cmp::Ordering;
 
 /// Column sort specification.
@@ -26,7 +27,7 @@ enum SortValue {
     Int(i64),
     Float(f64),
     Str(String),
-    Other(PyObject), // Fallback for complex types
+    Other(Py<PyAny>), // Fallback for complex types
 }
 
 impl Clone for SortValue {
@@ -36,7 +37,7 @@ impl Clone for SortValue {
             SortValue::Int(v) => SortValue::Int(*v),
             SortValue::Float(v) => SortValue::Float(*v),
             SortValue::Str(v) => SortValue::Str(v.clone()),
-            SortValue::Other(v) => Python::with_gil(|py| SortValue::Other(v.clone_ref(py))),
+            SortValue::Other(v) => Python::attach(|py| SortValue::Other(v.clone_ref(py))),
         }
     }
 }
@@ -56,7 +57,7 @@ impl SortValue {
         if let Ok(v) = obj.extract::<String>() {
             return SortValue::Str(v);
         }
-        // Fallback: store as PyObject
+        // Fallback: store as Py<PyAny>
         SortValue::Other(obj.clone().unbind())
     }
 
@@ -102,19 +103,19 @@ impl SortValue {
         }
     }
 
-    fn to_pyobject(&self, py: Python<'_>) -> PyObject {
+    fn to_pyobject(&self, py: Python<'_>) -> Py<PyAny> {
         match self {
             SortValue::None => py.None(),
-            SortValue::Int(v) => v.into_py(py),
-            SortValue::Float(v) => v.into_py(py),
-            SortValue::Str(v) => v.into_py(py),
+            SortValue::Int(v) => v.into_py_any(py).unwrap(),
+            SortValue::Float(v) => v.into_py_any(py).unwrap(),
+            SortValue::Str(v) => v.into_py_any(py).unwrap(),
             SortValue::Other(v) => v.clone_ref(py),
         }
     }
 }
 
 /// Compare two Python objects.
-fn py_cmp_objects(a: &PyObject, b: &PyObject, py: Python<'_>) -> Ordering {
+fn py_cmp_objects(a: &Py<PyAny>, b: &Py<PyAny>, py: Python<'_>) -> Ordering {
     let a_bound = a.bind(py);
     let b_bound = b.bind(py);
 
@@ -148,7 +149,7 @@ fn parse_columns(columns: &Bound<'_, PyAny>) -> PyResult<Vec<SortColumn>> {
                 descending: false,
             });
         }
-    } else if let Ok(list) = columns.downcast::<PyList>() {
+    } else if let Ok(list) = columns.cast::<PyList>() {
         // List of columns
         for item in list.iter() {
             if let Ok(s) = item.extract::<String>() {
@@ -190,7 +191,7 @@ fn get_known_keys(items: &Bound<'_, PyList>) -> PyResult<std::collections::HashS
     let mut keys = std::collections::HashSet::new();
 
     for item in items.iter() {
-        if let Ok(dict) = item.downcast::<PyDict>() {
+        if let Ok(dict) = item.cast::<PyDict>() {
             for key in dict.keys() {
                 if let Ok(s) = key.extract::<String>() {
                     keys.insert(s);
@@ -226,8 +227,8 @@ pub fn multikeysort<'py>(
         if inplace {
             return Ok(None);
         } else {
-            let items_vec: Vec<PyObject> = items.iter().map(|x| x.unbind()).collect();
-            let result = PyList::new_bound(py, items_vec);
+            let items_vec: Vec<Py<PyAny>> = items.iter().map(|x| x.unbind()).collect();
+            let result = PyList::new(py, items_vec)?;
             return Ok(Some(result.unbind()));
         }
     }
@@ -249,8 +250,8 @@ pub fn multikeysort<'py>(
         if inplace {
             return Ok(None);
         } else {
-            let items_vec: Vec<PyObject> = items.iter().map(|x| x.unbind()).collect();
-            let result = PyList::new_bound(py, items_vec);
+            let items_vec: Vec<Py<PyAny>> = items.iter().map(|x| x.unbind()).collect();
+            let result = PyList::new(py, items_vec)?;
             return Ok(Some(result.unbind()));
         }
     }
@@ -298,7 +299,7 @@ pub fn multikeysort<'py>(
 
     if inplace {
         // Reorder items in place
-        let sorted_items: Vec<PyObject> = sorted_indices
+        let sorted_items: Vec<Py<PyAny>> = sorted_indices
             .iter()
             .map(|&i| items.get_item(i).unwrap().unbind())
             .collect();
@@ -309,11 +310,11 @@ pub fn multikeysort<'py>(
         Ok(None)
     } else {
         // Create new sorted list
-        let sorted_items: Vec<PyObject> = sorted_indices
+        let sorted_items: Vec<Py<PyAny>> = sorted_indices
             .iter()
             .map(|&i| items.get_item(i).unwrap().unbind())
             .collect();
-        let result = PyList::new_bound(py, sorted_items);
+        let result = PyList::new(py, sorted_items)?;
         Ok(Some(result.unbind()))
     }
 }

@@ -20,23 +20,23 @@ use std::collections::HashMap;
 #[pyfunction]
 #[pyo3(signature = (*args))]
 pub fn collapse(py: Python<'_>, args: &Bound<'_, PyTuple>) -> PyResult<Py<PyList>> {
-    let result = PyList::empty_bound(py);
+    let result = PyList::empty(py);
 
     // Use explicit stack instead of recursion
-    let mut stack: Vec<PyObject> = args.iter().rev().map(|item| item.unbind()).collect();
+    let mut stack: Vec<Py<PyAny>> = args.iter().rev().map(|item| item.unbind()).collect();
 
     while let Some(item) = stack.pop() {
         let bound_item = item.bind(py);
 
         // Check if item is a list or tuple (types to flatten)
-        if let Ok(list) = bound_item.downcast::<PyList>() {
+        if let Ok(list) = bound_item.cast::<PyList>() {
             // Push items in reverse order so they come out in correct order
             for i in (0..list.len()).rev() {
                 if let Ok(elem) = list.get_item(i) {
                     stack.push(elem.unbind());
                 }
             }
-        } else if let Ok(tuple) = bound_item.downcast::<PyTuple>() {
+        } else if let Ok(tuple) = bound_item.cast::<PyTuple>() {
             // Push items in reverse order
             for i in (0..tuple.len()).rev() {
                 if let Ok(elem) = tuple.get_item(i) {
@@ -67,11 +67,11 @@ pub fn collapse(py: Python<'_>, args: &Bound<'_, PyTuple>) -> PyResult<Py<PyList
 pub fn backfill(py: Python<'_>, values: &Bound<'_, PyList>) -> PyResult<Py<PyList>> {
     let len = values.len();
     if len == 0 {
-        return Ok(PyList::empty_bound(py).unbind());
+        return Ok(PyList::empty(py).unbind());
     }
 
     // First pass: find the first non-None value
-    let mut first_value: Option<PyObject> = None;
+    let mut first_value: Option<Py<PyAny>> = None;
     for i in 0..len {
         let item = values.get_item(i)?;
         if !item.is_none() {
@@ -86,7 +86,7 @@ pub fn backfill(py: Python<'_>, values: &Bound<'_, PyList>) -> PyResult<Py<PyLis
         None => return Ok(values.clone().unbind()),
     };
 
-    let result = PyList::empty_bound(py);
+    let result = PyList::empty(py);
     let mut latest = first_value.clone_ref(py);
     let mut pending_nones = 0usize;
 
@@ -133,21 +133,21 @@ pub fn backfill(py: Python<'_>, values: &Bound<'_, PyList>) -> PyResult<Py<PyLis
 pub fn backfill_iterdict(py: Python<'_>, iterdict: &Bound<'_, PyList>) -> PyResult<Py<PyList>> {
     let len = iterdict.len();
     if len == 0 {
-        return Ok(PyList::empty_bound(py).unbind());
+        return Ok(PyList::empty(py).unbind());
     }
 
     // Track latest values and missing counts per key
-    let mut latest: HashMap<String, PyObject> = HashMap::new();
+    let mut latest: HashMap<String, Py<PyAny>> = HashMap::new();
     let mut missing: HashMap<String, usize> = HashMap::new();
 
     // Build result list
-    let result = PyList::empty_bound(py);
+    let result = PyList::empty(py);
 
     for i in 0..len {
         let item = iterdict.get_item(i)?;
-        let dict = item.downcast::<PyDict>()?;
+        let dict = item.cast::<PyDict>()?;
 
-        let new_dict = PyDict::new_bound(py);
+        let new_dict = PyDict::new(py);
 
         for (key, value) in dict.iter() {
             let key_str: String = key.extract()?;
@@ -160,7 +160,7 @@ pub fn backfill_iterdict(py: Python<'_>, iterdict: &Bound<'_, PyList>) -> PyResu
                 if let Some(count) = missing.remove(&key_str) {
                     for j in 0..count {
                         if let Ok(prev_item) = result.get_item(j) {
-                            if let Ok(prev_dict) = prev_item.downcast::<PyDict>() {
+                            if let Ok(prev_dict) = prev_item.cast::<PyDict>() {
                                 prev_dict.set_item(&key_str, latest.get(&key_str).unwrap())?;
                             }
                         }
