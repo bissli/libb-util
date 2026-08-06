@@ -3,10 +3,9 @@ import contextlib
 import logging
 import quopri
 import random
+import re
 import string
 import unicodedata
-
-import regex as re
 
 from libb._libb import collapse, sanitize_vulgar_string, uncamel
 from libb._libb import underscore_to_camelcase
@@ -195,7 +194,10 @@ def parse_number(s: str, force=True):
         s+='0'
     if s.endswith('.)'):
         s = s[:-2]+'.0)'
-    num = ''.join(re.findall(r'[\(-\d\.\)]+', s))
+    # The hyphen trails the class so it is unambiguously a literal member
+    # (for a leading minus), not a range endpoint. Written as `\(-\d` it is
+    # an invalid range that stdlib re rejects outright.
+    num = ''.join(re.findall(r'[\(\d\.\)-]+', s))
     if not num and force:
         return
     if not num:

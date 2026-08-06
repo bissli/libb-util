@@ -8,6 +8,7 @@ import itertools
 import logging
 import os
 import random
+import re
 import shutil
 import tempfile
 from contextlib import contextmanager
@@ -16,7 +17,6 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import backoff
-import regex as re
 import requests
 
 logger = logging.getLogger(__name__)

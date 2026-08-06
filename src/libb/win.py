@@ -2,12 +2,11 @@
 
 import logging
 import os
+import pathlib
 import platform
+import re
 import socket
 from subprocess import PIPE, Popen
-
-import regex as re
-import pathlib
 
 logger = logging.getLogger(__name__)
 

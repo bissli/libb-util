@@ -1,5 +1,6 @@
 import logging
 import operator
+import re
 import struct
 import types
 from collections.abc import Iterable
@@ -7,8 +8,6 @@ from decimal import Decimal
 from fractions import Fraction
 from functools import reduce, wraps
 from math import ceil, floor, isnan, log10, sqrt
-
-import regex as re
 
 from libb._rust import normalize_numeric_str as _normalize_numeric_impl
 from libb._rust import parse as _parse_impl
