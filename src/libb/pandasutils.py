@@ -91,39 +91,48 @@ def download_tzdata():
 def downcast(df, rtol=1e-05, atol=1e-08, numpy_dtypes_only=False):
     """Downcast DataFrame to minimum viable type for each column.
 
-    Ensures resulting values are within tolerance of original values.
+    Parameters
+    ----------
+    df : DataFrame
+        DataFrame to downcast.
+    rtol : float, default 1e-05
+        Relative tolerance for numeric comparison.
+    atol : float, default 1e-08
+        Absolute tolerance for numeric comparison.
+    numpy_dtypes_only : bool, default False
+        Restrict the result to numpy dtypes, skipping pandas extension
+        dtypes.
 
-    :param DataFrame df: DataFrame to downcast.
-    :param float rtol: Relative tolerance for numeric comparison.
-    :param float atol: Absolute tolerance for numeric comparison.
-    :param bool numpy_dtypes_only: Use only numpy dtypes.
-    :returns: Downcasted DataFrame.
-    :rtype: DataFrame
+    Returns
+    -------
+    DataFrame
+        Each column narrowed to the smallest type whose values stay
+        within tolerance of the original.
 
-    .. note::
-        See `numpy.allclose <https://numpy.org/doc/stable/reference/generated/numpy.allclose.html>`_
-        for tolerance parameters.
+    Notes
+    -----
+    - Tolerance follows the `numpy.allclose` convention: a candidate type
+      is accepted when ``|a - b| <= atol + rtol * |b|`` for every value.
+    - Tightening the tolerance widens the result, since fewer narrow types
+      can represent the values: at rtol=atol=1e-10 the float column stays
+      float64, and only at the looser default does it fit float32.
 
-    Example::
-
-        >>> from numpy import linspace, random
-        >>> from pandas import DataFrame
-        >>> data = {
-        ... "integers": linspace(1, 100, 100),
-        ... "floats": linspace(1, 1000, 100).round(2),
-        ... "booleans": random.choice([1, 0], 100),
-        ... "categories": random.choice(["foo", "bar", "baz"], 100)}
-        >>> df = DataFrame(data)
-        >>> downcast(df, rtol=1e-10, atol=1e-10).info()
-        <class 'pandas.core.frame.DataFrame'>
-        ...
-        dtypes: bool(1), category(1), float64(1), uint8(1)
-        memory usage: 1.3 KB
-        >>> downcast(df, rtol=1e-05, atol=1e-08).info()
-        <class 'pandas.core.frame.DataFrame'>
-        ...
-        dtypes: bool(1), category(1), float32(1), uint8(1)
-        memory usage: 964.0 bytes
+    Examples
+    --------
+    >>> from numpy import linspace, random
+    >>> from pandas import DataFrame
+    >>> data = {
+    ... "integers": linspace(1, 100, 100),
+    ... "floats": linspace(1, 1000, 100).round(2),
+    ... "booleans": random.choice([1, 0], 100),
+    ... "categories": random.choice(["foo", "bar", "baz"], 100)}
+    >>> df = DataFrame(data)
+    >>> tight = downcast(df, rtol=1e-10, atol=1e-10)
+    >>> tight.dtypes['integers'], tight.dtypes['floats']
+    (dtype('uint8'), dtype('float64'))
+    >>> loose = downcast(df, rtol=1e-05, atol=1e-08)
+    >>> loose.dtypes['integers'], loose.dtypes['floats']
+    (dtype('uint8'), dtype('float32'))
     """
     import pdcast
     from pdcast import downcast as pdc_downcast

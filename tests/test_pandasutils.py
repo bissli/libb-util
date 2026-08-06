@@ -1,11 +1,15 @@
 import contextlib
 
-import numpy as np
-import pandas as pd
 import pytest
 
 from libb import is_null
 from libb.pandasutils import downcast, fuzzymerge
+
+# numpy and pandas ship as the `pandas` extra, which cannot be installed on an
+# interpreter that has no wheels for them yet. Skip the module rather than
+# failing collection for the whole suite.
+np = pytest.importorskip('numpy')
+pd = pytest.importorskip('pandas')
 
 
 class TestIsNull:

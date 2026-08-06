@@ -5,8 +5,8 @@ import pytest
 
 from libb import guess_extension, guess_type, magic_mime_from_buffer
 from libb import sniff_format
-from libb.mime import _refine_zip_mime
-from libb.mime import _register_document_mimetypes, _DOCUMENT_MIMETYPES
+from libb.mime import _DOCUMENT_MIMETYPES, _refine_zip_mime
+from libb.mime import _register_document_mimetypes
 
 try:
     import magic
@@ -157,11 +157,25 @@ class TestDocumentMimetypeRegistration:
     """
 
     def test_office_mimes_resolve_on_minimal_db(self):
+        """Verify registration fills every gap a minimal mimetypes db leaves.
+
+        Mutation: dropping a row from _DOCUMENT_MIMETYPES, or making
+            _register_document_mimetypes a no-op.
+        Oracle: _DOCUMENT_MIMETYPES itself, checked entry by entry after
+            registration; the pre-check independently proves the stdlib
+            has not already made the registration redundant.
+        """
         import mimetypes
         saved = mimetypes._db
         try:
             mimetypes._db = mimetypes.MimeTypes(filenames=())
-            assert mimetypes.guess_extension(DOCX_MIME) is None
+            # Which types the builtin map already knows is version-dependent
+            # (CPython 3.14 folded the OOXML ones in, taking the gap from 7
+            # of 10 down to 3), so assert only that a gap still exists rather
+            # than naming a type that has to be missing.
+            unresolved = [mime for mime in _DOCUMENT_MIMETYPES
+                          if mimetypes.guess_extension(mime) is None]
+            assert unresolved, 'registration is redundant; drop it'
             _register_document_mimetypes()
             for mime, ext in _DOCUMENT_MIMETYPES.items():
                 assert mimetypes.guess_extension(mime) == ext
