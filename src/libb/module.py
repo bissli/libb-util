@@ -334,10 +334,16 @@ class VirtualModule:
             self._mod = __import__(modname)
         except:
             self._mod = types.ModuleType(modname)
-        sys.modules[modname] = self
-        __import__(modname)
+        # Both attributes must exist before this object is reachable as a
+        # module: the import below makes the machinery probe attributes on
+        # it, every miss lands in __getattr__, and __getattr__ reads
+        # _submodules. Assigning them afterwards makes that read miss too,
+        # recursing until the interpreter gives up (RecursionError on 3.13+,
+        # silently absorbed on 3.10-3.12).
         self._modname = modname
         self._submodules = submodules
+        sys.modules[modname] = self
+        __import__(modname)
 
     def __repr__(self):
         return f'Virtual module for {self._modname}'

@@ -2,8 +2,8 @@ import sys
 
 import pytest
 
-from libb import Setting, create_instance, create_mock_module, get_class
-from libb import get_module
+from libb import Setting, create_instance, create_mock_module
+from libb import create_virtual_module, get_class, get_module
 
 
 class TestGetModule:
@@ -55,6 +55,44 @@ class TestCreateMockModule:
         assert test_config_module.foo.bar == 1
         # Cleanup
         del sys.modules['test_config_module']
+
+
+class TestCreateVirtualModule:
+    """Tests for create_virtual_module function."""
+
+    def test_virtual_module_resolves_submodule(self):
+        """Verify a virtual module exposes its mapped submodules.
+
+        Mutation: assigning _submodules after `sys.modules[modname] = self`,
+            which makes __import__ probe attributes on a half-built object
+            and recurse through __getattr__ until RecursionError (3.13+).
+        Oracle: the json module object itself, fetched independently.
+        """
+        import json
+        create_virtual_module('virtmod_under_test', {'js': 'json'})
+        try:
+            import virtmod_under_test
+            assert virtmod_under_test.js is json
+        finally:
+            sys.modules.pop('virtmod_under_test', None)
+
+    def test_virtual_module_unknown_attribute_raises(self):
+        """Verify an unmapped attribute raises AttributeError, not RecursionError.
+
+        Mutation: dropping the KeyError->AttributeError translation in
+            __getattr__, or reintroducing the recursion by reading an
+            attribute that was never assigned.
+        Oracle: AttributeError is the documented contract for a missing
+            module attribute; RecursionError would also be "an exception"
+            so the type is asserted exactly.
+        """
+        create_virtual_module('virtmod_missing_attr', {'js': 'json'})
+        try:
+            import virtmod_missing_attr
+            with pytest.raises(AttributeError):
+                virtmod_missing_attr.no_such_attribute
+        finally:
+            sys.modules.pop('virtmod_missing_attr', None)
 
 
 class TestCreateInstance:
