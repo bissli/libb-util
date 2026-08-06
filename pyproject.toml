@@ -27,17 +27,25 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 [project.optional-dependencies]
 math = ["matplotlib"]
-text = ["ftfy", "rapidfuzz", "chardet"]
+# chardet is capped below 6 deliberately. smart_base64 falls back to
+# chardet.detect() for a byte run that is not valid in the declared charset,
+# and the guess for the 4-byte fragment b'\xbd/83' changed after 5.x: 6.x
+# gives up entirely and 7.x reads it as MacRoman, either way turning a
+# decoded '1/2' into mojibake. The cap restores the bound
+# [tool.poetry.dependencies] has always declared and that was dropped when
+# the extras moved to [project].
+text = ["ftfy>=6.1.3", "rapidfuzz>=3.6.1", "chardet>=5.2.0,<6"]
 pandas = ["pyarrow", "pandas", "pandas-downcast==1.2.4", "numexpr"]
 web = ["Twisted", "service-identity", "Flask"]
 twd = ["Twisted", "service-identity"]
 ldapauth = ["ldap3"]
 tokenauth = ["boto3", "anyio"]
-test = ["asserts", "pytest", "pytest-mock", "pytest-runner", "pytest-benchmark", "unittest2", "WebTest", "maturin>=1.0,<2.0", "exceptiongroup", "jinja2"]
+test = ["asserts", "pytest", "pytest-mock", "pytest-benchmark", "WebTest", "maturin>=1.0,<2.0", "exceptiongroup", "jinja2"]
 deploy = ["bump2version"]
 docs = ["Sphinx", "sphinx-rtd-theme", "sphinx-autodoc-typehints", "myst-parser", "sphinx-copybutton"]
 
@@ -97,8 +105,7 @@ anyio = { version = "*", optional = true }
 asserts = { version = "*", optional = true }
 pytest = { version = "*", optional = true }
 pytest-mock = { version = "*", optional = true }
-pytest-runner = { version = "*", optional = true }
-unittest2 = { version = "*", optional = true }
+pytest-benchmark = { version = "*", optional = true }
 WebTest = { version = "*", extras = ["web"], optional = true }
 maturin = { version = ">=1.0,<2.0", optional = true }
 exceptiongroup = { version = "*", python = "<3.11", optional = true }
@@ -144,9 +151,7 @@ test = [
   "asserts",
   "pytest",
   "pytest-mock",
-  "pytest-runner",
   "pytest-benchmark",
-  "unittest2",
   "WebTest",
   "maturin",
   "exceptiongroup",
