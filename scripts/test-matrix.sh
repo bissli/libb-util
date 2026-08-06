@@ -3,8 +3,8 @@
 #
 # Notes:
 # - uv provisions the interpreters itself, which is why this replaced tox:
-#   tox can only use interpreters already on the host, and neither a 3.15
-#   prerelease nor a free-threaded build is normally installed.
+#   tox can only use interpreters already on the host, and neither a
+#   free-threaded build nor a prerelease is normally installed.
 # - Extras are read from pyproject.toml rather than restated, so this cannot
 #   drift from the package metadata the way tox.ini's copied dep list did.
 # - Each version gets its own venv under .venvs/ because the compiled
@@ -13,9 +13,13 @@
 set -uo pipefail
 
 STABLE_VERSIONS=${STABLE_VERSIONS:-"3.10 3.11 3.12 3.13 3.14"}
-# Versions that are allowed to fail: a prerelease interpreter, and any build
-# whose compiled dependencies have no wheels yet.
-PRERELEASE_VERSIONS=${PRERELEASE_VERSIONS:-"3.15"}
+# Supported range stops at 3.14. 3.15 is not tested by default because its
+# compiled dependencies have not shipped 3.15 builds yet: numpy 2.5.1 and
+# regex 2026.7.19 both predate 3.15.0rc1 and segfault when built from sdist
+# against it. Re-enable with PRERELEASE_VERSIONS=3.15 once numpy 2.6 and a
+# post-rc1 regex are released -- a numpy 2.6.0.dev0 cp315 wheel already
+# passes, so the fix is upstream and merely unreleased.
+PRERELEASE_VERSIONS=${PRERELEASE_VERSIONS:-""}
 FREETHREADED_VERSIONS=${FREETHREADED_VERSIONS:-"3.14t"}
 
 # pyarrow needs the Arrow C++ toolchain to build from source, so it cannot be

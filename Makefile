@@ -8,7 +8,7 @@ help:
 	@echo "  make test         - Run all tests (current Python)"
 	@echo "  make test-rust    - Run Rust tests (both feature configurations)"
 	@echo "  make test-kernel  - Verify the kernel cdylib links without libpython"
-	@echo "  make test-matrix  - Run tests on Python 3.10-3.15 + 3.14t via uv"
+	@echo "  make test-matrix  - Run tests on Python 3.10-3.14 + 3.14t via uv"
 	@echo "  make test-all     - Alias for test-matrix"
 	@echo "  make lint         - Run all linters (Python + Rust)"
 	@echo "  make lint-rust    - Check Rust formatting and clippy"
@@ -58,8 +58,8 @@ test-kernel:
 
 # Run tests on every supported interpreter.
 # Notes:
-# - uv provisions the interpreters, so this covers a 3.15 prerelease and a
-#   free-threaded build that tox could never reach on its own.
+# - uv provisions the interpreters, so this reaches a free-threaded build
+#   that tox could never install on its own.
 test-matrix:
 	./scripts/test-matrix.sh
 
