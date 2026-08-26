@@ -16,8 +16,6 @@ import urllib.parse
 from collections.abc import Callable
 from functools import update_wrapper, wraps
 
-from dateutil import parser
-
 from libb import expandabspath, grouper, splitcap
 
 with contextlib.suppress(ImportError):
@@ -506,27 +504,41 @@ def render_field(field) -> str:
 
 
 class JSONEncoderISODate(json.JSONEncoder):
-    """JSON encoder that serializes dates in ISO format.
+    """JSON encoder that serializes dates, datetimes and times in ISO format.
 
     Example::
 
         >>> JSONEncoderISODate().encode({'dt': datetime.date(2014, 10, 2)})
         '{"dt": "2014-10-02"}'
+        >>> JSONEncoderISODate().encode({'t': datetime.time(10, 30)})
+        '{"t": "10:30:00"}'
     """
 
     def default(self, obj):
-        if isinstance(obj, (datetime.date, datetime.datetime)):
+        if isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
             return obj.isoformat()
         return super().default(obj)
 
 
 class JSONDecoderISODate(json.JSONDecoder):
-    """JSON decoder that parses date strings into datetime objects.
+    """JSON decoder that parses ISO date strings into datetimes.
+
+    Reads back the dates and datetimes :class:`JSONEncoderISODate`
+    writes. A string in any other shape is left as it was.
 
     Example::
 
         >>> JSONDecoderISODate().decode('{"dt": "2014-10-02"}')
         {'dt': datetime.datetime(2014, 10, 2, 0, 0)}
+        >>> JSONDecoderISODate().decode('{"note": "March", "qty": "10"}')
+        {'note': 'March', 'qty': '10'}
+
+    Note:
+        A time is written by the encoder but read back as a string. It
+        has no unambiguous ISO reading: ``time.fromisoformat`` takes
+        ``'10'`` to 10:00 and ``'2024'`` to 20:24, so decoding times
+        would rewrite ordinary numeric strings. A caller that knows a
+        field holds a time converts it itself.
     """
 
     def __init__(self, **kw):
@@ -536,8 +548,13 @@ class JSONDecoderISODate(json.JSONDecoder):
         if isinstance(obj, dict):
             for key in obj:
                 if isinstance(obj[key], str):
+                    # Read only what isoformat() writes. The lenient
+                    # dateutil parser this replaced filled a missing
+                    # field from TODAY, so '10' and 'March' became
+                    # datetimes and the same payload decoded
+                    # differently on different days.
                     with contextlib.suppress(ValueError, TypeError):
-                        obj[key] = parser.parse(obj[key])
+                        obj[key] = datetime.datetime.fromisoformat(obj[key])
 
         return obj
 

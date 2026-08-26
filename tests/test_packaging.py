@@ -78,31 +78,63 @@ def test_star_imported_modules_declare_their_imports():
         f'dependencies, or move them into the function that needs them): {offenders}')
 
 
-def test_json_iso_decoder_currently_coerces_non_dates():
-    """Pin the decoder's lenient parsing, which rewrites ordinary strings.
+def test_json_iso_decoder_leaves_non_dates_alone():
+    """Verify the decoder reads ISO dates only and leaves other strings.
 
-    Despite the ISODate name, the object hook runs dateutil.parser.parse
-    over EVERY string value in the payload, so '10' and 'March' become
-    datetimes with today's date filled in. That is a real hazard for any
-    caller decoding arbitrary JSON, but it is the shipped behaviour and
-    narrowing it is a semantic decision, not a packaging fix - notably
-    datetime.fromisoformat is not a drop-in replacement, since it rejects
-    'Z' suffixes on Python 3.10 and non-ISO formats on every version.
+    The hook once ran dateutil.parser.parse over every string value, so
+    '10' and 'March' became datetimes with today's date filled in and the
+    same payload decoded differently on different days.
 
-    This is a characterisation pin, not an endorsement: it exists so that
-    tightening the parser fails here and forces the change to be deliberate.
-
-    Mutation: swapping the parser for a stricter or a differently-lenient
-        one without deciding what the decoder is contracted to accept.
-    Oracle: the current build's own output for strings that are not dates.
+    Mutation: restoring a lenient parser, or dropping the isinstance
+        guard so a non-str value reaches fromisoformat.
+    Oracle: hand-listed strings, each its own input.
     """
     from libb.webapp import JSONDecoderISODate
-    decoded = JSONDecoderISODate().decode('{"qty": "10", "note": "March", "code": "T"}')
-    assert isinstance(decoded['qty'], datetime.datetime), (
-        'lenient parsing stopped coercing a bare integer string; if that was '
-        'intended, retire this pin and document the new contract')
-    assert isinstance(decoded['note'], datetime.datetime)
+
+    decoded = JSONDecoderISODate().decode(
+        '{"qty": "10", "note": "March", "code": "T", "when": "2014-10-02",'
+        ' "at": "10:30:00", "n": 7}')
+    assert decoded['qty'] == '10'
+    assert decoded['note'] == 'March'
     assert decoded['code'] == 'T'
+    assert decoded['when'] == datetime.datetime(2014, 10, 2, 0, 0)
+    assert decoded['at'] == '10:30:00'
+    assert decoded['n'] == 7
+
+
+def test_json_iso_decoder_reads_basic_format_dates():
+    """Pin the one numeric string the decoder still converts.
+
+    An 8-digit string is ISO 8601 basic format, so fromisoformat reads it
+    as a date. This is the deliberate edge of the contract above, not an
+    oversight: a caller storing 8-digit ids as strings gets dates back.
+
+    Mutation: widening the decoder to any numeric string, or narrowing it
+        to the extended form and breaking basic-format payloads.
+    Oracle: hand-computed date for the 8-digit case, and the 4- and
+        6-digit neighbors that must stay strings.
+    """
+    from libb.webapp import JSONDecoderISODate
+
+    decoded = JSONDecoderISODate().decode(
+        '{"a": "20141002", "b": "2024", "c": "201410"}')
+    assert decoded['a'] == datetime.datetime(2014, 10, 2, 0, 0)
+    assert decoded['b'] == '2024'
+    assert decoded['c'] == '201410'
+
+
+def test_json_iso_encoder_writes_a_time():
+    """Verify a time encodes to ISO rather than raising.
+
+    Mutation: dropping datetime.time from the isinstance tuple, which
+        takes the encoder back to raising TypeError on a time value.
+    Oracle: hand-written ISO strings.
+    """
+    from libb.webapp import JSONEncoderISODate
+
+    assert JSONEncoderISODate().encode({'t': datetime.time(10, 30)}) == '{"t": "10:30:00"}'
+    assert JSONEncoderISODate().encode(
+        {'t': datetime.time(10, 30, 5, 250)}) == '{"t": "10:30:05.000250"}'
 
 
 def test_json_iso_date_round_trips():
