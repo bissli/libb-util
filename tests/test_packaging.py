@@ -132,7 +132,8 @@ def test_json_iso_encoder_writes_a_time():
     """
     from libb.webapp import JSONEncoderISODate
 
-    assert JSONEncoderISODate().encode({'t': datetime.time(10, 30)}) == '{"t": "10:30:00"}'
+    assert JSONEncoderISODate().encode(
+        {'t': datetime.time(10, 30)}) == '{"t": "10:30:00"}'
     assert JSONEncoderISODate().encode(
         {'t': datetime.time(10, 30, 5, 250)}) == '{"t": "10:30:05.000250"}'
 
