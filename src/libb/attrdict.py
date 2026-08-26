@@ -82,9 +82,10 @@ class attrdict(dict):
     __slots__ = ()
 
     def __getattr__(self, attrname):
-        if attrname not in self:
-            raise AttributeError(attrname)
-        return self[attrname]
+        try:
+            return dict.__getitem__(self, attrname)
+        except KeyError:
+            raise AttributeError(attrname) from None
 
     def __setattr__(self, attrname, attrval):
         if isinstance(attrval, ABCMeta):
@@ -93,16 +94,20 @@ class attrdict(dict):
             self[attrname] = attrval
 
     def __delattr__(self, attrname):
-        if attrname not in self:
-            raise AttributeError(attrname)
-        self.pop(attrname)
+        try:
+            self.pop(attrname)
+        except KeyError:
+            raise AttributeError(attrname) from None
 
     def __getitem__(self, attrname):
-        if attrname in self:
+        try:
             return dict.__getitem__(self, attrname)
-        if hasattr(self, attrname):
+        except KeyError:
+            pass
+        try:
             return dict.__getattribute__(self, attrname)
-        raise KeyError(attrname)
+        except AttributeError:
+            raise KeyError(attrname) from None
 
     def get(self, key, default=None):
         try:
@@ -175,9 +180,10 @@ class lazydict(attrdict):
     __slots__ = ()
 
     def __getattr__(self, attrname):
-        if attrname not in self:
-            raise AttributeError(attrname)
-        attrval = self[attrname]
+        try:
+            attrval = dict.__getitem__(self, attrname)
+        except KeyError:
+            raise AttributeError(attrname) from None
         if callable(attrval):
             return attrval(self)
         return attrval
@@ -218,7 +224,7 @@ class emptydict(attrdict):
     def __getitem__(self, attrname):
         try:
             return attrdict.__getitem__(self, attrname)
-        except AttributeError:
+        except KeyError:
             return
 
 
