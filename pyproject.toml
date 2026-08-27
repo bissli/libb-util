@@ -40,6 +40,10 @@ math = ["matplotlib"]
 # the extras moved to [project].
 text = ["ftfy>=6.1.3", "rapidfuzz>=3.6.1", "chardet>=5.2.0,<6"]
 pandas = ["pyarrow", "pandas", "pandas-downcast==1.2.4", "numexpr"]
+# python-magic-bin ships the libmagic DLL that python-magic needs on
+# Windows; elsewhere libmagic comes from the OS. Its wheels are
+# py2.py3-none, so the pin stays installable on every supported Python.
+mime = ["python-magic>=0.4.12", "python-magic-bin>=0.4.12; sys_platform == 'win32'"]
 web = ["Twisted", "service-identity", "Flask"]
 twd = ["Twisted", "service-identity"]
 ldapauth = ["ldap3"]
@@ -127,9 +131,12 @@ text = [
 pandas = [
   "pyarrow",
   "pandas",
-  "numpy",
   "pandas-downcast",
   "numexpr",
+]
+mime = [
+  "python-magic",
+  "python-magic-bin",
 ]
 web = [
   "Twisted",
