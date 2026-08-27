@@ -24,8 +24,8 @@ FREETHREADED_VERSIONS=${FREETHREADED_VERSIONS:-"3.14t"}
 
 # pyarrow needs the Arrow C++ toolchain to build from source, so it cannot be
 # installed on any interpreter that has no prebuilt wheel yet.
-FULL_EXTRAS="test,pandas,text,math,web,ldapauth,tokenauth"
-REDUCED_EXTRAS="test,text,math,ldapauth,tokenauth"
+FULL_EXTRAS="test,pandas,text,math,mime,web,ldapauth,tokenauth"
+REDUCED_EXTRAS="test,text,math,mime,ldapauth,tokenauth"
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$REPO_ROOT"
