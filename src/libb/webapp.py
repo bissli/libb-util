@@ -10,6 +10,7 @@ import pathlib
 import posixpath
 import pstats
 import random
+import re
 import sys
 import time
 import urllib.parse
@@ -520,42 +521,73 @@ class JSONEncoderISODate(json.JSONEncoder):
         return super().default(obj)
 
 
+# Notes:
+# - The shape the decoder reads is pinned here rather than left to
+#   datetime.fromisoformat, whose grammar widened in 3.11: a
+#   basic-format datetime and an ISO week date read as datetimes from
+#   3.11 on and stay strings on 3.10, so delegating the decision would
+#   decode one payload two ways across the supported interpreters.
+# - Fractional seconds are held to the 3 or 6 digits isoformat() writes
+#   for the same reason: 3.10 accepts only those two widths.
+# - A lenient parser is what this gate rules out. dateutil fills a
+#   missing field from TODAY, which turns '10' and 'March' into
+#   datetimes and decodes one payload differently on different days.
+_ISO_DATE_OR_DATETIME = re.compile(
+    r'\d{8}$'
+    r'|\d{4}-\d{2}-\d{2}'
+    r'(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.(?:\d{3}|\d{6}))?)?'
+    r'(?:Z|[+-]\d{2}:\d{2})?)?$')
+
+
 class JSONDecoderISODate(json.JSONDecoder):
-    """JSON decoder that parses ISO date strings into datetimes.
+    """JSON decoder that reads ISO date strings into datetimes.
 
     Reads back the dates and datetimes :class:`JSONEncoderISODate`
-    writes. A string in any other shape is left as it was.
+    writes, plus the 8-digit basic form. A string in any other shape is
+    left as it was.
 
-    Example::
+    Examples
+    --------
+    >>> JSONDecoderISODate().decode('{"dt": "2014-10-02"}')
+    {'dt': datetime.datetime(2014, 10, 2, 0, 0)}
+    >>> JSONDecoderISODate().decode('{"note": "March", "qty": "10"}')
+    {'note': 'March', 'qty': '10'}
 
-        >>> JSONDecoderISODate().decode('{"dt": "2014-10-02"}')
-        {'dt': datetime.datetime(2014, 10, 2, 0, 0)}
-        >>> JSONDecoderISODate().decode('{"note": "March", "qty": "10"}')
-        {'note': 'March', 'qty': '10'}
-
-    Note:
-        A time is written by the encoder but read back as a string. It
-        has no unambiguous ISO reading: ``time.fromisoformat`` takes
-        ``'10'`` to 10:00 and ``'2024'`` to 20:24, so decoding times
-        would rewrite ordinary numeric strings. A caller that knows a
-        field holds a time converts it itself.
+    Notes
+    -----
+    - The accepted set does not vary by interpreter: an extended date,
+      an extended datetime, or an 8-digit basic date. A basic-format
+      datetime ('20141002T103000') and an ISO week date ('2014W011')
+      stay strings on every supported version.
+    - An 8-digit string is a basic-format date, so a caller storing
+      8-digit ids as strings gets dates back.
+    - A time is written by the encoder but read back as a string. It
+      has no unambiguous ISO reading: ``time.fromisoformat`` takes
+      ``'10'`` to 10:00 and ``'2024'`` to 20:24, so decoding times
+      would rewrite ordinary numeric strings. A caller that knows a
+      field holds a time converts it itself.
     """
 
     def __init__(self, **kw):
         super().__init__(object_hook=self._parse_date_hook, **kw)
 
     def _parse_date_hook(self, obj):
-        if isinstance(obj, dict):
-            for key in obj:
-                if isinstance(obj[key], str):
-                    # Read only what isoformat() writes. The lenient
-                    # dateutil parser this replaced filled a missing
-                    # field from TODAY, so '10' and 'March' became
-                    # datetimes and the same payload decoded
-                    # differently on different days.
-                    with contextlib.suppress(ValueError, TypeError):
-                        obj[key] = datetime.datetime.fromisoformat(obj[key])
-
+        if not isinstance(obj, dict):
+            return obj
+        for key, value in obj.items():
+            if not isinstance(value, str) or not _ISO_DATE_OR_DATETIME.match(value):
+                continue
+            text = value
+            # Rewrite the two forms 3.10 rejects but 3.11 reads, so the
+            # gate above decides the outcome on its own.
+            if text.isdigit():
+                text = f'{text[:4]}-{text[4:6]}-{text[6:]}'
+            if text.endswith('Z'):
+                text = f'{text[:-1]}+00:00'
+            # A shape that matched can still name no real day, e.g.
+            # '2014-13-45'.
+            with contextlib.suppress(ValueError):
+                obj[key] = datetime.datetime.fromisoformat(text)
         return obj
 
 

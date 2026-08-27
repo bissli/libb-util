@@ -108,7 +108,7 @@ def test_json_iso_decoder_leaves_non_dates_alone():
 def test_json_iso_decoder_reads_basic_format_dates():
     """Pin the one numeric string the decoder still converts.
 
-    An 8-digit string is ISO 8601 basic format, so fromisoformat reads it
+    An 8-digit string is ISO 8601 basic format, so the decoder reads it
     as a date. This is the deliberate edge of the contract above, not an
     oversight: a caller storing 8-digit ids as strings gets dates back.
 
@@ -124,6 +124,37 @@ def test_json_iso_decoder_reads_basic_format_dates():
     assert decoded['a'] == datetime.datetime(2014, 10, 2, 0, 0)
     assert decoded['b'] == '2024'
     assert decoded['c'] == '201410'
+
+
+def test_json_iso_decoder_reads_one_set_on_every_interpreter():
+    """Verify the accepted shapes do not follow the interpreter's own parser.
+
+    datetime.fromisoformat took ISO basic datetimes, week dates and a
+    trailing 'Z' in 3.11. Handing it the string unchecked therefore
+    decodes one payload two ways across the versions this package
+    supports, so the decoder pins the set itself.
+
+    Mutation: dropping the regex gate, or the 'Z' rewrite, either of
+        which makes these values decode differently on 3.10 than on
+        3.11+.
+    Oracle: hand-listed shapes, each asserted against the reading that
+        must hold on every supported version.
+    """
+    from libb.webapp import JSONDecoderISODate
+
+    decoded = JSONDecoderISODate().decode(
+        '{"basic_dt": "20141002T103000", "mixed": "20141002T10:30:00",'
+        ' "week": "2014W011",'
+        ' "week_ext": "2014-W01-1", "tz_nocolon": "2014-10-02T10:30:00+0000",'
+        ' "utc": "2014-10-02T10:30:00Z", "milli": "2014-10-02T10:30:00.250"}')
+    assert decoded['basic_dt'] == '20141002T103000'
+    assert decoded['mixed'] == '20141002T10:30:00'
+    assert decoded['week'] == '2014W011'
+    assert decoded['week_ext'] == '2014-W01-1'
+    assert decoded['tz_nocolon'] == '2014-10-02T10:30:00+0000'
+    assert decoded['utc'] == datetime.datetime(
+        2014, 10, 2, 10, 30, tzinfo=datetime.timezone.utc)
+    assert decoded['milli'] == datetime.datetime(2014, 10, 2, 10, 30, 0, 250000)
 
 
 def test_json_iso_encoder_writes_a_time():
