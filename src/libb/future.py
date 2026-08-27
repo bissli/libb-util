@@ -12,34 +12,43 @@ class Future:
     Runs a time-consuming function in a separate thread while allowing
     the main thread to continue uninterrupted.
 
-    :param func: Function to run in background thread.
-    :param param: Arguments to pass to the function.
+    Parameters
+    ----------
+    func : callable
+        Function to run in a background thread.
+    *param
+        Arguments passed to ``func``.
 
-    .. note::
-        Algorithm from http://code.activestate.com/recipes/84317/
+    Notes
+    -----
+    - Algorithm from http://code.activestate.com/recipes/84317/
+    - Construction returns at once and the result is awaited on call.
+      The examples below bound the elapsed time rather than read it,
+      because a coarse clock reports zero for the construction and
+      ``ceil`` of zero is not the 1 an exact reading would expect.
 
-    Example::
+    Examples
+    --------
+    >>> import time
+    >>> def wait_and_add(x):
+    ...     time.sleep(2)
+    ...     return x+1
 
-        >>> import time, math
-        >>> def wait_and_add(x):
-        ...     time.sleep(2)
-        ...     return x+1
+    Constructing the Future does not wait 2 seconds:
 
-    Won't wait 2 seconds here::
+    >>> start = time.time()
+    >>> z = Future(wait_and_add, 2)
+    >>> 1+2
+    3
+    >>> time.time() - start < 2
+    True
 
-        >>> start = time.time()
-        >>> z = Future(wait_and_add, 2)
-        >>> 1+2
-        3
-        >>> int(math.ceil(time.time()-start))
-        1
+    Calling it waits for the result:
 
-    At this point we need to wait the 2 seconds::
-
-        >>> z()
-        3
-        >>> int(math.ceil(time.time()-start)) >= 2
-        True
+    >>> z()
+    3
+    >>> time.time() - start >= 2
+    True
     """
 
     def __init__(self, func, *param):
