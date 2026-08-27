@@ -97,18 +97,32 @@ def make_tmpdir(prefix=None) -> Path:
 
 
 def expandabspath(p: str) -> Path:
-    """Expand path to absolute path with environment variables and user expansion.
+    """Expand environment variables and ``~``, then make the path absolute.
 
-    :param str p: Path string to expand.
-    :returns: Absolute path with all expansions applied.
-    :rtype: Path
+    Parameters
+    ----------
+    p : str
+        Path string to expand.
 
-    Example::
+    Returns
+    -------
+    Path
+        The expanded path, resolved against the working directory.
 
-        >>> import os
-        >>> os.environ['SPAM'] = 'eggs'
-        >>> assert expandabspath('~/$SPAM') == Path(os.path.expanduser('~/eggs'))
-        >>> assert expandabspath('/foo') == Path('/foo')
+    Notes
+    -----
+    - A rooted path carrying no drive ('/foo') is not absolute on
+      Windows, so resolving it attaches the current drive and returns
+      'D:/foo'. Compare against ``os.path.abspath`` rather than a
+      literal to state an expectation that holds on either platform.
+
+    Examples
+    --------
+    >>> import os
+    >>> os.environ['SPAM'] = 'eggs'
+    >>> assert expandabspath('~/$SPAM') == Path(os.path.expanduser('~/eggs'))
+    >>> assert expandabspath('/foo') == Path(os.path.abspath('/foo'))
+    >>> assert expandabspath('foo').is_absolute()
     """
     return Path(Path(os.path.expandvars(p)).expanduser()).resolve()
 
