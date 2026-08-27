@@ -32,13 +32,13 @@ DIST_TO_MODULE = {
 
 def star_imported_modules():
     """Names of the submodules ``__init__.py`` star-imports, in file order."""
-    init = (SRC / '__init__.py').read_text()
+    init = (SRC / '__init__.py').read_text(encoding='utf-8')
     return re.findall(r'^from libb\.(\w+) import \*', init, re.M)
 
 
 def declared_base_modules():
     """Import names of the distributions in ``[project] dependencies``."""
-    text = PYPROJECT.read_text()
+    text = PYPROJECT.read_text(encoding='utf-8')
     block = text[text.index('dependencies = ['):]
     block = block[:block.index(']')]
     names = [re.split(r'[<>=!~ ]', line.strip().strip('",'))[0].lower()
@@ -59,7 +59,10 @@ def test_star_imported_modules_declare_their_imports():
     declared = declared_base_modules()
     offenders = {}
     for name in star_imported_modules():
-        tree = ast.parse((SRC / f'{name}.py').read_text())
+        # Python source is UTF-8 (PEP 3120), but read_text defaults
+        # to the platform encoding: text.py's mojibake examples
+        # crash a cp1252 read on Windows.
+        tree = ast.parse((SRC / f'{name}.py').read_text(encoding='utf-8'))
         for node in tree.body:
             if isinstance(node, ast.Import):
                 imported = [alias.name.split('.')[0] for alias in node.names]
