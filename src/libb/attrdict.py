@@ -77,6 +77,16 @@ class attrdict(dict):
         Traceback (most recent call last):
             ...
         AttributeError: b
+
+    A method name is not data, so the fallback stops before the names
+    this class defines. Store the key to read one::
+
+        >>> a['keys']
+        Traceback (most recent call last):
+            ...
+        KeyError: 'keys'
+        >>> attrdict(keys=3)['keys']
+        3
     """
 
     __slots__ = ()
@@ -100,10 +110,38 @@ class attrdict(dict):
             raise AttributeError(attrname) from None
 
     def __getitem__(self, attrname):
+        """Read a key, or a subclass attribute of that name.
+
+        Parameters
+        ----------
+        attrname : str
+            Key to read. A stored key always wins.
+
+        Returns
+        -------
+        Any
+            The stored value, else the attribute of that name.
+
+        Raises
+        ------
+        KeyError
+            The name is neither a key, nor an attribute the subclass
+            declares.
+
+        Notes
+        -----
+        - The attribute fallback is what makes a declared property read
+          the same three ways: `obj['x']`, `obj.x` and `obj.get('x')`.
+        - It stops at this class's own method names, which are data to
+          nobody. That stop is what keeps `name in obj`, `obj[name]` and
+          `obj.get(name, default)` answering alike for every name.
+        """
         try:
             return dict.__getitem__(self, attrname)
         except KeyError:
             pass
+        if attrname in _MAPPING_API:
+            raise KeyError(attrname)
         try:
             return dict.__getattribute__(self, attrname)
         except AttributeError:
@@ -134,10 +172,9 @@ class attrdict(dict):
 
         Notes
         -----
-        - Copying into `type(self)` rather than `attrdict` is what keeps a
-          subclass's read behavior. A `lazydict` copied into an `attrdict`
-          stops resolving its stored callables, and the values that
-          resolved before the copy come back as raw functions after it.
+        - The class carries the read behavior, so a copy has to keep it:
+          a `lazydict` copied into an `attrdict` hands back a stored
+          callable instead of resolving it.
         """
         newdict = self.__class__(dict.copy(self))
         return newdict.update(**kwargs)
@@ -159,8 +196,7 @@ class attrdict(dict):
 
         Notes
         -----
-        - The class is preserved for the reason `copy` gives: a merge that
-          downgraded a `lazydict` would silently stop resolving.
+        - The class is kept for the reason `copy` gives.
         """
         return self.__class__(dict.__or__(self, other))
 
@@ -178,6 +214,10 @@ class attrdict(dict):
     def __ior__(self, other):
         dict.update(self, other)
         return self
+
+
+_MAPPING_API = frozenset(name for name in dir(attrdict)
+                         if not name.startswith('_'))
 
 
 class lazydict(attrdict):

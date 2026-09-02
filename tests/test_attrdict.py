@@ -25,30 +25,67 @@ class TestAttrdict:
         assert d.x == 11
 
     def test_attrdict_get_item_prefers_key_over_attribute(self):
-        """Verify a stored key wins over a same-named dict method.
+        """Verify a stored key wins over a same-named method.
 
-        Mutation: __getitem__ trying dict.__getattribute__ before
-            dict.__getitem__, so the bound method shadows the key.
-        Oracle: hand-computed - 'keys' is both a real dict method and a
-            stored key, and only the stored value is correct.
+        Mutation: __getitem__ testing _MAPPING_API before
+            dict.__getitem__, which would hide a stored 'keys' behind the
+            KeyError meant for the method.
+        Oracle: hand-computed - 'keys' names both a method and a stored
+            key, and only the stored value is correct.
         """
         d = attrdict(x=10, keys='shadowed')
         assert d['x'] == 10
         assert d['keys'] == 'shadowed'
-        assert callable(attrdict(x=10)['keys'])
 
-    def test_attrdict_contains_ignores_attribute_fallback(self):
-        """Verify `in` consults only the mapping, never the attributes.
+    def test_attrdict_contains_agrees_with_getitem_on_method_names(self):
+        """Verify `in`, [] and get() answer alike for a method name.
 
-        Mutation: __contains__ defined in terms of __getitem__, which
-            would report every dict method as a member.
-        Oracle: 'keys' resolves through d['keys'] yet must not be `in` d.
+        Mutation: dropping the _MAPPING_API guard in __getitem__, which
+            answers 'keys' with a bound method while `in` still says no.
+        Oracle: the three access paths against each other, plus the
+            caller's own default of 0 rather than a truthy method.
         """
         d = attrdict(x=10)
         assert 'x' in d
         assert 'w' not in d
+
         assert 'keys' not in d
-        assert callable(d['keys'])
+        with pytest.raises(KeyError):
+            d['keys']
+        assert d.get('keys', 0) == 0
+
+    def test_attrdict_subclass_surface_stays_reachable(self):
+        """Verify everything a subclass declares reads as a key.
+
+        The guard names only this class's own methods, so a subclass owns
+        the rest of the name space.
+
+        Mutation: guarding on `callable(attr)` or on dir(type(self))
+            instead of _MAPPING_API, either of which also swallows the
+            subclass's own method or its whole attribute surface.
+        Oracle: 1 from the property, 5 from the class attribute, and a
+            callable for the declared method, against the KeyError the
+            same lookup gives for 'keys'.
+        """
+
+        class Declaring(attrdict):
+            __slots__ = ()
+
+            LIMIT = 5
+
+            @property
+            def scaled(self):
+                return 1
+
+            def helper(self):
+                return 'mine'
+
+        d = Declaring(a=1)
+        assert d['scaled'] == d.scaled == d.get('scaled') == 1
+        assert d['LIMIT'] == 5
+        assert callable(d['helper'])
+        with pytest.raises(KeyError):
+            d['keys']
 
     def test_attrdict_get(self):
         """Verify get() returns the caller's default on a miss.
@@ -506,6 +543,20 @@ class TestEmptydict:
         assert 'c' not in a
         assert a['c'] is None
         assert hasattr(a, 'c')
+
+    def test_emptydict_method_name_reads_as_absent(self):
+        """Verify a method name reads as None, honoring this class's rule.
+
+        Mutation: dropping the _MAPPING_API guard in attrdict, which
+            answers 'keys' with a bound method and so breaks the "None
+            for a non-existing key" contract.
+        Oracle: None for the method name, against the 3 a stored key of
+            the same name returns.
+        """
+        a = emptydict(a=1)
+        assert a['keys'] is None
+        assert a.get('keys') is None
+        assert emptydict(keys=3)['keys'] == 3
 
     def test_emptydict_get(self):
         """Verify get() still honors a caller-supplied default.
