@@ -416,6 +416,46 @@ class TestLazydict:
         assert a['c'] is add_one
         assert a.c == 2
 
+    def test_lazydict_copy_keeps_resolving(self):
+        """Verify copy() returns a lazydict, not a downgraded attrdict.
+
+        Mutation: copying into attrdict(...) rather than type(self), which
+            leaves the copy holding the raw function forever.
+        Oracle: the copy resolves to the same 3 the original does, and
+            reflects a later edit to its own operand.
+        """
+        a = lazydict(a=1, b=2, c=lambda x: x.a + x.b)
+        cp = a.copy()
+        assert type(cp) is lazydict
+        assert cp.c == a.c == 3
+        cp.a = 99
+        assert cp.c == 101
+
+    def test_lazydict_or_keeps_resolving(self):
+        """Verify | and reverse | both return a lazydict.
+
+        Mutation: merging into attrdict(...) rather than type(self), so a
+            merged row stops resolving its computed columns.
+        Oracle: c resolves to 30 on both operand orders, against the
+            hand-computed 10 + 20.
+        """
+        a = lazydict(a=10, c=lambda x: x.a + x.b)
+        assert (a | {'b': 20}).c == 30
+        assert ({'b': 20} | a).c == 30
+
+    def test_lazydict_copy_is_independent(self):
+        """Verify a copy shares no storage with the original.
+
+        Mutation: returning self from copy(), or dropping update()'s
+            return so the kwargs overrides are discarded.
+        Oracle: the original keeps 1 after the copy moves to 11, and the
+            kwargs override lands only on the copy.
+        """
+        a = lazydict(a=1)
+        cp = a.copy(a=11)
+        assert a.a == 1
+        assert cp.a == 11
+
 
 class TestEmptydict:
     """Tests for emptydict class."""

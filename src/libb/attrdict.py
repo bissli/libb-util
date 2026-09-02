@@ -120,7 +120,26 @@ class attrdict(dict):
         return self
 
     def copy(self, **kwargs):
-        newdict = attrdict(dict.copy(self))
+        """Shallow-copy into the same class, then apply `kwargs` as overrides.
+
+        Parameters
+        ----------
+        **kwargs
+            Keys written over the copy after it is made.
+
+        Returns
+        -------
+        attrdict
+            A new instance of `type(self)`, never of `attrdict` itself.
+
+        Notes
+        -----
+        - Copying into `type(self)` rather than `attrdict` is what keeps a
+          subclass's read behavior. A `lazydict` copied into an `attrdict`
+          stops resolving its stored callables, and the values that
+          resolved before the copy come back as raw functions after it.
+        """
+        newdict = self.__class__(dict.copy(self))
         return newdict.update(**kwargs)
 
     @classmethod
@@ -130,10 +149,31 @@ class attrdict(dict):
         return cls(dict.fromkeys(iterable, value))
 
     def __or__(self, other):
-        return attrdict(dict.__or__(self, other))
+        """Merge with `other` on the right, keeping this class.
+
+        Returns
+        -------
+        attrdict
+            A new instance of `type(self)`, with `other`'s values winning
+            a shared key.
+
+        Notes
+        -----
+        - The class is preserved for the reason `copy` gives: a merge that
+          downgraded a `lazydict` would silently stop resolving.
+        """
+        return self.__class__(dict.__or__(self, other))
 
     def __ror__(self, other):
-        return attrdict(dict.__ror__(self, other))
+        """Merge with `other` on the left, keeping this class.
+
+        Returns
+        -------
+        attrdict
+            A new instance of `type(self)`, with this mapping's values
+            winning a shared key, since it is the right operand.
+        """
+        return self.__class__(dict.__ror__(self, other))
 
     def __ior__(self, other):
         dict.update(self, other)
