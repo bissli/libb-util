@@ -1,5 +1,6 @@
 """Tests for the tokenauth module."""
 
+import datetime
 import functools
 import hashlib
 
@@ -49,14 +50,28 @@ class StubDynamo:
 
 
 def _item(client_id, key_sha256, active=True,
-          created_at='2026-01-01T00:00:00+00:00'):
-    return {
+          created_at='2026-01-01T00:00:00+00:00', expires_at=None):
+    item = {
         'client_id': {'S': client_id},
         'client_name': {'S': client_id},
         'key_sha256': {'S': key_sha256},
         'active': {'BOOL': active},
         'created_at': {'S': created_at},
         }
+    if expires_at is not None:
+        item['expires_at'] = {'S': expires_at}
+    return item
+
+
+def _offset_iso(hours, tz=datetime.timezone.utc, suffix=None):
+    """Return an ISO-8601 stamp `hours` from now, for expiry fixtures."""
+    moment = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+        hours=hours)
+    if suffix == 'Z':
+        return moment.replace(tzinfo=None).isoformat() + 'Z'
+    if tz is None:
+        return moment.replace(tzinfo=None).isoformat()
+    return moment.astimezone(tz).isoformat()
 
 
 def _conditional_error():
@@ -109,6 +124,86 @@ class TestKeyActiveInRegistry:
         del item['client_id']
         assert tokenauth.key_active_in_registry(
             digest, table='t', dynamodb_client=StubDynamo(items=[item])) is None
+
+    def test_expired_key_denies_and_live_key_authorizes(self):
+        """Verify the expiry comparison refuses past and admits future.
+
+        Mutation: the expiry comparison flipped (`expiry <= now` to
+            `expiry >= now`), which authorizes every stale key and
+            refuses every live one.
+        Oracle: two rows straddling now by one hour either side, so a
+            flipped comparison swaps both assertions at once.
+        """
+        digest = hashlib.sha256(b'live').hexdigest()
+        stale = hashlib.sha256(b'stale').hexdigest()
+        stub = StubDynamo(items=[
+            _item('live', digest, expires_at=_offset_iso(1)),
+            _item('stale', stale, expires_at=_offset_iso(-1)),
+            ])
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub) == 'live'
+        assert tokenauth.key_active_in_registry(
+            stale, table='t', dynamodb_client=stub) is None
+
+    def test_row_without_expires_at_authorizes_until_require_expiry(self):
+        """Verify absent expiry is a policy switch, not a silent default.
+
+        Mutation: the `require_expiry` guard dropped, so a row carrying
+            no expires_at authorizes even once the registry is closed.
+        Oracle: the same row read twice, once per flag value; only the
+            flag differs, so the guard is the sole cause of the change.
+        """
+        digest = hashlib.sha256(b'k').hexdigest()
+        stub = StubDynamo(items=[_item('c1', digest)])
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub) == 'c1'
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub,
+            require_expiry=True) is None
+
+    def test_unparseable_expires_at_denies(self):
+        """Verify a corrupt expires_at fails closed rather than open.
+
+        Mutation: the ValueError arm returning the client_id, or falling
+            through past the expiry block, so a garbage timestamp reads
+            as no expiry at all and authorizes forever.
+        Oracle: a row identical to an authorizing one but for the
+            timestamp text, which alone must flip the result to None.
+        """
+        digest = hashlib.sha256(b'k').hexdigest()
+        stub = StubDynamo(items=[_item('c1', digest, expires_at='not-a-date')])
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub) is None
+
+    def test_naive_expires_at_is_read_as_utc(self):
+        """Verify a naive stored expiry is compared as UTC, not local.
+
+        Mutation: dropping the `replace(tzinfo=utc)` line, which raises
+            TypeError comparing naive to aware and takes the whole
+            request path down rather than denying.
+        Oracle: a naive stamp one hour ahead in UTC, which must
+            authorize; a backfilled row is the realistic source.
+        """
+        digest = hashlib.sha256(b'k').hexdigest()
+        stub = StubDynamo(items=[
+            _item('c1', digest, expires_at=_offset_iso(1, tz=None))])
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub) == 'c1'
+
+    def test_expiry_is_checked_after_the_active_flag(self):
+        """Verify a revoked client stays denied whatever its expiry says.
+
+        Mutation: the expiry block replacing the active check rather
+            than following it, which revives every revoked client whose
+            expires_at is still ahead.
+        Oracle: a row that is revoked AND unexpired - the one
+            combination that tells the two gates apart.
+        """
+        digest = hashlib.sha256(b'k').hexdigest()
+        stub = StubDynamo(items=[
+            _item('c1', digest, active=False, expires_at=_offset_iso(1))])
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub) is None
 
     def test_missing_client_returns_none(self):
         """Verify an unknown key hash denies."""
@@ -181,6 +276,114 @@ class TestMintKey:
             tokenauth.mint_key('c1', table='t', dynamodb_client=stub)
 
 
+class TestMintKeyExpiry:
+    """Tests for mint_key's expires_at option."""
+
+    def test_ttl_days_lands_exactly_that_many_days_ahead(self):
+        """Verify expires_at is created_at plus the requested days.
+
+        Mutation: timedelta(hours=ttl_days) in place of days, or the
+            offset added to a fixed epoch rather than to created_at.
+        Oracle: the item's own created_at differenced against its
+            expires_at, hand-computed as exactly 90 days.
+        """
+        stub = StubDynamo()
+        tokenauth.mint_key('c1', table='t', ttl_days=90, dynamodb_client=stub)
+        item = stub.put_calls[0]['Item']
+        created = datetime.datetime.fromisoformat(item['created_at']['S'])
+        expires = datetime.datetime.fromisoformat(item['expires_at']['S'])
+        assert expires - created == datetime.timedelta(days=90)
+
+    def test_no_ttl_writes_no_expires_at_attribute(self):
+        """Verify the default mint stays non-expiring for old callers.
+
+        Mutation: defaulting ttl_days to DEFAULT_TTL_DAYS in the
+            function rather than in the CLI, which silently expires
+            every key an existing API caller mints.
+        Oracle: the attribute's presence in the put_item payload, which
+            is what a registry row is built from.
+        """
+        stub = StubDynamo()
+        tokenauth.mint_key('c1', table='t', dynamodb_client=stub)
+        assert 'expires_at' not in stub.put_calls[0]['Item']
+
+    @pytest.mark.parametrize('ttl', [0, -1])
+    def test_non_positive_ttl_raises_before_writing(self, ttl):
+        """Verify a dead-on-arrival lifetime is refused, not minted.
+
+        Mutation: the `ttl_days <= 0` guard weakened to `< 0`, which
+            lets 0 through and stores a key expired at the instant it
+            prints - unrecoverable, since the raw key shows once.
+        Oracle: no put_item call at all, which proves the guard runs
+            before the write rather than after it.
+        """
+        stub = StubDynamo()
+        with pytest.raises(ValueError):
+            tokenauth.mint_key('c1', table='t', ttl_days=ttl,
+                               dynamodb_client=stub)
+        assert stub.put_calls == []
+
+
+class TestRenewKey:
+    """Tests for renew_key."""
+
+    def test_renew_writes_expiry_from_now_and_touches_nothing_else(self):
+        """Verify renew moves expires_at alone, measured from now.
+
+        Mutation: the UpdateExpression also setting active or
+            key_sha256, which would revive a revoked client or destroy a
+            live credential during routine maintenance.
+        Oracle: the UpdateExpression string and its value map, both
+            hand-compared against the one attribute renew may touch.
+        """
+        pytest.importorskip('botocore')
+        stub = StubDynamo()
+        before = datetime.datetime.now(datetime.timezone.utc)
+        returned = tokenauth.renew_key('c1', table='t', ttl_days=30,
+                                       dynamodb_client=stub)
+        call = stub.update_calls[0]
+        assert call['UpdateExpression'] == 'SET expires_at = :e'
+        assert set(call['ExpressionAttributeValues']) == {':e'}
+        assert call['ExpressionAttributeValues'][':e']['S'] == returned
+        expires = datetime.datetime.fromisoformat(returned)
+        assert datetime.timedelta(days=30) <= expires - before <= (
+            datetime.timedelta(days=30, seconds=60))
+
+    def test_renew_does_not_stack_onto_an_existing_expiry(self):
+        """Verify the new expiry runs from now, never from the old one.
+
+        Mutation: computing the new expiry by adding ttl_days to the
+            stored expires_at, so repeated renewals push a key years out
+            and the 90-day ceiling stops bounding anything.
+        Oracle: two renewals of the same client, whose returned expiries
+            must differ by the wall-clock gap between them and not by a
+            second ttl_days.
+        """
+        pytest.importorskip('botocore')
+        stub = StubDynamo()
+        first = tokenauth.renew_key('c1', table='t', ttl_days=30,
+                                    dynamodb_client=stub)
+        second = tokenauth.renew_key('c1', table='t', ttl_days=30,
+                                     dynamodb_client=stub)
+        gap = (datetime.datetime.fromisoformat(second)
+               - datetime.datetime.fromisoformat(first))
+        assert gap < datetime.timedelta(seconds=60)
+
+    def test_missing_client_raises(self):
+        """Verify renewing an unknown client raises ClientNotFoundError.
+
+        Mutation: the ConditionExpression dropped, which would CREATE a
+            bare row carrying an expires_at and no key_sha256 - a
+            registry entry that authorizes nobody and hides a typo.
+        Oracle: the botocore ConditionalCheckFailed error mapped to the
+            module's own exception type.
+        """
+        pytest.importorskip('botocore')
+        stub = StubDynamo(update_error=_conditional_error())
+        with pytest.raises(tokenauth.ClientNotFoundError):
+            tokenauth.renew_key('c1', table='t', dynamodb_client=stub)
+
+
 class TestRevokeKey:
     """Tests for revoke_key."""
 
@@ -216,6 +419,30 @@ class TestListClients:
             tokenauth.ClientRecord('zeta', 'active', '2026-02-01'),
             ]
         assert rows[0].status == 'revoked'
+
+    def test_expires_at_reaches_the_record(self):
+        """Verify a row's expiry survives into the ClientRecord.
+
+        Mutation: the expires_at field dropped from the ClientRecord
+            construction, which defaults it to '' and makes every
+            expiring key read as non-expiring in every listing.
+        Oracle: a hand-set stamp on the item, compared literally.
+        """
+        stub = StubDynamo(items=[
+            _item('c1', 'h1', expires_at='2026-06-01T00:00:00+00:00')])
+        rows = tokenauth.list_clients(table='t', dynamodb_client=stub)
+        assert rows[0].expires_at == '2026-06-01T00:00:00+00:00'
+
+    def test_row_without_expiry_reports_empty_not_missing(self):
+        """Verify a legacy row still builds a well-formed record.
+
+        Mutation: reading expires_at without a default, which raises
+            KeyError and takes down a listing over any pre-expiry row.
+        Oracle: the field's value on a row that carries none.
+        """
+        stub = StubDynamo(items=[_item('c1', 'h1')])
+        assert tokenauth.list_clients(
+            table='t', dynamodb_client=stub)[0].expires_at == ''
 
 
 class TestRegistryCheckSeam:
@@ -459,3 +686,71 @@ class TestRunCli:
         rc = tokenauth.run_cli(['--table', 't', 'list'])
         assert rc == 0
         assert 'c1' in capsys.readouterr().out
+
+    def test_add_defaults_to_the_ninety_day_ttl(self, capsys, monkeypatch):
+        """Verify the CLI mints expiring keys where the API does not.
+
+        Mutation: the --ttl-days default dropped to None, which returns
+            the CLI to minting never-expiring keys and leaves the
+            registry uncloseable while every command still reads right.
+        Oracle: the ttl_days keyword mint_key is actually handed,
+            captured by a spy, against DEFAULT_TTL_DAYS.
+        """
+        seen = {}
+        monkeypatch.setattr(tokenauth, 'mint_key',
+                            lambda *a, **k: seen.update(k) or 'rawkey')
+        assert tokenauth.run_cli(['--table', 't', 'add', 'c1']) == 0
+        assert seen['ttl_days'] == tokenauth.DEFAULT_TTL_DAYS
+        assert 'never' not in capsys.readouterr().out
+
+    def test_no_expiry_overrides_the_ttl(self, monkeypatch):
+        """Verify --no-expiry wins over a --ttl-days on the same line.
+
+        Mutation: the flags read in the other order, so --no-expiry is
+            ignored whenever --ttl-days is also given and the operator's
+            explicit never-expire request silently expires.
+        Oracle: both flags passed together; ttl_days must arrive None.
+        """
+        seen = {}
+        monkeypatch.setattr(tokenauth, 'mint_key',
+                            lambda *a, **k: seen.update(k) or 'rawkey')
+        tokenauth.run_cli(['--table', 't', 'add', 'c1',
+                           '--ttl-days', '30', '--no-expiry'])
+        assert seen['ttl_days'] is None
+
+    def test_renew_missing_returns_1(self, monkeypatch):
+        """Verify renew on an unknown client returns exit code 1.
+
+        Mutation: the ClientNotFoundError arm omitted from the renew
+            branch, so the traceback escapes and a script reading the
+            exit code sees a crash rather than a handled refusal.
+        Oracle: the exit code alone, against the 1 the other refusal
+            branches already return.
+        """
+        def _boom(*a, **k):
+            raise tokenauth.ClientNotFoundError('c1')
+        monkeypatch.setattr(tokenauth, 'renew_key', _boom)
+        assert tokenauth.run_cli(['--table', 't', 'renew', 'c1']) == 1
+
+    def test_list_flags_an_expired_row_and_spares_a_live_one(
+            self, capsys, monkeypatch):
+        """Verify the EXPIRED marker parses rather than compares text.
+
+        Mutation: comparing expires_at against an ISO string of now, as
+            text. A 'Z'-suffixed future stamp sorts below a '+00:00'
+            now, so a live key is labelled EXPIRED and an operator
+            re-mints a working credential.
+        Oracle: two rows an hour either side of now, the future one
+            carrying the 'Z' spelling that breaks the text comparison.
+        """
+        monkeypatch.setattr(tokenauth, 'list_clients', lambda *a, **k: [
+            tokenauth.ClientRecord('live', 'active', '2026-01-01',
+                                   _offset_iso(1, suffix='Z')),
+            tokenauth.ClientRecord('stale', 'active', '2026-01-01',
+                                   _offset_iso(-1)),
+            ])
+        assert tokenauth.run_cli(['--table', 't', 'list']) == 0
+        live, stale = [line for line in capsys.readouterr().out.splitlines()
+                       if line.strip()]
+        assert 'EXPIRED' not in live
+        assert 'EXPIRED' in stale

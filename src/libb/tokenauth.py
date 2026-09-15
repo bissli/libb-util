@@ -42,6 +42,19 @@ Expected table shape::
     key_sha256  (S)  -- GSI 'key_sha256-index', projection ALL
     active      (BOOL)
     created_at  (S)  -- ISO-8601 UTC
+    expires_at  (S)  -- ISO-8601 UTC, optional
+
+Key expiry is opt-in at both ends, so a registry that predates it keeps
+working unchanged:
+
+- :func:`mint_key` and :func:`renew_key` write ``expires_at`` only when
+  given a ``ttl_days``. The ``libb-tokenauth`` CLI passes
+  ``DEFAULT_TTL_DAYS`` unless told otherwise, so keys minted through the
+  CLI expire and keys minted through the API do not.
+- :func:`key_active_in_registry` denies a row whose ``expires_at`` has
+  passed. A row carrying none is treated as non-expiring until
+  ``require_expiry`` is set, which is the switch that closes a registry
+  once every row has been backfilled.
 
 The ``boto3`` dependency is optional: install ``libb-util[tokenauth]``.
 """
@@ -55,6 +68,7 @@ from typing import Any, Literal, NamedTuple
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    'DEFAULT_TTL_DAYS',
     'KEY_SHA256_INDEX',
     'STATIC_TOKEN_CLIENT_ID',
     'UNKNOWN_CLIENT_ID',
@@ -65,6 +79,7 @@ __all__ = [
     'key_active_in_registry',
     'verify_token',
     'mint_key',
+    'renew_key',
     'revoke_key',
     'list_clients',
     'ApiTokenMiddleware',
@@ -75,6 +90,8 @@ KEY_SHA256_INDEX = 'key_sha256-index'
 STATIC_TOKEN_CLIENT_ID = 'static-token'
 
 UNKNOWN_CLIENT_ID = 'unknown'
+
+DEFAULT_TTL_DAYS = 90
 
 
 def _as_client_id(result: Any) -> str | None:
@@ -96,11 +113,26 @@ def _as_client_id(result: Any) -> str | None:
 
 
 class ClientRecord(NamedTuple):
-    """A registry client row: id, status, and creation time."""
+    """A registry client row: id, status, creation time, and expiry.
+
+    Attributes
+    ----------
+    client_id : str
+        The registry partition key.
+    status : Literal['active', 'revoked']
+        Read off the ``active`` flag alone, so a row whose ``expires_at``
+        has passed still reads ``active`` here. Expiry is enforced at
+        :func:`key_active_in_registry`, not recorded on the row.
+    created_at : str
+        ISO-8601 UTC.
+    expires_at : str
+        ISO-8601 UTC, empty when the row carries no expiry.
+    """
 
     client_id: str
     status: Literal['active', 'revoked']
     created_at: str
+    expires_at: str = ''
 
 
 class ClientExistsError(Exception):
@@ -144,23 +176,44 @@ def key_active_in_registry(
     table: str,
     region: str | None = None,
     dynamodb_client: Any = None,
+    require_expiry: bool = False,
 ) -> str | None:
-    """Return the client_id a hashed key maps to, if that client is active.
+    """Return the client_id a hashed key maps to, if that client is usable.
 
     Queries the ``key_sha256-index`` GSI for a single match and reports the
     matched client's identity. Does not catch errors and does not cache --
     callers decide both. The GSI query already returns the whole row, so
     surfacing the identity costs nothing over the previous boolean and is
-    what lets a caller attribute a request to a named client. An active row
-    whose ``client_id`` is missing or empty denies, rather than authorizing
-    an unattributable caller.
+    what lets a caller attribute a request to a named client.
 
-    :param key_sha256: SHA-256 hex digest of the presented key.
-    :param table: DynamoDB registry table name.
-    :param region: AWS region for a default boto3 client (optional).
-    :param dynamodb_client: Injected boto3 DynamoDB client (optional).
-    :returns: The matched ``client_id`` when the item exists and is
-        active, else None.
+    Parameters
+    ----------
+    key_sha256 : str
+        SHA-256 hex digest of the presented key.
+    table : str
+        DynamoDB registry table name.
+    region : str | None, default None
+        AWS region for a default boto3 client.
+    dynamodb_client : Any, default None
+        Injected boto3 DynamoDB client.
+    require_expiry : bool, default False
+        Deny a row that carries no ``expires_at``. Left off, such a row is
+        treated as non-expiring.
+
+    Returns
+    -------
+    str | None
+        The matched ``client_id`` when the row exists, is active, and has
+        not expired, else None.
+
+    Notes
+    -----
+    - Every denial is silent and returns None: an active row with no
+      ``client_id``, an expired row, and an unparseable ``expires_at``
+      alike. An unattributable or stale caller is refused rather than
+      authorized.
+    - A naive ``expires_at`` is read as UTC, matching what
+      :func:`mint_key` writes.
     """
     client = _dynamodb_client(dynamodb_client, region)
     response = client.query(
@@ -173,9 +226,30 @@ def key_active_in_registry(
     items = response.get('Items', [])
     if not items:
         return None
-    if not items[0].get('active', {}).get('BOOL', False):
+    item = items[0]
+    if not item.get('active', {}).get('BOOL', False):
         return None
-    return items[0].get('client_id', {}).get('S', '') or None
+    client_id = item.get('client_id', {}).get('S', '')
+    expires_at = item.get('expires_at', {}).get('S', '')
+    if not expires_at:
+        if require_expiry:
+            logger.warning(
+                'client %r carries no expires_at; denying (require_expiry)',
+                client_id)
+            return None
+    else:
+        try:
+            expiry = datetime.datetime.fromisoformat(expires_at)
+        except ValueError:
+            logger.warning(
+                'client %r has an unparseable expires_at %r; denying',
+                client_id, expires_at)
+            return None
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=datetime.timezone.utc)
+        if expiry <= datetime.datetime.now(datetime.timezone.utc):
+            return None
+    return client_id or None
 
 
 def verify_token(
@@ -186,6 +260,7 @@ def verify_token(
     region: str | None = None,
     dynamodb_client: Any = None,
     registry_check: Callable[[str], str | None] | None = None,
+    require_expiry: bool = False,
 ) -> str | None:
     """Authorize a presented key and return the identity, failing closed.
 
@@ -214,7 +289,11 @@ def verify_token(
         replacing the default :func:`key_active_in_registry` call. This is
         the seam for a cached lookup: wrap :func:`key_active_in_registry`
         in a TTL cache and pass it here. When given, ``table``/``region``/
-        ``dynamodb_client`` are not used.
+        ``dynamodb_client``/``require_expiry`` are not used, so a cached
+        lookup binds its own expiry policy at the point it is wrapped.
+    :param require_expiry: Forwarded to the default
+        :func:`key_active_in_registry` call, denying a row that carries no
+        ``expires_at``.
     :returns: The authorized client identity, else None. A static-token
         match yields ``STATIC_TOKEN_CLIENT_ID`` so break-glass use is
         distinguishable in a log from a registered client; a legacy
@@ -231,7 +310,7 @@ def verify_token(
             return _as_client_id(registry_check(hash_key(presented)))
         return key_active_in_registry(
             hash_key(presented), table=table, region=region,
-            dynamodb_client=dynamodb_client)
+            dynamodb_client=dynamodb_client, require_expiry=require_expiry)
     except Exception as exc:
         logger.warning('token registry lookup failed; denying (fail closed): %s', exc)
         return None
@@ -243,6 +322,7 @@ def mint_key(
     table: str,
     client_name: str | None = None,
     force: bool = False,
+    ttl_days: int | None = None,
     region: str | None = None,
     dynamodb_client: Any = None,
 ) -> str:
@@ -252,27 +332,62 @@ def mint_key(
     to overwrite an existing client unless ``force`` is set (rotation).
     The raw key is returned once and cannot be recovered afterward.
 
-    :param client_id: Unique client identifier (the partition key).
-    :param table: DynamoDB registry table name.
-    :param client_name: Display name (defaults to client_id).
-    :param force: Overwrite an existing client, rotating its key.
-    :param region: AWS region for a default boto3 client (optional).
-    :param dynamodb_client: Injected boto3 DynamoDB client (optional).
-    :returns: The raw, unhashed key (shown once).
-    :raises ClientExistsError: If client_id exists and force is False.
+    Parameters
+    ----------
+    client_id : str
+        Unique client identifier (the partition key).
+    table : str
+        DynamoDB registry table name.
+    client_name : str | None, default None
+        Display name. Defaults to ``client_id``.
+    force : bool, default False
+        Overwrite an existing client, rotating its key.
+    ttl_days : int | None, default None
+        Days until the key expires, written as ``expires_at``. None writes
+        no ``expires_at`` at all, which :func:`key_active_in_registry`
+        reads as non-expiring. ``DEFAULT_TTL_DAYS`` is what the CLI passes.
+    region : str | None, default None
+        AWS region for a default boto3 client.
+    dynamodb_client : Any, default None
+        Injected boto3 DynamoDB client.
+
+    Returns
+    -------
+    str
+        The raw, unhashed key, shown once.
+
+    Raises
+    ------
+    ClientExistsError
+        If ``client_id`` exists and ``force`` is False.
+    ValueError
+        If ``ttl_days`` is not positive. A zero or negative lifetime would
+        store a key already expired at the moment it is printed.
+
+    Notes
+    -----
+    - ``force`` rewrites the whole item, so a rotation re-derives
+      ``expires_at`` from the ``ttl_days`` of that call and never carries
+      the old one forward. Rotating with ``ttl_days=None`` clears the
+      expiry; :func:`renew_key` is the call that extends one in place.
     """
     from botocore.exceptions import ClientError
 
+    if ttl_days is not None and ttl_days <= 0:
+        raise ValueError(f'ttl_days must be positive, got {ttl_days}')
     client = _dynamodb_client(dynamodb_client, region)
     raw_key = secrets.token_urlsafe(32)
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    minted_at = datetime.datetime.now(datetime.timezone.utc)
     item = {
         'client_id': {'S': client_id},
         'client_name': {'S': client_name or client_id},
         'key_sha256': {'S': hash_key(raw_key)},
         'active': {'BOOL': True},
-        'created_at': {'S': now},
+        'created_at': {'S': minted_at.isoformat()},
         }
+    if ttl_days is not None:
+        expires_at = minted_at + datetime.timedelta(days=ttl_days)
+        item['expires_at'] = {'S': expires_at.isoformat()}
     kwargs = {'TableName': table, 'Item': item}
     if not force:
         kwargs['ConditionExpression'] = 'attribute_not_exists(client_id)'
@@ -283,6 +398,73 @@ def mint_key(
             raise ClientExistsError(client_id) from exc
         raise
     return raw_key
+
+
+def renew_key(
+    client_id: str,
+    *,
+    table: str,
+    ttl_days: int = DEFAULT_TTL_DAYS,
+    region: str | None = None,
+    dynamodb_client: Any = None,
+) -> str:
+    """Extend a client's expiry without touching its key.
+
+    Parameters
+    ----------
+    client_id : str
+        Client to extend.
+    table : str
+        DynamoDB registry table name.
+    ttl_days : int, default DEFAULT_TTL_DAYS
+        Days from now until the new expiry.
+    region : str | None, default None
+        AWS region for a default boto3 client.
+    dynamodb_client : Any, default None
+        Injected boto3 DynamoDB client.
+
+    Returns
+    -------
+    str
+        The new ``expires_at``, ISO-8601 UTC.
+
+    Raises
+    ------
+    ClientNotFoundError
+        If ``client_id`` is not in the registry.
+    ValueError
+        If ``ttl_days`` is not positive.
+
+    Notes
+    -----
+    - The new expiry runs from NOW, never from the old one, so renewing
+      early does not stack time onto a key and renewing late does not
+      leave a gap.
+    - Renewing an already-expired row revives it, because
+      :func:`key_active_in_registry` reads only the stored instant. Revoke
+      rather than let expire where the client must not come back.
+    - ``active`` is untouched, so this never revives a revoked client.
+    """
+    from botocore.exceptions import ClientError
+
+    if ttl_days <= 0:
+        raise ValueError(f'ttl_days must be positive, got {ttl_days}')
+    client = _dynamodb_client(dynamodb_client, region)
+    expires_at = (datetime.datetime.now(datetime.timezone.utc)
+                  + datetime.timedelta(days=ttl_days)).isoformat()
+    try:
+        client.update_item(
+            TableName=table,
+            Key={'client_id': {'S': client_id}},
+            UpdateExpression='SET expires_at = :e',
+            ExpressionAttributeValues={':e': {'S': expires_at}},
+            ConditionExpression='attribute_exists(client_id)',
+            )
+    except ClientError as exc:
+        if exc.response['Error']['Code'] == 'ConditionalCheckFailedException':
+            raise ClientNotFoundError(client_id) from exc
+        raise
+    return expires_at
 
 
 def revoke_key(
@@ -325,10 +507,21 @@ def list_clients(
 ) -> list[ClientRecord]:
     """Return every registered client, sorted by client_id.
 
-    :param table: DynamoDB registry table name.
-    :param region: AWS region for a default boto3 client (optional).
-    :param dynamodb_client: Injected boto3 DynamoDB client (optional).
-    :returns: Sorted :class:`ClientRecord` rows.
+    Parameters
+    ----------
+    table : str
+        DynamoDB registry table name.
+    region : str | None, default None
+        AWS region for a default boto3 client.
+    dynamodb_client : Any, default None
+        Injected boto3 DynamoDB client.
+
+    Returns
+    -------
+    list[ClientRecord]
+        Sorted rows. ``status`` reports the ``active`` flag alone, so an
+        expired row still reads ``active``; compare ``expires_at`` against
+        now to tell a live key from a stale one.
     """
     client = _dynamodb_client(dynamodb_client, region)
     paginator = client.get_paginator('scan')
@@ -338,6 +531,7 @@ def list_clients(
                 item.get('client_id', {}).get('S', ''),
                 'active' if item.get('active', {}).get('BOOL') else 'revoked',
                 item.get('created_at', {}).get('S', ''),
+                item.get('expires_at', {}).get('S', ''),
                 ) for item in page.get('Items', []))
     return sorted(rows)
 
@@ -458,14 +652,31 @@ async def _send_unauthorized(send: Any) -> None:
 
 
 def run_cli(argv: list[str] | None = None) -> int:
-    """Generic add/revoke/list CLI over a client-key registry table.
+    """Generic add/renew/revoke/list CLI over a client-key registry table.
 
-    Run as ``python -m libb.tokenauth --table <name> add|revoke|list ...``
-    or via the ``libb-tokenauth`` console script. The raw key from ``add``
-    is printed once and cannot be recovered.
+    Run as ``python -m libb.tokenauth --table <name>
+    add|renew|revoke|list ...`` or via the ``libb-tokenauth`` console
+    script. The raw key from ``add`` is printed once and cannot be
+    recovered.
 
-    :param argv: Argument list (defaults to sys.argv[1:]).
-    :returns: Process exit code.
+    Parameters
+    ----------
+    argv : list[str] | None, default None
+        Argument list. Defaults to ``sys.argv[1:]``.
+
+    Returns
+    -------
+    int
+        Process exit code. 1 on a refused operation, else 0.
+
+    Notes
+    -----
+    - ``add`` expires a key after ``DEFAULT_TTL_DAYS`` unless
+      ``--no-expiry`` is passed, so the CLI mints expiring keys where
+      :func:`mint_key` called directly does not.
+    - ``list`` marks a row EXPIRED for the reader's benefit. Nothing about
+      that flag is enforcement: :func:`key_active_in_registry` is what
+      refuses the key.
     """
     # argparse/sys deferred: this CLI is never reached when the module is
     # imported by a server, so its import cost stays off the hot path.
@@ -483,6 +694,17 @@ def run_cli(argv: list[str] | None = None) -> int:
                      help='display name (defaults to client_id)')
     add.add_argument('--force', action='store_true',
                      help='overwrite an existing client (rotate its key)')
+    add.add_argument('--ttl-days', type=int, default=DEFAULT_TTL_DAYS,
+                     help=f'days until the key expires (default '
+                          f'{DEFAULT_TTL_DAYS})')
+    add.add_argument('--no-expiry', action='store_true',
+                     help='mint a key that never expires')
+
+    renew = sub.add_parser('renew', help="extend a client's expiry")
+    renew.add_argument('client_id')
+    renew.add_argument('--ttl-days', type=int, default=DEFAULT_TTL_DAYS,
+                       help=f'days from now until the new expiry (default '
+                            f'{DEFAULT_TTL_DAYS})')
 
     revoke = sub.add_parser('revoke', help='deactivate a client')
     revoke.add_argument('client_id')
@@ -494,14 +716,34 @@ def run_cli(argv: list[str] | None = None) -> int:
         try:
             raw_key = mint_key(args.client_id, table=args.table,
                                client_name=args.name, force=args.force,
+                               ttl_days=None if args.no_expiry else args.ttl_days,
                                region=args.region)
         except ClientExistsError:
             print(f'client {args.client_id!r} already exists '
                   f'(use --force to rotate its key)', file=sys.stderr)
             return 1
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
         print(f'client:  {args.client_id}')
         print(f'api key: {raw_key}')
+        if args.no_expiry:
+            print('expires: never')
+        else:
+            print(f'expires: in {args.ttl_days} days')
         print('store this key now -- it cannot be recovered.')
+        return 0
+    if args.command == 'renew':
+        try:
+            expires_at = renew_key(args.client_id, table=args.table,
+                                   ttl_days=args.ttl_days, region=args.region)
+        except ClientNotFoundError:
+            print(f'client {args.client_id!r} not found', file=sys.stderr)
+            return 1
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(f'renewed {args.client_id} until {expires_at}')
         return 0
     if args.command == 'revoke':
         try:
@@ -511,8 +753,24 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 1
         print(f'revoked {args.client_id}')
         return 0
+    now = datetime.datetime.now(datetime.timezone.utc)
     for record in list_clients(table=args.table, region=args.region):
-        print(f'{record.client_id!r:34s} {record.status:8s} {record.created_at}')
+        expiry = record.expires_at or 'never'
+        if record.expires_at:
+            # Parse rather than compare the strings: a backfilled row may
+            # carry 'Z' or a non-UTC offset, which sorts wrong against the
+            # '+00:00' this module writes.
+            try:
+                expires = datetime.datetime.fromisoformat(record.expires_at)
+            except ValueError:
+                expiry = f'{record.expires_at} UNREADABLE'
+            else:
+                if expires.tzinfo is None:
+                    expires = expires.replace(tzinfo=datetime.timezone.utc)
+                if expires <= now:
+                    expiry = f'{record.expires_at} EXPIRED'
+        print(f'{record.client_id!r:34s} {record.status:8s} '
+              f'{record.created_at}  {expiry}')
     return 0
 
 
