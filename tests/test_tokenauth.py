@@ -3,6 +3,7 @@
 import datetime
 import functools
 import hashlib
+import logging
 
 import pytest
 
@@ -80,6 +81,25 @@ def _conditional_error():
     return ClientError(
         {'Error': {'Code': 'ConditionalCheckFailedException', 'Message': 'x'}},
         'Operation')
+
+
+@pytest.fixture
+def tokenauth_warnings():
+    """WARNING records libb.tokenauth logs during a test, as (level, message).
+
+    The suite runs with ``-p no:logging``, which disables ``caplog``.
+    """
+    records = []
+
+    class ListHandler(logging.Handler):
+        def emit(self, record):
+            records.append((record.levelname, record.getMessage()))
+
+    handler = ListHandler(level=logging.WARNING)
+    tokenauth_logger = logging.getLogger('libb.tokenauth')
+    tokenauth_logger.addHandler(handler)
+    yield records
+    tokenauth_logger.removeHandler(handler)
 
 
 class TestHashKey:
@@ -204,6 +224,44 @@ class TestKeyActiveInRegistry:
             _item('c1', digest, active=False, expires_at=_offset_iso(1))])
         assert tokenauth.key_active_in_registry(
             digest, table='t', dynamodb_client=stub) is None
+
+    def test_non_string_expires_at_denies_and_names_its_type(
+            self, tokenauth_warnings):
+        """Verify an epoch-number expires_at fails closed with a true reason.
+
+        Mutation: reading expires_at through .get('S', '') alone, which
+            treats an N row as undated and authorizes it forever while
+            require_expiry is off.
+        Oracle: the same row minus expires_at authorizes, so the N
+            attribute alone flips the result; the log names type N.
+        """
+        digest = hashlib.sha256(b'k').hexdigest()
+        undated = _item('c1', digest)
+        epoch_row = {**undated, 'expires_at': {'N': '4102444800'}}
+        assert tokenauth.key_active_in_registry(
+            digest, table='t',
+            dynamodb_client=StubDynamo(items=[undated])) == 'c1'
+        assert tokenauth.key_active_in_registry(
+            digest, table='t',
+            dynamodb_client=StubDynamo(items=[epoch_row])) is None
+        [(level, message)] = tokenauth_warnings
+        assert 'type N' in message
+        assert 'carries no expires_at' not in message
+
+    def test_expired_key_denial_logs_a_warning(self, tokenauth_warnings):
+        """Verify a lapsed key's refusal reaches the server log.
+
+        Mutation: the expired branch returning None with no log line.
+        Oracle: a WARNING record naming client 'stale'.
+        """
+        digest = hashlib.sha256(b'stale').hexdigest()
+        stub = StubDynamo(
+            items=[_item('stale', digest, expires_at=_offset_iso(-1))])
+        assert tokenauth.key_active_in_registry(
+            digest, table='t', dynamodb_client=stub) is None
+        [(level, message)] = tokenauth_warnings
+        assert level == 'WARNING'
+        assert "'stale' expired at" in message
 
     def test_missing_client_returns_none(self):
         """Verify an unknown key hash denies."""
@@ -443,6 +501,22 @@ class TestListClients:
         stub = StubDynamo(items=[_item('c1', 'h1')])
         assert tokenauth.list_clients(
             table='t', dynamodb_client=stub)[0].expires_at == ''
+
+    def test_epoch_expiry_lists_as_unreadable(self, capsys, monkeypatch):
+        """Verify the CLI listing flags an N-typed expires_at it cannot read.
+
+        Mutation: list_clients reading expires_at through .get('S', ''),
+            which lists a row key_active_in_registry denies as 'never'.
+        Oracle: the stored epoch text followed by the CLI's UNREADABLE
+            marker, for a row whose only expiry is {'N': ...}.
+        """
+        row = {**_item('c1', 'h1'), 'expires_at': {'N': '4102444800'}}
+        stub = StubDynamo(items=[row])
+        monkeypatch.setattr(tokenauth, '_dynamodb_client', lambda *a: stub)
+        assert tokenauth.run_cli(['--table', 't', 'list']) == 0
+        out = capsys.readouterr().out
+        assert '4102444800 UNREADABLE' in out
+        assert 'never' not in out
 
 
 class TestRegistryCheckSeam:

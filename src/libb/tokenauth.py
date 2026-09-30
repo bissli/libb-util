@@ -115,18 +115,16 @@ def _as_client_id(result: Any) -> str | None:
 class ClientRecord(NamedTuple):
     """A registry client row: id, status, creation time, and expiry.
 
-    Attributes
-    ----------
-    client_id : str
-        The registry partition key.
-    status : Literal['active', 'revoked']
-        Read off the ``active`` flag alone, so a row whose ``expires_at``
-        has passed still reads ``active`` here. Expiry is enforced at
-        :func:`key_active_in_registry`, not recorded on the row.
-    created_at : str
-        ISO-8601 UTC.
-    expires_at : str
-        ISO-8601 UTC, empty when the row carries no expiry.
+    :ivar str client_id: The registry partition key.
+    :ivar status: ``'active'`` or ``'revoked'``, read off the ``active``
+        flag alone, so a row whose ``expires_at`` has passed still reads
+        ``active`` here. Expiry is enforced at
+        :func:`key_active_in_registry` and never recorded on the row.
+    :ivar str created_at: ISO-8601 UTC.
+    :ivar str expires_at: ISO-8601 UTC, empty when the row carries no
+        expiry. A stored value of another type comes back as ``str()`` of
+        its value (an epoch ``N`` as its digits, ``NULL`` as ``'True'``),
+        which :func:`key_active_in_registry` denies.
     """
 
     client_id: str
@@ -182,36 +180,27 @@ def key_active_in_registry(
 
     Queries the ``key_sha256-index`` GSI for a single match and reports the
     matched client's identity. Does not catch errors and does not cache --
-    callers decide both. The GSI query already returns the whole row, so
-    surfacing the identity costs nothing over the previous boolean and is
-    what lets a caller attribute a request to a named client.
+    callers decide both.
 
-    Parameters
-    ----------
-    key_sha256 : str
-        SHA-256 hex digest of the presented key.
-    table : str
-        DynamoDB registry table name.
-    region : str | None, default None
-        AWS region for a default boto3 client.
-    dynamodb_client : Any, default None
-        Injected boto3 DynamoDB client.
-    require_expiry : bool, default False
-        Deny a row that carries no ``expires_at``. Left off, such a row is
-        treated as non-expiring.
+    :param str key_sha256: SHA-256 hex digest of the presented key.
+    :param str table: DynamoDB registry table name.
+    :param str region: AWS region for a default boto3 client.
+    :param dynamodb_client: Injected boto3 DynamoDB client.
+    :param bool require_expiry: Deny a row that carries no ``expires_at``.
+        Left off, such a row is treated as non-expiring.
+    :returns: The matched ``client_id`` when the row exists, is active, and
+        has not expired, else None.
+    :rtype: str | None
 
-    Returns
-    -------
-    str | None
-        The matched ``client_id`` when the row exists, is active, and has
-        not expired, else None.
+    Every denial returns None, and an unattributable or stale caller is
+    refused rather than authorized:
 
-    Notes
-    -----
-    - Every denial is silent and returns None: an active row with no
-      ``client_id``, an expired row, and an unparseable ``expires_at``
-      alike. An unattributable or stale caller is refused rather than
-      authorized.
+    - An expired row, an ``expires_at`` that is unparseable or not type
+      ``S``, and an undated row under ``require_expiry`` each log a
+      WARNING naming the client.
+    - A missing row and an inactive row deny with no log line. An active
+      row with no ``client_id`` denies silently unless an expiry denial
+      above logs first, naming client ``''``.
     - A naive ``expires_at`` is read as UTC, matching what
       :func:`mint_key` writes.
     """
@@ -230,7 +219,13 @@ def key_active_in_registry(
     if not item.get('active', {}).get('BOOL', False):
         return None
     client_id = item.get('client_id', {}).get('S', '')
-    expires_at = item.get('expires_at', {}).get('S', '')
+    expires_attr = item.get('expires_at', {})
+    if expires_attr and 'S' not in expires_attr:
+        logger.warning(
+            'client %r has an expires_at of type %s (want S); denying',
+            client_id, ', '.join(expires_attr))
+        return None
+    expires_at = expires_attr.get('S', '')
     if not expires_at:
         if require_expiry:
             logger.warning(
@@ -248,6 +243,8 @@ def key_active_in_registry(
         if expiry.tzinfo is None:
             expiry = expiry.replace(tzinfo=datetime.timezone.utc)
         if expiry <= datetime.datetime.now(datetime.timezone.utc):
+            logger.warning(
+                'client %r expired at %s; denying', client_id, expires_at)
             return None
     return client_id or None
 
@@ -507,21 +504,13 @@ def list_clients(
 ) -> list[ClientRecord]:
     """Return every registered client, sorted by client_id.
 
-    Parameters
-    ----------
-    table : str
-        DynamoDB registry table name.
-    region : str | None, default None
-        AWS region for a default boto3 client.
-    dynamodb_client : Any, default None
-        Injected boto3 DynamoDB client.
-
-    Returns
-    -------
-    list[ClientRecord]
-        Sorted rows. ``status`` reports the ``active`` flag alone, so an
-        expired row still reads ``active``; compare ``expires_at`` against
-        now to tell a live key from a stale one.
+    :param str table: DynamoDB registry table name.
+    :param str region: AWS region for a default boto3 client.
+    :param dynamodb_client: Injected boto3 DynamoDB client.
+    :returns: Sorted rows. ``status`` reports the ``active`` flag alone, so
+        an expired row still reads ``active``. Compare ``expires_at``
+        against now to tell a live key from a stale one.
+    :rtype: list[ClientRecord]
     """
     client = _dynamodb_client(dynamodb_client, region)
     paginator = client.get_paginator('scan')
@@ -531,7 +520,9 @@ def list_clients(
                 item.get('client_id', {}).get('S', ''),
                 'active' if item.get('active', {}).get('BOOL') else 'revoked',
                 item.get('created_at', {}).get('S', ''),
-                item.get('expires_at', {}).get('S', ''),
+                # Any stored type keeps its text, so a row that
+                # key_active_in_registry denies never lists as undated.
+                str(next(iter(item.get('expires_at', {}).values()), '')),
                 ) for item in page.get('Items', []))
     return sorted(rows)
 
@@ -696,7 +687,7 @@ def run_cli(argv: list[str] | None = None) -> int:
                      help='overwrite an existing client (rotate its key)')
     add.add_argument('--ttl-days', type=int, default=DEFAULT_TTL_DAYS,
                      help=f'days until the key expires (default '
-                          f'{DEFAULT_TTL_DAYS})')
+                     f'{DEFAULT_TTL_DAYS})')
     add.add_argument('--no-expiry', action='store_true',
                      help='mint a key that never expires')
 
@@ -704,7 +695,7 @@ def run_cli(argv: list[str] | None = None) -> int:
     renew.add_argument('client_id')
     renew.add_argument('--ttl-days', type=int, default=DEFAULT_TTL_DAYS,
                        help=f'days from now until the new expiry (default '
-                            f'{DEFAULT_TTL_DAYS})')
+                       f'{DEFAULT_TTL_DAYS})')
 
     revoke = sub.add_parser('revoke', help='deactivate a client')
     revoke.add_argument('client_id')
