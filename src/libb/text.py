@@ -1,5 +1,6 @@
 import base64
 import contextlib
+import decimal
 import logging
 import quopri
 import random
@@ -120,12 +121,26 @@ def strip_ascii(s):
 # See libb._libb for the implementation
 
 
-def round_digit_string(s, places=None) -> str:
-    """Round a numeric string to specified decimal places.
+ROUND_CONTEXT = decimal.Context(
+    prec=28, rounding=decimal.ROUND_HALF_EVEN, traps=[decimal.InvalidOperation])
 
-    :param str s: Numeric string to round.
-    :param int places: Number of decimal places (None to preserve original).
-    :returns: Rounded numeric string.
+
+def round_digit_string(s: str, places: int | None = None) -> str:
+    """Round a numeric string to a number of decimal places, digit exact.
+
+    A whole value comes back as a plain integer, with leading zeros and a
+    trailing ``.0`` dropped. Any other value comes back in plain notation,
+    with trailing zeros dropped. ``s`` comes back unchanged when it is not
+    a finite number, or when the result written out needs more than
+    ``ROUND_CONTEXT.prec`` (28) digits, counting trailing zeros before
+    they are dropped. The caller's decimal context has no effect.
+
+    :param str s: A number as text, plain or exponent form. Never an
+        identifier, since leading zeros are dropped.
+    :param int places: Decimal places to round to, half to even. A
+        negative value rounds left of the point. None or 0 keeps every
+        digit, and a whole value ignores it.
+    :returns: Rounded numeric string, or ``s`` stripped.
     :rtype: str
 
     Example::
@@ -136,22 +151,33 @@ def round_digit_string(s, places=None) -> str:
         '7283.1234'
         >>> round_digit_string('7283', 3)
         '7283'
+        >>> round_digit_string('9007199254740993')
+        '9007199254740993'
         >>> round_digit_string('inf')
         'inf'
         >>> round_digit_string('1e400')
         '1e400'
     """
     s = s.strip()
-    with contextlib.suppress(ValueError, OverflowError):
-        f = float(s)
-        i = int(f)
-        if f == i:
-            s = i
-        elif places:
-            s = round(f, places)
-        else:
-            s = f
-        return str(s)
+    with (contextlib.suppress(decimal.InvalidOperation),
+          decimal.localcontext(ROUND_CONTEXT)):
+        value = decimal.Decimal(s)
+        if not value.is_finite():
+            return s
+        if places and value != value.to_integral_value():
+            value = value.quantize(decimal.Decimal(1).scaleb(-places))
+        if not value:
+            return '0'
+        # Count before formatting: an exponent such as 1e999999999
+        # would otherwise be written out in full.
+        exponent = value.as_tuple().exponent
+        digit_cnt = max(value.adjusted() + 1, 1) + max(-exponent, 0)
+        if digit_cnt > ROUND_CONTEXT.prec:
+            return s
+        text = format(value, 'f')
+        if '.' in text:
+            text = text.rstrip('0').rstrip('.')
+        return text
     return s
 
 

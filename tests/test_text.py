@@ -1,3 +1,4 @@
+import decimal
 import math
 
 import pytest
@@ -433,6 +434,159 @@ class TestRoundDigitStringEdgeCases:
         # When value isn't numeric, return as-is
         result = round_digit_string('not a number')
         assert result == 'not a number'
+
+    @pytest.mark.parametrize('s', [
+        '9007199254740993',
+        '-9007199254740993',
+        '12345678901234567890',
+        ])
+    def test_round_digit_string_integer_past_float_precision(self, s):
+        """Verify an integer past 2**53 comes back digit for digit.
+
+        Mutation: float() in place of Decimal() to parse the input.
+        Oracle: the literal input string.
+        """
+        assert round_digit_string(s) == s
+
+    def test_round_digit_string_exponent_keeps_value(self):
+        """Verify a whole exponent input keeps its exact value.
+
+        Mutation: Decimal(float(s)), which reads the value as
+            123456789012345667584.
+        Oracle: the input's decimal point moved 20 places by hand.
+        """
+        assert round_digit_string('1.2345678901234567e20') == (
+            '123456789012345670000')
+
+    @pytest.mark.parametrize('s', [
+        '1e300',
+        '1.5e-300',
+        '1e999999999999999999',
+        ])
+    def test_round_digit_string_long_expansion_returns_input(self, s):
+        """Verify a value past 28 written digits is never written out.
+
+        Mutation: dropping the digit cap, which writes out 300 digits
+            for the first two cases and raises MemoryError for the last.
+        Oracle: the literal input string.
+        """
+        assert round_digit_string(s) == s
+
+    def test_round_digit_string_cap_straddles_28_digits(self):
+        """Verify 28 written digits pass and 29 return the input.
+
+        Mutation: >= in place of > on the digit cap, which returns the
+            28-digit case with its leading zero still on.
+        Oracle: a leading zero dropped at 28 digits and kept at 29, the
+            two sides of ROUND_CONTEXT.prec.
+        """
+        assert round_digit_string('0' + '1' * 28) == '1' * 28
+        assert round_digit_string('0' + '1' * 29) == '0' + '1' * 29
+
+    def test_round_digit_string_non_numeric_comes_back_stripped(self):
+        """Verify non-numeric input returns without its padding.
+
+        Mutation: dropping s.strip(), which Decimal does not need, so
+            only the pass-through return shows it.
+        Oracle: the input text without its surrounding spaces.
+        """
+        assert round_digit_string('  abc  ') == 'abc'
+
+    @pytest.mark.parametrize('s', ['nan', 'NaN', 'inf', '-inf'])
+    def test_round_digit_string_non_finite_returns_input(self, s):
+        """Verify a non-finite value comes back as given.
+
+        Mutation: dropping the is_finite check, so the digit count meets
+            a string exponent and raises TypeError.
+        Oracle: the literal input string.
+        """
+        assert round_digit_string(s) == s
+
+    def test_round_digit_string_rounds_the_decimal_value(self):
+        """Verify rounding acts on the written decimal, not a binary float.
+
+        Mutation: round(float(s), places), which sees 2.67499... and
+            gives '2.67'.
+        Oracle: 2.675 is exact in decimal, so half-even rounds up to 2.68.
+        """
+        assert round_digit_string('2.675', 2) == '2.68'
+
+    def test_round_digit_string_rounding_adds_no_trailing_zeros(self):
+        """Verify rounding to more places than the input holds pads nothing.
+
+        Mutation: dropping the trailing-zero strip returns '7283.100'.
+        Oracle: the input '7283.1', which already fits in three places.
+        """
+        assert round_digit_string('7283.1', 3) == '7283.1'
+
+    @pytest.mark.parametrize(('s', 'places', 'expected'), [
+        ('123.45', -1, '120'),
+        ('7283.12', -2, '7300'),
+        ])
+    def test_round_digit_string_negative_places_keeps_integer_zeros(
+            self, s, places, expected):
+        """Verify rounding left of the point keeps the zeros it makes.
+
+        Mutation: stripping trailing zeros without the '.' guard, which
+            returns '12', a value ten times too small.
+        Oracle: hand-rounded to the tens and hundreds.
+        """
+        assert round_digit_string(s, places) == expected
+
+    @pytest.mark.parametrize(('s', 'places'), [
+        ('-0.001', 2),
+        ('0e30', None),
+        ('0e-30', None),
+        ('0.5', -30),
+        ])
+    def test_round_digit_string_zero_prints_bare_zero(self, s, places):
+        """Verify any zero result prints '0', whatever its sign or exponent.
+
+        Mutation: dropping the zero check returns '-0' for the first case;
+            placing it below the digit cap returns the other inputs as
+            given.
+        Oracle: each value is zero, or rounds to zero.
+        """
+        assert round_digit_string(s, places) == '0'
+
+    def test_round_digit_string_ignores_the_callers_context(self):
+        """Verify a caller's decimal context changes neither mode nor cap.
+
+        Mutation: running under the caller's context in place of
+            ROUND_CONTEXT, which rounds '2.665' half up and, at prec 5,
+            cannot quantize '1234567.891' and returns it unrounded.
+        Oracle: half-even on the exact 2.665 gives 2.66, and
+            1234567.891 to two places is 1234567.89.
+        """
+        with decimal.localcontext() as context:
+            context.rounding = decimal.ROUND_HALF_UP
+            context.prec = 5
+            assert round_digit_string('2.665', 2) == '2.66'
+            assert round_digit_string('1234567.891', 2) == '1234567.89'
+
+    def test_round_digit_string_whole_value_ignores_places(self):
+        """Verify places never rounds a whole value.
+
+        Mutation: dropping the whole-value guard on the quantize, which
+            rounds '7283' to '7300' at places -2.
+        Oracle: the literal input '7283'.
+        """
+        assert round_digit_string('7283', -2) == '7283'
+
+    @pytest.mark.parametrize(('s', 'expected'), [
+        ('7.0', '7'),
+        ('-0.0', '0'),
+        ('0012345', '12345'),
+        ('1.5e2', '150'),
+        ])
+    def test_round_digit_string_whole_value_is_plain_integer(self, s, expected):
+        """Verify a whole value prints as a bare integer.
+
+        Mutation: dropping the zero check gives '-0'; stripping zeros
+            without the '.' guard turns '150' into '15'.
+        Oracle: hand-written integer forms.
+        """
+        assert round_digit_string(s) == expected
 
 
 if __name__ == '__main__':
