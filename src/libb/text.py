@@ -132,8 +132,9 @@ def round_digit_string(s: str, places: int | None = None) -> str:
     trailing ``.0`` dropped. Any other value comes back in plain notation,
     with trailing zeros dropped. ``s`` comes back unchanged when it is not
     a finite number, or when the result written out needs more than
-    ``ROUND_CONTEXT.prec`` (28) digits, counting trailing zeros before
-    they are dropped. The caller's decimal context has no effect.
+    ``ROUND_CONTEXT.prec`` (28) digits. A dropped trailing zero never
+    counts, except while rounding: ``places`` that pad the value past 28
+    digits also return ``s``. The caller's decimal context has no effect.
 
     :param str s: A number as text, plain or exponent form. Never an
         identifier, since leading zeros are dropped.
@@ -170,8 +171,12 @@ def round_digit_string(s: str, places: int | None = None) -> str:
             return '0'
         # Count before formatting: an exponent such as 1e999999999
         # would otherwise be written out in full.
-        exponent = value.as_tuple().exponent
-        digit_cnt = max(value.adjusted() + 1, 1) + max(-exponent, 0)
+        # Skip the trailing zeros the output drops. Never normalize():
+        # it rounds to prec, so the count can undershoot format().
+        _, digits, exponent = value.as_tuple()
+        coefficient = ''.join(map(str, digits))
+        zero_cnt = len(coefficient) - len(coefficient.rstrip('0'))
+        digit_cnt = max(value.adjusted() + 1, 1) + max(-(exponent + zero_cnt), 0)
         if digit_cnt > ROUND_CONTEXT.prec:
             return s
         text = format(value, 'f')

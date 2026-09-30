@@ -483,6 +483,26 @@ class TestRoundDigitStringEdgeCases:
         assert round_digit_string('0' + '1' * 28) == '1' * 28
         assert round_digit_string('0' + '1' * 29) == '0' + '1' * 29
 
+    @pytest.mark.parametrize(('s', 'expected'), [
+        ('10000000000000000000000.000000', '10000000000000000000000'),
+        ('1.' + '1' * 26 + '0' * 6, '1.' + '1' * 26),
+        ])
+    def test_round_digit_string_zero_fraction_skips_cap(self, s, expected):
+        """Verify dropped fraction zeros never count toward the cap.
+
+        Mutation: zero fraction digits counted toward the cap.
+        Oracle: the input with its zero fraction removed by hand.
+        """
+        assert round_digit_string(s) == expected
+
+    def test_round_digit_string_exact_value_past_cap_returns_input(self):
+        """Verify 29 written digits still return the input.
+
+        Mutation: normalize() for the count, which drops the leading zero.
+        Oracle: the literal input, one digit past ROUND_CONTEXT.prec.
+        """
+        assert round_digit_string('01.' + '1' * 28) == '01.' + '1' * 28
+
     def test_round_digit_string_non_numeric_comes_back_stripped(self):
         """Verify non-numeric input returns without its padding.
 
