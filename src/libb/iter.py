@@ -79,10 +79,10 @@ def isiterable(obj):
 
 
 def issequence(obj):
-    """Check if object is a sequence (excluding strings).
+    """Check if object is a sequence (excluding str and bytes-like values).
 
     :param obj: Object to check.
-    :returns: True if sequence and not a string.
+    :returns: True if sequence and not a str, bytes, bytearray or memoryview.
     :rtype: bool
 
     Example::
@@ -92,6 +92,8 @@ def issequence(obj):
         >>> issequence(tuple())
         True
         >>> issequence('foo')
+        False
+        >>> issequence(b'foo')
         False
         >>> issequence(object())
         False
@@ -105,7 +107,8 @@ def issequence(obj):
         >>> issequence(np.array([1,2,3]))
         False
     """
-    return isinstance(obj, Sequence) and not isinstance(obj, str)
+    return isinstance(obj, Sequence) and not isinstance(
+        obj, (str, bytes, bytearray, memoryview))
 
 
 def iscollection(obj):

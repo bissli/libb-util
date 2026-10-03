@@ -34,6 +34,19 @@ class TestTypeChecks:
     def test_issequence_with_string(self):
         assert issequence('hello') is False
 
+    @pytest.mark.parametrize(
+        'value',
+        [b'ab', bytearray(b'ab'), memoryview(b'ab')],
+        ids=['bytes', 'bytearray', 'memoryview'])
+    def test_issequence_with_bytes_like(self, value):
+        """A bytes-like value is one value, never a sequence of its ints.
+
+        Mutation: dropping bytes, bytearray or memoryview from the
+            exclusion in issequence.
+        Oracle: collections.abc registers all three as Sequence.
+        """
+        assert issequence(value) is False
+
     def test_issequence_with_range(self):
         assert issequence(range(10)) is True
 
