@@ -1,3 +1,4 @@
+import builtins
 import contextlib
 
 import pytest
@@ -40,6 +41,24 @@ class TestIsNull:
 
             # pa.NULL is the singleton NullScalar
             assert is_null(pa.NULL) is True
+
+    def test_is_null_pyarrow_import_oserror(self, monkeypatch):
+        """Verify is_null still answers when importing pyarrow raises OSError.
+
+        Mutation: the pyarrow import guard catches ImportError alone.
+        Oracle: a stub import raising the WinError 206 FileNotFoundError
+          that pyarrow's DLL setup raises in a frozen Windows build.
+        """
+        real_import = builtins.__import__
+
+        def failing_import(name, *args, **kwargs):
+            if name.startswith('pyarrow'):
+                raise FileNotFoundError(206, 'The filename or extension is too long')
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, '__import__', failing_import)
+        assert is_null(None) is True
+        assert is_null(1) is False
 
     # Array handling tests - avoid "ambiguous truth value" error
     def test_is_null_empty_list(self):

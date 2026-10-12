@@ -45,7 +45,7 @@ def is_null(x):
         from pyarrow.lib import NullScalar
         if isinstance(x, NullScalar):
             return True
-    except ImportError:
+    except (ImportError, OSError):
         pass
 
     if isinstance(x, np.ndarray):
